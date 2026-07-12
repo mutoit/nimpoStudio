@@ -1,0 +1,126 @@
+/* ── Anchos de contenido ─────────────────────────────── */
+
+.prose {
+  max-width: 42rem;
+}
+
+.prose--sm {
+  max-width: 36rem;
+}
+
+.container--wide {
+  max-width: 90rem;
+}
+
+/* ── Secciones ───────────────────────────────────────── */
+
+.section {
+  width: 100%;
+}
+
+.section--pad {
+  padding-block: 2.5rem;
+}
+
+.section--pad-sm {
+  padding-block: 1.5rem;
+}
+
+/* Fondo y borde a todo el ancho del viewport */
+.section--full {
+  width: 100%;
+}
+
+.section--band {
+  background: var(--color-bg-elevated);
+  border-block: 1px solid var(--color-border);
+  padding-block: 2.5rem;
+}
+
+/* Contenido edge-to-edge (sin padding lateral) */
+.section--bleed {
+  padding-inline: 0;
+}
+
+.section--bleed .container {
+  padding-inline: 0;
+  max-width: none;
+}
+
+/* ── Demo visual de anchos (temporal / referencia) ─── */
+
+.layout-demo__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 500;
+}
+
+.layout-demo__desc {
+  margin: 0 0 1.75rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  max-width: 36rem;
+}
+
+.layout-demo__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.layout-demo__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.layout-demo__label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent-dim);
+}
+
+.layout-rail {
+  height: 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgb(201 169 98 / 0.25);
+}
+
+.layout-rail--prose {
+  width: 100%;
+  max-width: 42rem;
+  background: linear-gradient(
+    90deg,
+    rgb(201 169 98 / 0.15),
+    rgb(201 169 98 / 0.35)
+  );
+}
+
+.layout-rail--container {
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgb(201 169 98 / 0.2),
+    rgb(201 169 98 / 0.45),
+    rgb(201 169 98 / 0.2)
+  );
+}
+
+.layout-rail--viewport {
+  width: 100%;
+  height: 0.85rem;
+  margin-bottom: 2rem;
+  border-radius: 0;
+  border: none;
+  border-block: 1px solid rgb(201 169 98 / 0.35);
+  background: linear-gradient(
+    90deg,
+    rgb(201 169 98 / 0.08),
+    rgb(201 169 98 / 0.3),
+    rgb(201 169 98 / 0.08)
+  );
+}

@@ -8,54 +8,81 @@ const featured = getFeaturedProducts();
 ---
 
 <Layout title={site.name} description={site.description}>
-  <div class="container page">
-    <header class="hero">
-      <p class="hero__eyebrow">{site.tagline}</p>
-      <h1 class="hero__title">{site.name}</h1>
-      <p class="hero__lead">{site.description}</p>
-      <div class="hero__actions">
-        <a href="/musica" class="btn btn--primary">Escuchar música</a>
-        <a href="/catalogo" class="btn btn--ghost">Catálogo</a>
-        <a href="/contacto" class="btn btn--ghost">Contacto</a>
+  <div class="page">
+    <section class="section section--pad">
+      <div class="container">
+        <header class="hero prose">
+          <p class="hero__eyebrow">{site.tagline}</p>
+          <h1 class="hero__title">{site.name}</h1>
+          <p class="hero__lead">{site.description}</p>
+          <div class="hero__actions">
+            <a href="/musica" class="btn btn--primary">Escuchar música</a>
+            <a href="/catalogo" class="btn btn--ghost">Catálogo</a>
+            <a href="/contacto" class="btn btn--ghost">Contacto</a>
+          </div>
+        </header>
       </div>
-    </header>
+    </section>
 
     {
       featured.length > 0 && (
-        <section class="featured" aria-labelledby="featured-heading">
-          <div class="featured__head">
-            <h2 id="featured-heading" class="featured__title">Destacados</h2>
-            <a href="/catalogo" class="featured__link">
-              Ver todo →
-            </a>
+        <section class="section section--pad" aria-labelledby="featured-heading">
+          <div class="container">
+            <div class="featured__head">
+              <h2 id="featured-heading" class="featured__title">Destacados</h2>
+              <a href="/catalogo" class="featured__link">
+                Ver todo →
+              </a>
+            </div>
+            <ul class="featured__grid">
+              {featured.map((product) => (
+                <li>
+                  <ProductCard product={product} />
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul class="featured__grid">
-            {featured.map((product) => (
-              <li>
-                <ProductCard product={product} />
-              </li>
-            ))}
-          </ul>
         </section>
       )
     }
 
-    <section class="note">
-      <p>
-        La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
-        catálogo y escríbenos si te interesa algún producto.
-      </p>
+    <section class="section section--full section--band" aria-label="Referencia de anchos de layout">
+      <div class="layout-rail layout-rail--viewport" aria-hidden="true"></div>
+      <div class="container">
+        <h2 class="layout-demo__title">Sistema de anchos</h2>
+        <p class="layout-demo__desc">
+          Referencia visual. La barra superior llega al borde de la pantalla; las de abajo muestran
+          container y prose. El feed de novedades iría en un frame <code>section--full</code>.
+        </p>
+        <div class="layout-demo__rows">
+          <div class="layout-demo__row">
+            <p class="layout-demo__label">Container — máx. 72rem</p>
+            <div class="layout-rail layout-rail--container" aria-hidden="true"></div>
+          </div>
+          <div class="layout-demo__row">
+            <p class="layout-demo__label">Prose — máx. 42rem (textos)</p>
+            <div class="layout-rail layout-rail--prose" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--pad">
+      <div class="container">
+        <div class="note prose">
+          <p>
+            La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
+            catálogo y escríbenos si te interesa algún producto.
+          </p>
+        </div>
+      </div>
     </section>
   </div>
 </Layout>
 
 <style>
   .page {
-    padding-block: 2.5rem 4rem;
-  }
-
-  .hero {
-    max-width: 40rem;
+    padding-block: 0 4rem;
   }
 
   .hero__eyebrow {
@@ -125,10 +152,6 @@ const featured = getFeaturedProducts();
     border-color: var(--color-fg);
   }
 
-  .featured {
-    margin-top: 4rem;
-  }
-
   .featured__head {
     display: flex;
     align-items: baseline;
@@ -171,7 +194,6 @@ const featured = getFeaturedProducts();
   }
 
   .note {
-    margin-top: 3.5rem;
     padding: 1.25rem 1.5rem;
     border-radius: var(--radius);
     border: 1px solid var(--color-border);
@@ -183,5 +205,12 @@ const featured = getFeaturedProducts();
     font-size: 0.9rem;
     line-height: 1.6;
     color: var(--color-muted);
+  }
+
+  code {
+    font-size: 0.85em;
+    background: var(--color-accent-light);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
   }
 </style>

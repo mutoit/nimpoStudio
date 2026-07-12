@@ -2,11 +2,9 @@
 import UpdatesPanel from "./UpdatesPanel.astro";
 ---
 
-<div class="page-frame">
-  <main class="page-frame__main">
-    <slot />
-  </main>
-  <aside class="page-frame__aside" aria-label="Novedades y mejoras">
+<div class="page-with-feed">
+  <slot />
+  <aside class="page-with-feed__rail" aria-label="Novedades y mejoras">
     <UpdatesPanel />
   </aside>
 </div>

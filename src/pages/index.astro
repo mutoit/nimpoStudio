@@ -12,44 +12,50 @@ const featured = getFeaturedProducts();
   <PageFrame>
     <div class="page">
       <section class="section section--pad">
-        <header class="hero prose">
-          <p class="hero__eyebrow">{site.tagline}</p>
-          <h1 class="hero__title">{site.name}</h1>
-          <p class="hero__lead">{site.description}</p>
-          <div class="hero__actions">
-            <a href="/musica" class="btn btn--primary">Escuchar música</a>
-            <a href="/catalogo" class="btn btn--ghost">Catálogo</a>
-            <a href="/contacto" class="btn btn--ghost">Contacto</a>
-          </div>
-        </header>
+        <div class="container">
+          <header class="hero prose">
+            <p class="hero__eyebrow">{site.tagline}</p>
+            <h1 class="hero__title">{site.name}</h1>
+            <p class="hero__lead">{site.description}</p>
+            <div class="hero__actions">
+              <a href="/musica" class="btn btn--primary">Escuchar música</a>
+              <a href="/catalogo" class="btn btn--ghost">Catálogo</a>
+              <a href="/contacto" class="btn btn--ghost">Contacto</a>
+            </div>
+          </header>
+        </div>
       </section>
 
       {
         featured.length > 0 && (
           <section class="section section--pad" aria-labelledby="featured-heading">
-            <div class="featured__head">
-              <h2 id="featured-heading" class="featured__title">Destacados</h2>
-              <a href="/catalogo" class="featured__link">
-                Ver todo →
-              </a>
+            <div class="container">
+              <div class="featured__head">
+                <h2 id="featured-heading" class="featured__title">Destacados</h2>
+                <a href="/catalogo" class="featured__link">
+                  Ver todo →
+                </a>
+              </div>
+              <ul class="featured__grid">
+                {featured.map((product) => (
+                  <li>
+                    <ProductCard product={product} />
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul class="featured__grid">
-              {featured.map((product) => (
-                <li>
-                  <ProductCard product={product} />
-                </li>
-              ))}
-            </ul>
           </section>
         )
       }
 
       <section class="section section--pad">
-        <div class="note prose">
-          <p>
-            La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
-            catálogo y escríbenos si te interesa algún producto.
-          </p>
+        <div class="container">
+          <div class="note prose">
+            <p>
+              La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
+              catálogo y escríbenos si te interesa algún producto.
+            </p>
+          </div>
         </div>
       </section>
     </div>
@@ -166,12 +172,6 @@ const featured = getFeaturedProducts();
   @media (min-width: 640px) {
     .featured__grid {
       grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (min-width: 1080px) {
-    .featured__grid {
-      grid-template-columns: 1fr;
     }
   }
 

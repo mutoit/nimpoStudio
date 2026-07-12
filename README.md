@@ -68,6 +68,11 @@ Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras
 
 Cada push a `main` redeploya automáticamente.
 
+## Documentación de infraestructura
+
+Configuración Cloudflare, Squarespace, DNS, Workers y email:  
+→ [`docs/configuracion.md`](docs/configuracion.md)
+
 ## Roadmap
 
 | Fase | Qué incluye |

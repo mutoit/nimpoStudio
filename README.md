@@ -58,15 +58,13 @@ git push -u origin main
 
 Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras.
 
-## Deploy en Cloudflare Pages
+## Deploy en Cloudflare
 
-1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → conectar GitHub.
-2. Repo: `mutoit/nimpoStudio`
-3. **Root directory:** `nimpo-studio` (si el repo incluye otras carpetas en la raíz) o `/` si solo está este proyecto.
-4. **Build command:** `npm run build`
-5. **Build output:** `dist`
-6. **Node version:** 22
-7. **Custom domain:** `nimpo3dstudio.com`
+1. Conectar repo `mutoit/nimpoStudio` en Cloudflare.
+2. **Build command:** `npm run build`
+3. **Deploy command:** `npx wrangler deploy` (usa `wrangler.toml` → carpeta `dist/`)
+4. **Node version:** 22
+5. Tras el deploy: **Custom domain** → `nimpo3dstudio.com`
 
 Cada push a `main` redeploya automáticamente.
 

@@ -1,6 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import MusicCard from "../../components/MusicCard.astro";
+import MusicMidiBadge from "../../components/MusicMidiBadge.astro";
 import { getPublishedReleases } from "../../lib/music";
 import { site } from "../../lib/site";
 
@@ -8,16 +9,17 @@ const releases = getPublishedReleases();
 ---
 
 <Layout
-  title="Música"
-  description={`Composiciones originales de ${site.name}. Escucha previews y conoce cada pack o tema.`}
+  title="Música — Composiciones originales MIDI"
+  description={`Composiciones originales MIDI de ${site.name}. Piezas propias creadas en MIDI: escucha previews y conoce cada pack o tema.`}
 >
   <div class="container">
     <header class="hero">
-      <p class="hero__eyebrow">Composiciones</p>
+      <MusicMidiBadge />
       <h1 class="hero__title">Música</h1>
       <p class="hero__desc">
-        Singles, EPs, álbumes y packs de sincronización. Cada lanzamiento incluye una presentación
-        y previews para escuchar antes de comprar.
+        Todas las piezas son <strong>composiciones originales MIDI</strong> del estudio: singles,
+        EPs, álbumes y packs de sincronización. Cada lanzamiento incluye presentación y previews
+        para escuchar antes de comprar.
       </p>
     </header>
 
@@ -49,21 +51,12 @@ const releases = getPublishedReleases();
 
 <style>
   .hero {
-    max-width: 38rem;
+    max-width: 40rem;
     margin-bottom: 2.5rem;
   }
 
-  .hero__eyebrow {
-    margin: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--color-warm);
-  }
-
   .hero__title {
-    margin: 0.5rem 0 0;
+    margin: 1.15rem 0 0;
     font-family: var(--font-display);
     font-size: clamp(2.5rem, 5vw, 3.75rem);
     font-weight: 500;
@@ -75,6 +68,11 @@ const releases = getPublishedReleases();
     color: var(--color-muted);
     font-size: 1.05rem;
     line-height: 1.65;
+  }
+
+  .hero__desc strong {
+    color: var(--color-accent);
+    font-weight: 600;
   }
 
   .grid {

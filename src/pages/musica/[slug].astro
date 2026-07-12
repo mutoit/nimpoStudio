@@ -1,5 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
+import MusicMidiBadge from "../../components/MusicMidiBadge.astro";
 import MusicTracklist from "../../components/MusicTracklist.astro";
 import {
   getReleaseBySlug,
@@ -58,13 +59,16 @@ if (!release) {
       </div>
 
       <div class="release__content">
+        <MusicMidiBadge size="inline" />
         <h1 class="release__title">{release.name}</h1>
         {
           release.status === "coming-soon" && (
             <p class="release__badge">Próximamente disponible</p>
           )
         }
-        <p class="release__lead">{release.shortDescription}</p>
+        <p class="release__lead">
+          Composición original MIDI. {release.shortDescription}
+        </p>
         <div class="release__presentation">
           <h2 class="release__presentation-title">Presentación</h2>
           <p>{release.description}</p>
@@ -164,7 +168,7 @@ if (!release) {
   }
 
   .release__title {
-    margin: 0;
+    margin: 0.85rem 0 0;
     font-family: var(--font-display);
     font-size: clamp(2.25rem, 4vw, 3.25rem);
     font-weight: 500;

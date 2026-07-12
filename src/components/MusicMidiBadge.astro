@@ -1,0 +1,64 @@
+---
+type Props = {
+  size?: "hero" | "inline";
+};
+
+const { size = "hero" } = Astro.props;
+---
+
+<p class:list={["midi-badge", size === "inline" && "midi-badge--inline"]} role="note">
+  <span class="midi-badge__text">Composiciones originales MIDI</span>
+</p>
+
+<style>
+  .midi-badge {
+    position: relative;
+    display: inline-flex;
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .midi-badge__text {
+    display: inline-block;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.55);
+    background: linear-gradient(
+      135deg,
+      rgb(201 169 98 / 0.18) 0%,
+      rgb(201 169 98 / 0.06) 100%
+    );
+    box-shadow:
+      0 0 20px rgb(201 169 98 / 0.15),
+      inset 0 1px 0 rgb(255 243 212 / 0.12);
+    font-family: var(--font-body);
+    font-size: clamp(0.8rem, 2vw, 0.95rem);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #fff3d4;
+    text-shadow: 0 0 12px rgb(201 169 98 / 0.45);
+    line-height: 1.2;
+  }
+
+  .midi-badge::before {
+    content: "";
+    position: absolute;
+    inset: -8px -14px;
+    border-radius: 999px;
+    background: radial-gradient(
+      ellipse at center,
+      rgb(201 169 98 / 0.22) 0%,
+      transparent 70%
+    );
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .midi-badge--inline .midi-badge__text {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.1);
+  }
+</style>

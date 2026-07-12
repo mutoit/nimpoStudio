@@ -23,13 +23,18 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 - [x] Home — landing con destacados y CTAs
 - [x] **Música** — `/musica` + ficha `/musica/[slug]` (presentación + tracklist + preview player)
 - [x] **Catálogo** — `/catalogo` + ficha producto (software, packs, presets, licencias)
+- [x] **Feed Novedades** — panel lateral derecho (home, pantalla ≥1500px); datos en `updates.json`
+- [x] Cabecera — badge «en construcción» con brillo
 - [x] Sobre, Contacto, Privacidad, Términos (esqueleto legal)
 - [x] Diseño carbon + dorado, nav, footer
+- [x] Utilidades layout — `prose`, `section--full` (`src/styles/layout.css`)
 - [x] Portadas SVG de ejemplo (productos y música)
+- [x] Email contacto activo (`emailStatus: "active"`)
 
 ### Código preparado para crecer
 - [x] `src/data/products.json` — catálogo digital
 - [x] `src/data/music.json` — lanzamientos musicales
+- [x] `src/data/updates.json` — feed de novedades (editar para publicar avisos)
 - [x] `public/previews/music/` — carpeta para MP3 de preview
 - [x] `public/images/products/` y `public/images/music/` — portadas
 - [x] `functions/README.md` — rutas API futuras documentadas
@@ -50,6 +55,7 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 | Textos legales finales | `src/content/legal/` | Antes de activar ventas |
 | Redes sociales | `src/config/site.json` → `social` | Instagram vacío |
 | Marcar ejemplos como borrador | `status: "draft"` en JSON | Opcional hasta tener contenido |
+| Novedades / avisos | `src/data/updates.json` | Una entrada real publicada (web en construcción) |
 
 ---
 
@@ -75,6 +81,9 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 
 ### Fase 4 — Admin (opcional)
 - [ ] Panel o CMS para productos sin tocar JSON
+
+### Opcional — feed
+- [ ] Mini reproductor de preview en el panel Novedades (cuando haya MP3)
 
 ---
 
@@ -108,6 +117,8 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 | `src/config/site.json` | Marca, email, redes |
 | `src/data/music.json` | Lanzamientos musicales |
 | `src/data/products.json` | Catálogo digital |
+| `src/data/updates.json` | Feed de novedades |
+| `src/styles/layout.css` | Anchos (prose, section--full, panel feed) |
 | `README.md` | Cómo desarrollar y añadir productos |
 
 ---
@@ -123,6 +134,8 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 
 ## Historial reciente (commits relevantes)
 
+- Feed Novedades + `updates.json` (panel lateral, sin romper container)
+- Utilidades layout (`prose`, `section--full`)
 - Catálogo fase 1 abierto (landing, nav, portadas locales)
 - Email contacto activo en web
 - Sección Música (tracklist, previews, presentación por pack/tema)

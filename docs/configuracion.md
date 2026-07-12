@@ -65,13 +65,15 @@ Estado esperado: **Active**
 
 > `192.0.2.1` es un placeholder. Con proxy activado, Cloudflare enruta el tráfico al Worker.
 
-### Registros de email (mantener)
+### Registros de email (Cloudflare Email Routing)
 
 | Tipo | Nombre | Contenido | Proxy |
 |------|--------|-----------|-------|
-| MX | `@` | `smtp.google.com` (prioridad 1) | DNS only |
-| TXT | `@` | `v=spf1 include:_spf.google.com ~all` | DNS only |
-| TXT | `google._domainkey` | (clave DKIM de Google) | DNS only |
+| MX | `@` | `route1/2/3.mx.cloudflare.net` (prioridades 60, 68, 81) | DNS only |
+| TXT | `@` | `v=spf1 include:_spf.mx.cloudflare.net ~all` | DNS only |
+| TXT | `cf2024-1._domainkey` | (DKIM Cloudflare) | DNS only |
+
+> Puede quedar `google._domainkey` (histórico); no afecta al reenvío actual.
 
 ### No debe haber
 
@@ -132,17 +134,18 @@ routes = [
 
 ## Email
 
-### Ahora (Google Workspace / MX)
+### Activo — Cloudflare Email Routing (julio 2026)
 
-Los registros MX y TXT en DNS apuntan a **Google**. Si usas Gmail/Google Workspace con `@nimpo3dstudio.com`, no borres esos registros.
+- `contacto@nimpo3dstudio.com` → reenvío a `nosinfantasia@gmail.com`
+- MX en DNS: `route1/2/3.mx.cloudflare.net` (Cloudflare, no Google)
+- Regla: **contacto forward** activa
+- Web: `src/config/site.json` → `"emailStatus": "active"`
 
-### Futuro recomendado (gratis, sin Google Workspace)
+Para responder como `contacto@…` desde Gmail: **Configuración → Enviar correo como**.
 
-**Cloudflare Email Routing:**
+### Histórico
 
-1. Domains → `nimpo3dstudio.com` → **Email** → **Email Routing**
-2. Crear `contacto@nimpo3dstudio.com` → reenvío a tu Gmail personal
-3. En `src/config/site.json` → `"emailStatus": "active"`
+Antes había MX de Google (`smtp.google.com`); se sustituyeron al activar Email Routing.
 
 ---
 
@@ -220,5 +223,5 @@ La carpeta `functions/` está reservada; ver `functions/README.md`.
 
 ## Contacto en la web
 
-- Email configurado: `contacto@nimpo3dstudio.com` (pendiente Email Routing si aún no activo)
+- Email activo: `contacto@nimpo3dstudio.com` (Cloudflare Email Routing → Gmail)
 - GitHub: https://github.com/mutoit/nimpoStudio

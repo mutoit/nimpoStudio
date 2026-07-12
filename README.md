@@ -91,6 +91,7 @@ Configuración Cloudflare, Squarespace, DNS, Workers y email:
 
 ```
 docs/estado.md           ← tareas y estado del proyecto
+src/data/updates.json    ← feed de novedades (panel lateral)
 src/data/music.json      ← composiciones / lanzamientos
 src/data/products.json   ← catálogo digital
 src/config/site.json     ← marca y contacto

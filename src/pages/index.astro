@@ -1,6 +1,5 @@
 ---
 import Layout from "../components/Layout.astro";
-import ConstructionGlow from "../components/ConstructionGlow.astro";
 import ProductCard from "../components/ProductCard.astro";
 import { getFeaturedProducts } from "../lib/products";
 import { site } from "../lib/site";
@@ -9,7 +8,6 @@ const featured = getFeaturedProducts();
 ---
 
 <Layout title={site.name} description={site.description}>
-  <ConstructionGlow />
   <div class="container page">
     <header class="hero">
       <p class="hero__eyebrow">{site.tagline}</p>
@@ -53,8 +51,6 @@ const featured = getFeaturedProducts();
 
 <style>
   .page {
-    position: relative;
-    z-index: 1;
     padding-block: 2.5rem 4rem;
   }
 

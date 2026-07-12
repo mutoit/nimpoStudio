@@ -15,7 +15,8 @@ const currentPath = Astro.url.pathname;
   <div class="container header__inner">
     <a href="/" class="logo">
       <span class="logo__mark" aria-hidden="true"></span>
-      {site.name}
+      <span class="logo__name">{site.name}</span>
+      <span class="logo__status" aria-label="Sitio en construcción">en construcción</span>
     </a>
     <nav class="nav" aria-label="Principal">
       {
@@ -56,12 +57,116 @@ const currentPath = Astro.url.pathname;
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    text-decoration: none;
+    color: var(--color-fg);
+    min-width: 0;
+  }
+
+  .logo__name {
     font-family: var(--font-display);
     font-size: 1.4rem;
     font-weight: 500;
-    text-decoration: none;
     letter-spacing: 0.02em;
-    color: var(--color-fg);
+    white-space: nowrap;
+  }
+
+  .logo__status {
+    position: relative;
+    flex-shrink: 0;
+    padding: 0.2rem 0.55rem;
+    font-family: var(--font-body);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #fff3d4;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: rgb(201 169 98 / 0.08);
+    animation: status-glow 4s ease-in-out infinite;
+  }
+
+  .logo__status::before {
+    content: "";
+    position: absolute;
+    inset: -6px -10px;
+    border-radius: 999px;
+    background: radial-gradient(
+      ellipse at center,
+      rgb(201 169 98 / 0.35) 0%,
+      rgb(201 169 98 / 0.08) 45%,
+      transparent 72%
+    );
+    z-index: -1;
+    animation: status-halo 4s ease-in-out infinite;
+  }
+
+  @keyframes status-glow {
+    0%,
+    100% {
+      opacity: 0.45;
+      border-color: rgb(201 169 98 / 0.25);
+      box-shadow:
+        0 0 6px rgb(201 169 98 / 0.2),
+        0 0 14px rgb(201 169 98 / 0.12),
+        inset 0 0 8px rgb(201 169 98 / 0.06);
+      text-shadow:
+        0 0 6px rgb(201 169 98 / 0.35),
+        0 0 14px rgb(201 169 98 / 0.2);
+    }
+
+    50% {
+      opacity: 1;
+      border-color: rgb(255 236 180 / 0.7);
+      box-shadow:
+        0 0 8px rgb(255 248 220 / 0.55),
+        0 0 18px rgb(201 169 98 / 0.65),
+        0 0 36px rgb(201 169 98 / 0.4),
+        0 0 56px rgb(201 169 98 / 0.18),
+        inset 0 0 12px rgb(255 236 180 / 0.15);
+      text-shadow:
+        0 0 8px rgb(255 248 220 / 0.9),
+        0 0 16px rgb(201 169 98 / 0.95),
+        0 0 28px rgb(201 169 98 / 0.65),
+        0 0 42px rgb(201 169 98 / 0.35);
+    }
+  }
+
+  @keyframes status-halo {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.92);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .logo__name {
+      font-size: 1.15rem;
+    }
+
+    .logo__status {
+      font-size: 0.5rem;
+      letter-spacing: 0.12em;
+      padding: 0.15rem 0.4rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .logo__status,
+    .logo__status::before {
+      animation: none;
+      opacity: 0.85;
+      box-shadow:
+        0 0 12px rgb(201 169 98 / 0.4),
+        0 0 24px rgb(201 169 98 / 0.2);
+      text-shadow: 0 0 10px rgb(201 169 98 / 0.6);
+    }
   }
 
   .logo__mark {

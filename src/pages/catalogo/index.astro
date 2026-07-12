@@ -1,0 +1,181 @@
+---
+import Layout from "../../components/Layout.astro";
+import ProductCard from "../../components/ProductCard.astro";
+import {
+  categoryLabels,
+  getAllCategories,
+  getPublishedProducts,
+} from "../../lib/products";
+import { site } from "../../lib/site";
+
+const products = getPublishedProducts();
+const categories = getAllCategories();
+---
+
+<Layout title="Catálogo" description={`Catálogo de productos digitales de ${site.name}`}>
+  <div class="container">
+    <header class="hero">
+      <p class="hero__eyebrow">Productos digitales</p>
+      <h1 class="hero__title">Catálogo</h1>
+      <p class="hero__desc">
+        Explora packs, presets, licencias y recursos. La tienda y el área de clientes llegarán en
+        fases posteriores.
+      </p>
+    </header>
+
+    <div class="toolbar" role="group" aria-label="Filtrar por categoría">
+      <button type="button" class="filter is-active" data-filter="all">Todos</button>
+      {
+        categories.map((cat) => (
+          <button type="button" class="filter" data-filter={cat}>
+            {categoryLabels[cat]}
+          </button>
+        ))
+      }
+    </div>
+
+    {
+      products.length === 0 ? (
+        <div class="empty">
+          <p class="empty__title">Sin productos publicados</p>
+          <p class="empty__desc">Añade entradas en <code>src/data/products.json</code></p>
+        </div>
+      ) : (
+        <ul class="grid" id="product-grid">
+          {products.map((product) => (
+            <li class="grid__item" data-category={product.category}>
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</Layout>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>(".filter");
+  const items = document.querySelectorAll<HTMLLIElement>(".grid__item");
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const filter = button.dataset.filter ?? "all";
+
+      buttons.forEach((b) => b.classList.toggle("is-active", b === button));
+
+      items.forEach((item) => {
+        const category = item.dataset.category;
+        const show = filter === "all" || category === filter;
+        item.hidden = !show;
+      });
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    max-width: 36rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero__eyebrow {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-warm);
+  }
+
+  .hero__title {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 5vw, 3.25rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .hero__desc {
+    margin: 1rem 0 0;
+    color: var(--color-muted);
+    font-size: 1.05rem;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .filter {
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    color: var(--color-muted);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter:hover {
+    border-color: var(--color-fg);
+    color: var(--color-fg);
+  }
+
+  .filter.is-active {
+    background: var(--color-fg);
+    border-color: var(--color-fg);
+    color: var(--color-surface);
+  }
+
+  .grid {
+    display: grid;
+    gap: 2rem 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (min-width: 640px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .empty {
+    padding: 4rem 2rem;
+    text-align: center;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .empty__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+  }
+
+  .empty__desc {
+    margin: 0.5rem 0 0;
+    color: var(--color-muted);
+  }
+
+  code {
+    font-size: 0.85em;
+    background: var(--color-accent-light);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+</style>

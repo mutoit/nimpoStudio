@@ -1,0 +1,41 @@
+---
+import Layout from "../components/Layout.astro";
+import { site } from "../lib/site";
+---
+
+<Layout title="Términos" description={`Términos y condiciones de ${site.name}`}>
+  <div class="container page legal">
+    <h1>Términos y condiciones</h1>
+    <p><strong>Estado: borrador — en preparación</strong></p>
+    <p>Esta página se completará antes de activar la tienda.</p>
+    <p>Temas que incluirá:</p>
+    <ul>
+      <li>Condiciones de licencia por producto</li>
+      <li>Política de reembolsos</li>
+      <li>Uso permitido de productos digitales</li>
+      <li>Limitación de responsabilidad</li>
+    </ul>
+  </div>
+</Layout>
+
+<style>
+  .legal {
+    max-width: 40rem;
+  }
+
+  .legal h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    margin: 0 0 1rem;
+  }
+
+  .legal p,
+  .legal li {
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+
+  .legal strong {
+    color: var(--color-warm);
+  }
+</style>

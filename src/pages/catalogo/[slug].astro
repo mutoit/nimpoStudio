@@ -1,0 +1,207 @@
+---
+import Layout from "../../components/Layout.astro";
+import ProductGallery from "../../components/ProductGallery.astro";
+import AudioPreview from "../../components/AudioPreview.astro";
+import {
+  categoryLabels,
+  getProductBySlug,
+  getStaticProductPaths,
+  licenseLabels,
+} from "../../lib/products";
+
+export function getStaticPaths() {
+  return getStaticProductPaths();
+}
+
+const { slug } = Astro.params;
+const product = getProductBySlug(slug!);
+
+if (!product) {
+  return Astro.redirect("/catalogo");
+}
+---
+
+<Layout
+  title={product.name}
+  description={product.shortDescription}
+  image={product.images[0]}
+>
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Migas de pan">
+      <a href="/catalogo">Catálogo</a>
+      <span aria-hidden="true">/</span>
+      <span>{product.name}</span>
+    </nav>
+
+    <article class="detail">
+      <ProductGallery images={product.images} name={product.name} />
+
+      <div class="detail__content">
+        <p class="detail__category">{categoryLabels[product.category]}</p>
+        <h1 class="detail__title">{product.name}</h1>
+
+        {
+          product.status === "coming-soon" && (
+            <p class="detail__badge">Próximamente disponible</p>
+          )
+        }
+
+        <p class="detail__desc">{product.description}</p>
+
+        <dl class="meta">
+          <div class="meta__row">
+            <dt>Licencia</dt>
+            <dd>{licenseLabels[product.licenseType]}</dd>
+          </div>
+          <div class="meta__row">
+            <dt>Formatos</dt>
+            <dd>{product.formats.join(", ")}</dd>
+          </div>
+          {
+            product.tags.length > 0 && (
+              <div class="meta__row">
+                <dt>Etiquetas</dt>
+                <dd>{product.tags.join(", ")}</dd>
+              </div>
+            )
+          }
+        </dl>
+
+        {
+          product.previewAudio && (
+            <AudioPreview src={product.previewAudio} title={product.name} />
+          )
+        }
+
+        <p class="notice">
+          Compra y descarga disponibles próximamente. Por ahora este producto forma parte del
+          catálogo público.
+        </p>
+
+        <a href="/catalogo" class="back">← Volver al catálogo</a>
+      </div>
+    </article>
+  </div>
+</Layout>
+
+<style>
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+
+  .breadcrumb a {
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+
+  .breadcrumb a:hover {
+    color: var(--color-fg);
+  }
+
+  .detail {
+    display: grid;
+    gap: 2.5rem;
+  }
+
+  @media (min-width: 900px) {
+    .detail {
+      grid-template-columns: 1fr 1fr;
+      gap: 3.5rem;
+      align-items: start;
+    }
+  }
+
+  .detail__category {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-warm);
+  }
+
+  .detail__title {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .detail__badge {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: var(--color-accent-light);
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .detail__desc {
+    margin: 1.25rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--color-muted);
+  }
+
+  .meta {
+    margin: 2rem 0 0;
+    padding: 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .meta__row {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .meta__row:not(:last-child) {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .meta__row dt {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+
+  .meta__row dd {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .notice {
+    margin: 1.5rem 0 0;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius);
+    background: var(--color-accent-light);
+    color: var(--color-accent);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .back {
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--color-fg);
+  }
+
+  .back:hover {
+    color: var(--color-accent);
+  }
+</style>

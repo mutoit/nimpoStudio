@@ -1,0 +1,70 @@
+[
+  {
+    "slug": "pack-ambient-loops-vol-1",
+    "name": "Ambient Loops Vol. 1",
+    "category": "sample-packs",
+    "status": "published",
+    "shortDescription": "12 loops atmosféricos listos para producción.",
+    "description": "Colección de loops ambientales grabados y procesados en el estudio. Incluye stems y archivos WAV 24-bit. Ideal para soundscapes, cinemática y música electrónica.",
+    "images": [
+      "https://images.unsplash.com/photo-1511379938543-c1f69419868d?w=800&q=80"
+    ],
+    "tags": ["ambient", "loops", "wav"],
+    "licenseType": "commercial",
+    "formats": ["WAV", "STEMS"],
+    "previewAudio": null,
+    "price": null,
+    "featured": true
+  },
+  {
+    "slug": "preset-pack-analog-warmth",
+    "name": "Analog Warmth Presets",
+    "category": "presets",
+    "status": "published",
+    "shortDescription": "20 presets con carácter analógico para sintetizadores.",
+    "description": "Presets diseñados para calidez y textura. Compatibles con los formatos más usados en producción. Documentación de cada preset incluida.",
+    "images": [
+      "https://images.unsplash.com/photo-1598488035139-bdbb2231ce00?w=800&q=80"
+    ],
+    "tags": ["presets", "synth"],
+    "licenseType": "personal",
+    "formats": ["FXP", "VST"],
+    "previewAudio": null,
+    "price": null,
+    "featured": true
+  },
+  {
+    "slug": "bundle-creator-starter",
+    "name": "Creator Starter Bundle",
+    "category": "bundles",
+    "status": "coming-soon",
+    "shortDescription": "Pack inicial con loops, presets y recursos de marca.",
+    "description": "Bundle de lanzamiento que reunirá los mejores recursos para empezar. Disponible próximamente.",
+    "images": [
+      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80"
+    ],
+    "tags": ["bundle"],
+    "licenseType": "commercial",
+    "formats": ["WAV", "PDF"],
+    "previewAudio": null,
+    "price": null,
+    "featured": false
+  },
+  {
+    "slug": "licencia-exclusiva-custom",
+    "name": "Licencia Exclusiva",
+    "category": "licencias",
+    "status": "published",
+    "shortDescription": "Cesión exclusiva de obra bajo condiciones personalizadas.",
+    "description": "Para proyectos que requieren exclusividad total. Contacta para definir alcance, territorio y condiciones de uso.",
+    "images": [
+      "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&q=80"
+    ],
+    "tags": ["licencia", "exclusivo"],
+    "licenseType": "exclusive",
+    "formats": ["Contrato"],
+    "previewAudio": null,
+    "price": null,
+    "featured": false
+  }
+]

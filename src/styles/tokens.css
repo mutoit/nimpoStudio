@@ -1,0 +1,15 @@
+:root {
+  --color-bg: #f4f1ec;
+  --color-surface: #fffcf8;
+  --color-fg: #1a1816;
+  --color-muted: #6b6560;
+  --color-accent: #2d5a4a;
+  --color-accent-light: #d4e8df;
+  --color-border: #e0dbd3;
+  --color-warm: #b85c38;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --radius: 12px;
+  --shadow: 0 16px 40px -12px rgb(26 24 22 / 0.12);
+  --max-width: 72rem;
+}

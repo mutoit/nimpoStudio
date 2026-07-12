@@ -1,0 +1,41 @@
+---
+import Layout from "../components/Layout.astro";
+import { site } from "../lib/site";
+---
+
+<Layout title="Privacidad" description={`Política de privacidad de ${site.name}`}>
+  <div class="container page legal">
+    <h1>Política de privacidad</h1>
+    <p><strong>Estado: borrador — en preparación</strong></p>
+    <p>Esta página se completará antes de activar ventas y recogida de datos de clientes.</p>
+    <p>Temas que incluirá:</p>
+    <ul>
+      <li>Responsable del tratamiento</li>
+      <li>Datos que se recogen (contacto, pedidos, cuentas)</li>
+      <li>Base legal y derechos (RGPD)</li>
+      <li>Cookies y analítica</li>
+    </ul>
+  </div>
+</Layout>
+
+<style>
+  .legal {
+    max-width: 40rem;
+  }
+
+  .legal h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    margin: 0 0 1rem;
+  }
+
+  .legal p,
+  .legal li {
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+
+  .legal strong {
+    color: var(--color-warm);
+  }
+</style>

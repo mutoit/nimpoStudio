@@ -1,0 +1,96 @@
+---
+import { site } from "../lib/site";
+
+const nav = [
+  { href: "/catalogo", label: "Catálogo", active: true },
+  { href: "/sobre", label: "Sobre" },
+  { href: "/contacto", label: "Contacto" },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="header">
+  <div class="container header__inner">
+    <a href="/catalogo" class="logo">{site.name}</a>
+    <nav class="nav" aria-label="Principal">
+      {
+        nav.map((item) => (
+          <a
+            href={item.href}
+            class:list={["nav__link", { "nav__link--active": currentPath.startsWith(item.href) }]}
+            aria-current={currentPath.startsWith(item.href) ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+      <span class="nav__soon" title="Próximamente">Tienda</span>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid var(--color-border);
+    background: rgb(244 241 236 / 0.92);
+    backdrop-filter: blur(10px);
+  }
+
+  .header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 4rem;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  .nav__link {
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--color-muted);
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .nav__link:hover,
+  .nav__link--active {
+    color: var(--color-fg);
+    background: var(--color-surface);
+  }
+
+  .nav__soon {
+    display: none;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 640px) {
+    .nav__soon {
+      display: inline-block;
+    }
+  }
+</style>

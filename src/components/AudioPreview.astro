@@ -1,0 +1,43 @@
+---
+type Props = { src: string; title: string };
+
+const { src, title } = Astro.props;
+---
+
+<div class="preview">
+  <p class="preview__label">Preview</p>
+  <audio class="preview__player" controls preload="none">
+    <source src={src} />
+    Tu navegador no soporta audio HTML5.
+  </audio>
+  <p class="preview__title">{title}</p>
+</div>
+
+<style>
+  .preview {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .preview__label {
+    margin: 0 0 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-muted);
+  }
+
+  .preview__player {
+    width: 100%;
+  }
+
+  .preview__title {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+</style>

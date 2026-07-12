@@ -1,0 +1,53 @@
+---
+import "../styles/global.css";
+import { site } from "../lib/site";
+import Header from "./Header.astro";
+import Footer from "./Footer.astro";
+
+type Props = {
+  title: string;
+  description?: string;
+  image?: string;
+};
+
+const { title, description = site.description, image } = Astro.props;
+const pageTitle = title === site.name ? title : `${title} · ${site.name}`;
+const ogImage = image ?? `${site.url}/favicon.svg`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:type" content="website" />
+    <meta name="generator" content={Astro.generator} />
+  </head>
+  <body>
+    <Header />
+    <main class="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .main {
+    flex: 1;
+    padding-block: 2.5rem 4rem;
+  }
+</style>

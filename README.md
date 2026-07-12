@@ -1,0 +1,90 @@
+# Nimpo 3D Studio — Web
+
+Catálogo de productos digitales. Fase 1: vitrina estática. Preparado para tienda, clientes y licencias.
+
+- **Dominio:** https://nimpo3dstudio.com
+- **Repo:** https://github.com/mutoit/nimpoStudio.git
+
+## Desarrollo local
+
+```bash
+cd nimpo-studio
+npm install
+npm run dev
+```
+
+Abre http://localhost:4321/catalogo
+
+## Añadir un producto (5 minutos)
+
+1. Edita `src/data/products.json` — copia un objeto existente y cambia los campos.
+2. Imagen de portada:
+   - **Opción A:** URL externa (como los ejemplos actuales)
+   - **Opción B:** archivo en `public/images/products/tu-producto.jpg` → `"images": ["/images/products/tu-producto.jpg"]`
+3. Preview de audio (opcional): pon un MP3 corto en `public/previews/` y `"previewAudio": "/previews/tu-preview.mp3"`
+4. `status`: `published` | `draft` (oculto) | `coming-soon`
+5. `npm run build` para comprobar que no hay errores.
+
+## Configuración del sitio
+
+Edita `src/config/site.json`:
+
+- `email` — dirección de contacto
+- `emailStatus` — cambia a `"active"` cuando Email Routing esté activo
+- `social` — Instagram, GitHub, etc.
+
+## Email con tu dominio (gratis, sin Google Workspace)
+
+**Cloudflare Email Routing** reenvía `contacto@nimpo3dstudio.com` → tu Gmail/outlook personal.
+
+1. Añade el dominio `nimpo3dstudio.com` a Cloudflare (DNS).
+2. En Cloudflare → **Email** → **Email Routing** → activar.
+3. Crea dirección: `contacto@nimpo3dstudio.com` → reenvío a tu email personal.
+4. En `site.json`: `"emailStatus": "active"`.
+
+No pagas Google Workspace. Recibes y respondes desde tu email habitual (puedes configurar "enviar como" en Gmail).
+
+## Subir a GitHub
+
+```bash
+cd nimpo-studio
+git init
+git add .
+git commit -m "feat: catálogo fase 1"
+git remote add origin https://github.com/mutoit/nimpoStudio.git
+git branch -M main
+git push -u origin main
+```
+
+Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras.
+
+## Deploy en Cloudflare Pages
+
+1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Pages** → conectar GitHub.
+2. Repo: `mutoit/nimpoStudio`
+3. **Root directory:** `nimpo-studio` (si el repo incluye otras carpetas en la raíz) o `/` si solo está este proyecto.
+4. **Build command:** `npm run build`
+5. **Build output:** `dist`
+6. **Node version:** 22
+7. **Custom domain:** `nimpo3dstudio.com`
+
+Cada push a `main` redeploya automáticamente.
+
+## Roadmap
+
+| Fase | Qué incluye |
+|------|-------------|
+| **1 (ahora)** | Catálogo, fichas, sobre, contacto |
+| **2** | Stripe + R2 + email de confirmación |
+| **3** | Cuentas + descargas + licencias |
+| **4** | Panel admin opcional |
+
+## Estructura
+
+```
+src/data/products.json   ← catálogo
+src/config/site.json     ← marca y contacto
+public/images/products/  ← portadas locales
+public/previews/         ← audio preview
+functions/               ← API futura (vacía)
+```

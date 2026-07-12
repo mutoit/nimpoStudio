@@ -2,7 +2,7 @@
 
 Catálogo de productos digitales. Fase 1: vitrina estática. Preparado para tienda, clientes y licencias.
 
-- **Dominio:** https://nimpo3dstudio.com
+- **Dominio:** https://nimpo3dstudio.com (custom domain vía wrangler routes)
 - **Repo:** https://github.com/mutoit/nimpoStudio.git
 
 ## Desarrollo local

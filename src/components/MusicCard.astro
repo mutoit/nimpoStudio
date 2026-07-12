@@ -1,0 +1,156 @@
+---
+import {
+  getTrackCount,
+  releaseTypeLabels,
+  type MusicRelease,
+} from "../lib/music";
+
+type Props = { release: MusicRelease };
+
+const { release } = Astro.props;
+const trackCount = getTrackCount(release);
+---
+
+<article class="card">
+  <a href={`/musica/${release.slug}`} class="card__cover">
+    <img src={release.cover} alt={`Portada de ${release.name}`} width={400} height={400} loading="lazy" />
+    <span class="card__overlay" aria-hidden="true"></span>
+    {release.status === "coming-soon" && (
+      <span class="card__badge">Próximamente</span>
+    )}
+  </a>
+  <div class="card__body">
+    <p class="card__meta">
+      {releaseTypeLabels[release.type]} · {release.year} · {trackCount}{" "}
+      {trackCount === 1 ? "tema" : "temas"}
+    </p>
+    <h2 class="card__title">
+      <a href={`/musica/${release.slug}`}>{release.name}</a>
+    </h2>
+    <p class="card__desc">{release.shortDescription}</p>
+    {
+      release.tags.length > 0 && (
+        <ul class="card__tags">
+          {release.tags.map((tag) => (
+            <li>{tag}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</article>
+
+<style>
+  .card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card__cover {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--glow);
+    aspect-ratio: 1;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .card__cover:hover {
+    border-color: rgb(201 169 98 / 0.35);
+    box-shadow: var(--glow), 0 0 24px rgb(201 169 98 / 0.08);
+  }
+
+  .card__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+
+  .card__cover:hover img {
+    transform: scale(1.03);
+  }
+
+  .card__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgb(8 8 10 / 0.5) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .card__badge {
+    position: absolute;
+    top: 0.85rem;
+    left: 0.85rem;
+    z-index: 1;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--radius);
+    background: rgb(8 8 10 / 0.85);
+    border: 1px solid var(--color-border-shine);
+    color: var(--color-muted);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    backdrop-filter: blur(8px);
+  }
+
+  .card__body {
+    padding: 1.15rem 0.15rem 0;
+  }
+
+  .card__meta {
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-accent-dim);
+  }
+
+  .card__title {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.15;
+  }
+
+  .card__title a {
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .card__title a:hover {
+    color: var(--color-accent);
+  }
+
+  .card__desc {
+    margin: 0.55rem 0 0;
+    font-size: 0.875rem;
+    font-weight: 300;
+    color: var(--color-muted);
+    line-height: 1.55;
+  }
+
+  .card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .card__tags li {
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius);
+    background: var(--color-accent-light);
+    color: var(--color-accent-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+  }
+</style>

@@ -1,0 +1,86 @@
+[
+  {
+    "slug": "nocturna-ep",
+    "name": "Nocturna",
+    "type": "ep",
+    "status": "published",
+    "year": 2026,
+    "shortDescription": "Cuatro piezas nocturnas entre ambiente y cinemática.",
+    "description": "Nocturna nace de sesiones nocturnas en el estudio: texturas lentas, armonías suspendidas y ritmos que aparecen y se desvanecen. Pensado para vídeo, instalaciones y escucha profunda.",
+    "cover": "/images/music/nocturna-ep.svg",
+    "tags": ["ambient", "cinematic", "nocturno"],
+    "featured": true,
+    "tracks": [
+      {
+        "slug": "umbral",
+        "title": "Umbral",
+        "duration": "4:12",
+        "previewAudio": "/previews/music/nocturna-umbral.mp3",
+        "description": "Apertura etérea con pads en capas y percusión mínima."
+      },
+      {
+        "slug": "luz-tenue",
+        "title": "Luz tenue",
+        "duration": "5:48",
+        "previewAudio": "/previews/music/nocturna-luz-tenue.mp3",
+        "description": "Melodía principal sobre drones y modulaciones lentas."
+      },
+      {
+        "slug": "deriva",
+        "title": "Deriva",
+        "duration": "3:56",
+        "previewAudio": "/previews/music/nocturna-deriva.mp3",
+        "description": "Pulso irregular y texturas granulares."
+      },
+      {
+        "slug": "ultima-hora",
+        "title": "Última hora",
+        "duration": "6:20",
+        "previewAudio": "/previews/music/nocturna-ultima-hora.mp3",
+        "description": "Cierre expansivo con cuerdas sintéticas y reverberación larga."
+      }
+    ]
+  },
+  {
+    "slug": "pulso-single",
+    "name": "Pulso",
+    "type": "single",
+    "status": "published",
+    "year": 2025,
+    "shortDescription": "Single electrónico con groove seco y línea de bajo protagonista.",
+    "description": "Pulso condensa la energía de una sesión en directo: bajo sintético, golpes precisos y un arreglo que crece hasta el drop final. Ideal para motion y contenido dinámico.",
+    "cover": "/images/music/pulso-single.svg",
+    "tags": ["electronic", "groove"],
+    "featured": true,
+    "tracks": [
+      {
+        "slug": "pulso",
+        "title": "Pulso",
+        "duration": "3:34",
+        "previewAudio": "/previews/music/pulso.mp3",
+        "description": "Versión completa del single — preview de 60 segundos."
+      }
+    ]
+  },
+  {
+    "slug": "resonancias-pack",
+    "name": "Resonancias",
+    "type": "pack",
+    "status": "coming-soon",
+    "year": 2026,
+    "shortDescription": "Colección de temas inéditos para licencia comercial.",
+    "description": "Pack de composiciones originales listas para sincronización. Cada tema incluirá stems y documentación de licencia. Disponible próximamente.",
+    "cover": "/images/music/resonancias-pack.svg",
+    "tags": ["licencia", "sync", "stems"],
+    "featured": false,
+    "tracks": [
+      {
+        "slug": "resonancia-i",
+        "title": "Resonancia I",
+        "duration": "—",
+        "previewAudio": null,
+        "description": "Preview disponible al publicar el pack."
+      }
+    ]
+  }
+]

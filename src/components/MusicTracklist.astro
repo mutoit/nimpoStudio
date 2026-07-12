@@ -1,0 +1,243 @@
+---
+import type { MusicTrack } from "../lib/music";
+
+type Props = {
+  tracks: MusicTrack[];
+  releaseName: string;
+};
+
+const { tracks, releaseName } = Astro.props;
+const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
+---
+
+<section class="tracklist" aria-label="Lista de temas">
+  <h2 class="tracklist__heading">Temas</h2>
+  <ol class="tracklist__list" id={listId}>
+    {
+      tracks.map((track, index) => (
+        <li class="tracklist__item" data-track-item>
+          <div class="tracklist__row">
+            <span class="tracklist__index">{String(index + 1).padStart(2, "0")}</span>
+            <div class="tracklist__info">
+              <p class="tracklist__title">{track.title}</p>
+              {track.description && <p class="tracklist__desc">{track.description}</p>}
+            </div>
+            <span class="tracklist__duration">{track.duration}</span>
+            {
+              track.previewAudio ? (
+                <button
+                  type="button"
+                  class="tracklist__play"
+                  data-play-track
+                  data-src={track.previewAudio}
+                  data-title={track.title}
+                  aria-label={`Escuchar preview de ${track.title}`}
+                >
+                  <span class="tracklist__play-icon" aria-hidden="true">▶</span>
+                </button>
+              ) : (
+                <span class="tracklist__no-preview">Sin preview</span>
+              )
+            }
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="player" data-music-player hidden>
+    <p class="player__label">Preview</p>
+    <p class="player__title" data-player-title></p>
+    <audio class="player__audio" controls preload="none" data-player-audio>
+      Tu navegador no soporta audio HTML5.
+    </audio>
+  </div>
+</section>
+
+<script>
+  const players = document.querySelectorAll("[data-music-player]");
+
+  players.forEach((playerRoot) => {
+    const section = playerRoot.closest("section");
+    if (!section) return;
+
+    const player = playerRoot as HTMLElement;
+    const audio = player.querySelector<HTMLAudioElement>("[data-player-audio]");
+    const titleEl = player.querySelector<HTMLElement>("[data-player-title]");
+    const buttons = section.querySelectorAll<HTMLButtonElement>("[data-play-track]");
+
+    if (!audio || !titleEl) return;
+
+    let activeButton: HTMLButtonElement | null = null;
+
+    const setActiveButton = (button: HTMLButtonElement | null) => {
+      buttons.forEach((btn) => {
+        btn.classList.toggle("is-playing", btn === button);
+        const icon = btn.querySelector(".tracklist__play-icon");
+        if (icon) icon.textContent = btn === button ? "❚❚" : "▶";
+      });
+      activeButton = button;
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const src = button.dataset.src;
+        const title = button.dataset.title ?? "";
+        if (!src) return;
+
+        if (activeButton === button && !audio.paused) {
+          audio.pause();
+          setActiveButton(null);
+          return;
+        }
+
+        if (audio.src !== new URL(src, window.location.origin).href) {
+          audio.src = src;
+        }
+
+        titleEl.textContent = title;
+        player.hidden = false;
+        setActiveButton(button);
+
+        try {
+          await audio.play();
+        } catch {
+          /* archivo aún no subido o política del navegador */
+        }
+      });
+    });
+
+    audio.addEventListener("pause", () => {
+      if (audio.ended) setActiveButton(null);
+    });
+
+    audio.addEventListener("ended", () => setActiveButton(null));
+  });
+</script>
+
+<style>
+  .tracklist__heading {
+    margin: 0 0 1.25rem;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+  }
+
+  .tracklist__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .tracklist__item:not(:last-child) .tracklist__row {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tracklist__row {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr auto auto;
+    gap: 0.75rem 1rem;
+    align-items: start;
+    padding: 1rem 1.15rem;
+  }
+
+  @media (min-width: 640px) {
+    .tracklist__row {
+      grid-template-columns: 2.5rem 1fr 4rem 2.75rem;
+      align-items: center;
+    }
+  }
+
+  .tracklist__index {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tracklist__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .tracklist__desc {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  .tracklist__duration {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .tracklist__play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-bg-elevated);
+    color: var(--color-accent);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .tracklist__play:hover,
+  .tracklist__play.is-playing {
+    border-color: rgb(201 169 98 / 0.45);
+    background: var(--color-accent-light);
+  }
+
+  .tracklist__play-icon {
+    font-size: 0.65rem;
+    margin-left: 1px;
+  }
+
+  .tracklist__no-preview {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+    opacity: 0.6;
+  }
+
+  .player {
+    margin-top: 1.25rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(201 169 98 / 0.2);
+    background: var(--color-accent-light);
+  }
+
+  .player__label {
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-accent-dim);
+  }
+
+  .player__title {
+    margin: 0.35rem 0 0.65rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-fg);
+  }
+
+  .player__audio {
+    width: 100%;
+  }
+</style>

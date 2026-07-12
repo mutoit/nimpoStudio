@@ -1,0 +1,132 @@
+---
+import Layout from "../../components/Layout.astro";
+import MusicCard from "../../components/MusicCard.astro";
+import { getPublishedReleases } from "../../lib/music";
+import { site } from "../../lib/site";
+
+const releases = getPublishedReleases();
+---
+
+<Layout
+  title="Música"
+  description={`Composiciones originales de ${site.name}. Escucha previews y conoce cada pack o tema.`}
+>
+  <div class="container">
+    <header class="hero">
+      <p class="hero__eyebrow">Composiciones</p>
+      <h1 class="hero__title">Música</h1>
+      <p class="hero__desc">
+        Singles, EPs, álbumes y packs de sincronización. Cada lanzamiento incluye una presentación
+        y previews para escuchar antes de comprar.
+      </p>
+    </header>
+
+    {
+      releases.length === 0 ? (
+        <div class="empty">
+          <p class="empty__title">Sin lanzamientos publicados</p>
+          <p class="empty__desc">
+            Añade entradas en <code>src/data/music.json</code>
+          </p>
+        </div>
+      ) : (
+        <ul class="grid">
+          {releases.map((release) => (
+            <li>
+              <MusicCard release={release} />
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    <p class="hint">
+      Sube los MP3 de preview en <code>public/previews/music/</code> y edita{" "}
+      <code>src/data/music.json</code> con tus composiciones reales.
+    </p>
+  </div>
+</Layout>
+
+<style>
+  .hero {
+    max-width: 38rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero__eyebrow {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-warm);
+  }
+
+  .hero__title {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    font-weight: 500;
+    line-height: 1.05;
+  }
+
+  .hero__desc {
+    margin: 1rem 0 0;
+    color: var(--color-muted);
+    font-size: 1.05rem;
+    line-height: 1.65;
+  }
+
+  .grid {
+    display: grid;
+    gap: 2.5rem 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (min-width: 640px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .empty {
+    padding: 4rem 2rem;
+    text-align: center;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .empty__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+  }
+
+  .empty__desc {
+    margin: 0.5rem 0 0;
+    color: var(--color-muted);
+  }
+
+  .hint {
+    margin: 3rem 0 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    line-height: 1.6;
+  }
+
+  code {
+    font-size: 0.85em;
+    background: var(--color-accent-light);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+</style>

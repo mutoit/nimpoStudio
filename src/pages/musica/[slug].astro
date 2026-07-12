@@ -1,0 +1,255 @@
+---
+import Layout from "../../components/Layout.astro";
+import MusicTracklist from "../../components/MusicTracklist.astro";
+import {
+  getReleaseBySlug,
+  getStaticMusicPaths,
+  getTrackCount,
+  releaseTypeLabels,
+} from "../../lib/music";
+
+export function getStaticPaths() {
+  return getStaticMusicPaths();
+}
+
+const { slug } = Astro.params;
+const release = getReleaseBySlug(slug!);
+
+if (!release) {
+  return Astro.redirect("/musica");
+}
+---
+
+<Layout
+  title={release.name}
+  description={release.shortDescription}
+  image={release.cover}
+>
+  <div class="container">
+    <nav class="breadcrumb" aria-label="Migas de pan">
+      <a href="/musica">Música</a>
+      <span aria-hidden="true">/</span>
+      <span>{release.name}</span>
+    </nav>
+
+    <article class="release">
+      <div class="release__visual">
+        <img
+          src={release.cover}
+          alt={`Portada de ${release.name}`}
+          width={480}
+          height={480}
+          class="release__cover"
+        />
+        <dl class="release__meta">
+          <div>
+            <dt>Formato</dt>
+            <dd>{releaseTypeLabels[release.type]}</dd>
+          </div>
+          <div>
+            <dt>Año</dt>
+            <dd>{release.year}</dd>
+          </div>
+          <div>
+            <dt>Temas</dt>
+            <dd>{getTrackCount(release)}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="release__content">
+        <h1 class="release__title">{release.name}</h1>
+        {
+          release.status === "coming-soon" && (
+            <p class="release__badge">Próximamente disponible</p>
+          )
+        }
+        <p class="release__lead">{release.shortDescription}</p>
+        <div class="release__presentation">
+          <h2 class="release__presentation-title">Presentación</h2>
+          <p>{release.description}</p>
+        </div>
+        {
+          release.tags.length > 0 && (
+            <ul class="release__tags">
+              {release.tags.map((tag) => (
+                <li>{tag}</li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </article>
+
+    <MusicTracklist tracks={release.tracks} releaseName={release.name} />
+
+    <p class="notice">
+      La compra y descarga de composiciones llegará con la tienda. Por ahora puedes escuchar los
+      previews y <a href="/contacto">contactarnos</a> para licencias o encargos.
+    </p>
+
+    <a href="/musica" class="back">← Volver a música</a>
+  </div>
+</Layout>
+
+<style>
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+
+  .breadcrumb a {
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+
+  .breadcrumb a:hover {
+    color: var(--color-fg);
+  }
+
+  .release {
+    display: grid;
+    gap: 2.5rem;
+    margin-bottom: 3rem;
+  }
+
+  @media (min-width: 900px) {
+    .release {
+      grid-template-columns: minmax(16rem, 22rem) 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+  }
+
+  .release__cover {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--glow);
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+
+  .release__meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .release__meta dt {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-muted);
+  }
+
+  .release__meta dd {
+    margin: 0.25rem 0 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .release__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    font-weight: 500;
+    line-height: 1.05;
+  }
+
+  .release__badge {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: var(--color-accent-light);
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .release__lead {
+    margin: 1rem 0 0;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+
+  .release__presentation {
+    margin-top: 1.75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .release__presentation-title {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-accent-dim);
+  }
+
+  .release__presentation p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--color-muted);
+  }
+
+  .release__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .release__tags li {
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--radius);
+    background: var(--color-accent-light);
+    color: var(--color-accent-dim);
+    font-size: 0.75rem;
+  }
+
+  .notice {
+    margin: 2rem 0 0;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(201 169 98 / 0.2);
+    background: var(--color-accent-light);
+    color: var(--color-accent);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  .notice a {
+    color: inherit;
+    font-weight: 600;
+  }
+
+  .back {
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--color-fg);
+  }
+
+  .back:hover {
+    color: var(--color-accent);
+  }
+</style>

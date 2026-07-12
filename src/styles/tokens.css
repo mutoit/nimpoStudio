@@ -1,15 +1,21 @@
 :root {
-  --color-bg: #f4f1ec;
-  --color-surface: #fffcf8;
-  --color-fg: #1a1816;
-  --color-muted: #6b6560;
-  --color-accent: #2d5a4a;
-  --color-accent-light: #d4e8df;
-  --color-border: #e0dbd3;
-  --color-warm: #b85c38;
-  --font-display: "Fraunces", Georgia, serif;
-  --font-body: "DM Sans", system-ui, sans-serif;
-  --radius: 12px;
-  --shadow: 0 16px 40px -12px rgb(26 24 22 / 0.12);
+  --color-bg: #08080a;
+  --color-bg-elevated: #0e0e11;
+  --color-surface: #141418;
+  --color-surface-hover: #1a1a20;
+  --color-fg: #f4f4f5;
+  --color-muted: #71717a;
+  --color-accent: #c9a962;
+  --color-accent-dim: #9a7d3c;
+  --color-accent-light: rgb(201 169 98 / 0.12);
+  --color-border: #27272a;
+  --color-border-shine: rgb(255 255 255 / 0.06);
+  --color-warm: #c9a962;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --shadow: 0 24px 48px -12px rgb(0 0 0 / 0.55);
+  --glow: 0 0 0 1px var(--color-border-shine), 0 12px 40px rgb(0 0 0 / 0.45);
   --max-width: 72rem;
 }

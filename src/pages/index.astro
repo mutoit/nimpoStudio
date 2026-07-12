@@ -1,3 +1,138 @@
 ---
-return Astro.redirect("/catalogo");
+import Layout from "../components/Layout.astro";
+import { site } from "../lib/site";
 ---
+
+<Layout
+  title={site.name}
+  description="Sitio en construcción. Pronto estará disponible el catálogo de Nimpo 3D Studio."
+>
+  <div class="container page">
+    <div class="panel">
+      <p class="eyebrow">En construcción</p>
+      <h1 class="title">{site.name}</h1>
+      <p class="lead">
+        Estamos preparando el catálogo de productos digitales. Volvemos pronto con algo
+        especial.
+      </p>
+      <div class="divider" aria-hidden="true"></div>
+      <p class="note">
+        ¿Necesitas contactarnos mientras tanto?
+      </p>
+      <a href={`mailto:${site.email}`} class="cta">{site.email}</a>
+      {
+        site.social.github && (
+          <a
+            href={site.social.github}
+            class="link-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
+        )
+      }
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 12rem);
+    padding-block: 3rem;
+  }
+
+  .panel {
+    width: 100%;
+    max-width: 32rem;
+    padding: 2.5rem 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--glow);
+    text-align: center;
+  }
+
+  @media (min-width: 640px) {
+    .panel {
+      padding: 3rem 2.5rem;
+    }
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  .title {
+    margin: 0.75rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+  }
+
+  .lead {
+    margin: 1.25rem 0 0;
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--color-muted);
+  }
+
+  .divider {
+    width: 3rem;
+    height: 1px;
+    margin: 2rem auto;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-accent),
+      transparent
+    );
+  }
+
+  .note {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+
+  .cta {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .cta:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .link-secondary {
+    display: block;
+    margin-top: 1.25rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .link-secondary:hover {
+    color: var(--color-fg);
+  }
+</style>

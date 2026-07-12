@@ -2,7 +2,6 @@
 import { site } from "../lib/site";
 
 const nav = [
-  { href: "/catalogo", label: "Catálogo" },
   { href: "/sobre", label: "Sobre" },
   { href: "/contacto", label: "Contacto" },
 ];
@@ -12,7 +11,7 @@ const currentPath = Astro.url.pathname;
 
 <header class="header">
   <div class="container header__inner">
-    <a href="/catalogo" class="logo">
+    <a href="/" class="logo">
       <span class="logo__mark" aria-hidden="true"></span>
       {site.name}
     </a>
@@ -28,6 +27,7 @@ const currentPath = Astro.url.pathname;
           </a>
         ))
       }
+      <span class="nav__soon" title="Próximamente">Catálogo</span>
       <span class="nav__soon" title="Próximamente">Tienda</span>
     </nav>
   </div>

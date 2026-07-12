@@ -84,6 +84,17 @@ if (!product) {
   </div>
 </Layout>
 
+<script define:vars={{ slug: product.slug, category: product.category }}>
+  const sendCatalogView = () => {
+    window.nimpoTrack?.({
+      name: "catalog_view",
+      payload: { slug, category },
+    });
+  };
+  document.addEventListener("DOMContentLoaded", sendCatalogView);
+  document.addEventListener("astro:page-load", sendCatalogView);
+</script>
+
 <style>
   .breadcrumb {
     display: flex;

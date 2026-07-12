@@ -81,7 +81,11 @@ if (!release) {
       </div>
     </article>
 
-    <MusicTracklist tracks={release.tracks} releaseName={release.name} />
+    <MusicTracklist
+      tracks={release.tracks}
+      releaseName={release.name}
+      releaseSlug={release.slug}
+    />
 
     <p class="notice">
       La compra y descarga de composiciones llegará con la tienda. Por ahora puedes escuchar los

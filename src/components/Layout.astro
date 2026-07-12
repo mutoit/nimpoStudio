@@ -1,6 +1,9 @@
 ---
 import "../styles/global.css";
 import { site } from "../lib/site";
+import AnalyticsHead from "./AnalyticsHead.astro";
+import ConsentBanner from "./ConsentBanner.astro";
+import StructuredData from "./StructuredData.astro";
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
 
@@ -12,7 +15,8 @@ type Props = {
 
 const { title, description = site.description, image } = Astro.props;
 const pageTitle = title === site.name ? title : `${title} · ${site.name}`;
-const ogImage = image ?? `${site.url}/favicon.svg`;
+const canonical = new URL(Astro.url.pathname, site.url).href;
+const ogImage = new URL(image ?? "/favicon.svg", site.url).href;
 ---
 
 <!doctype html>
@@ -21,6 +25,7 @@ const ogImage = image ?? `${site.url}/favicon.svg`;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonical} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -30,12 +35,21 @@ const ogImage = image ?? `${site.url}/favicon.svg`;
     <meta name="theme-color" content="#08080a" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="es_ES" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content={pageTitle} />
     <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <meta name="generator" content={Astro.generator} />
+    <AnalyticsHead />
+    <StructuredData />
   </head>
   <body>
     <Header />
@@ -43,6 +57,7 @@ const ogImage = image ?? `${site.url}/favicon.svg`;
       <slot />
     </main>
     <Footer />
+    <ConsentBanner />
   </body>
 </html>
 

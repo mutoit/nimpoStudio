@@ -4,9 +4,10 @@ import type { MusicTrack } from "../lib/music";
 type Props = {
   tracks: MusicTrack[];
   releaseName: string;
+  releaseSlug: string;
 };
 
-const { tracks, releaseName } = Astro.props;
+const { tracks, releaseName, releaseSlug } = Astro.props;
 const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
 ---
 
@@ -31,6 +32,8 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
                   data-play-track
                   data-src={track.previewAudio}
                   data-title={track.title}
+                  data-track-slug={track.slug}
+                  data-release-slug={releaseSlug}
                   aria-label={`Escuchar preview de ${track.title}`}
                 >
                   <span class="tracklist__play-icon" aria-hidden="true">▶</span>
@@ -101,6 +104,14 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
 
         try {
           await audio.play();
+          window.nimpoTrack?.({
+            name: "music_preview_play",
+            payload: {
+              slug: button.dataset.trackSlug ?? "",
+              track: title,
+              release: button.dataset.releaseSlug,
+            },
+          });
         } catch {
           /* archivo aún no subido o política del navegador */
         }

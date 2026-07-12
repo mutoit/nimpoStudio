@@ -73,6 +73,11 @@ Cada push a `main` redeploya automáticamente.
 Qué está hecho, qué falta y qué depende de contenido real:  
 → [`docs/estado.md`](docs/estado.md)
 
+## Analíticas y publicidad
+
+Configuración de Cloudflare Web Analytics, GA4, Search Console, Meta Pixel:  
+→ [`docs/analytics-publi.md`](docs/analytics-publi.md)
+
 ## Documentación de infraestructura
 
 Configuración Cloudflare, Squarespace, DNS, Workers y email:  

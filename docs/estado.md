@@ -85,6 +85,14 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 ### Opcional — feed
 - [ ] Mini reproductor de preview en el panel Novedades (cuando haya MP3)
 
+### Analíticas y publicidad (código listo — faltan IDs)
+- [x] Módulo `src/lib/analytics/` + banner cookies RGPD
+- [x] Cloudflare Web Analytics, GA4, Meta Pixel, GSC, Bing (vía env)
+- [x] Sitemap, robots.txt, JSON-LD, OG/Twitter
+- [ ] **Tú:** rellenar `PUBLIC_*` en `.env` y Cloudflare Build Variables
+- [ ] **Tú:** ampliar token API (Account Analytics Edit) — ver `docs/analytics-publi.md`
+- [ ] **Tú:** verificar Search Console + Bing y enviar sitemap
+
 ---
 
 ## No hacer aún ⏸️
@@ -114,6 +122,7 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 |---------|----------|
 | `docs/estado.md` | **Este doc** — tareas y estado |
 | `docs/configuracion.md` | Infra Cloudflare, DNS, email |
+| `docs/analytics-publi.md` | Analíticas, publicidad, permisos token |
 | `src/config/site.json` | Marca, email, redes |
 | `src/data/music.json` | Lanzamientos musicales |
 | `src/data/products.json` | Catálogo digital |

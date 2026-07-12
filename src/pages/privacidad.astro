@@ -6,36 +6,112 @@ import { site } from "../lib/site";
 <Layout title="Privacidad" description={`Política de privacidad de ${site.name}`}>
   <div class="container page legal">
     <h1>Política de privacidad</h1>
-    <p><strong>Estado: borrador — en preparación</strong></p>
-    <p>Esta página se completará antes de activar ventas y recogida de datos de clientes.</p>
-    <p>Temas que incluirá:</p>
-    <ul>
-      <li>Responsable del tratamiento</li>
-      <li>Datos que se recogen (contacto, pedidos, cuentas)</li>
-      <li>Base legal y derechos (RGPD)</li>
-      <li>Cookies y analítica</li>
-    </ul>
+    <p class="legal__updated">Última actualización: julio 2026</p>
+
+    <section>
+      <h2>Responsable</h2>
+      <p>
+        {site.name} — contacto: <a href={`mailto:${site.email}`}>{site.email}</a>
+      </p>
+    </section>
+
+    <section>
+      <h2>Qué datos recogemos</h2>
+      <ul>
+        <li><strong>Navegación analítica</strong> — páginas visitadas, referrer, país aproximado, dispositivo.</li>
+        <li><strong>Eventos de uso</strong> — reproducción de previews musicales, visitas a fichas de catálogo.</li>
+        <li><strong>Contacto</strong> — solo si nos escribes por email (fuera de esta web).</li>
+        <li><strong>Cookies de consentimiento</strong> — preferencia aceptar/rechazar analítica (localStorage).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Servicios de analítica y publicidad</h2>
+      <ul>
+        <li>
+          <strong>Cloudflare Web Analytics</strong> — sin cookies, medición agregada. Activo si hay token configurado.
+        </li>
+        <li>
+          <strong>Google Analytics 4</strong> — solo tras aceptar cookies. Medición de uso y eventos.
+        </li>
+        <li>
+          <strong>Meta Pixel</strong> — solo tras aceptar, si está configurado. Publicidad y remarketing futuro.
+        </li>
+        <li>
+          <strong>Google Search Console / Bing Webmaster</strong> — verificación de propiedad del sitio (meta tag).
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Base legal (RGPD)</h2>
+      <p>
+        Interés legítimo y consentimiento para analítica/marketing. Puedes rechazar cookies no esenciales con el
+        banner inferior. Cloudflare Web Analytics opera sin cookies de seguimiento.
+      </p>
+    </section>
+
+    <section>
+      <h2>Tus derechos</h2>
+      <p>
+        Acceso, rectificación, supresión y oposición escribiendo a {site.email}. Puedes borrar la preferencia de
+        cookies eliminando datos del sitio en tu navegador.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ventas futuras</h2>
+      <p>
+        Cuando activemos la tienda se actualizará esta política con datos de pedidos, facturación y cuentas de
+        cliente.
+      </p>
+    </section>
   </div>
 </Layout>
 
 <style>
   .legal {
-    max-width: 40rem;
+    max-width: 42rem;
   }
 
   .legal h1 {
     font-family: var(--font-display);
     font-size: 2rem;
-    margin: 0 0 1rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .legal__updated {
+    margin: 0 0 2rem;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .legal section {
+    margin-bottom: 1.75rem;
+  }
+
+  .legal h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent-dim);
+    margin: 0 0 0.65rem;
   }
 
   .legal p,
   .legal li {
     color: var(--color-muted);
     line-height: 1.7;
+    font-size: 0.95rem;
   }
 
-  .legal strong {
-    color: var(--color-warm);
+  .legal a {
+    color: var(--color-accent);
+  }
+
+  .legal ul {
+    margin: 0;
+    padding-left: 1.25rem;
   }
 </style>

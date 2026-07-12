@@ -1,0 +1,28 @@
+---
+import { site } from "../lib/site";
+
+const sameAs = [site.social.github, site.social.instagram].filter(Boolean);
+
+const schema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: site.name,
+      url: site.url,
+      email: site.email,
+      logo: `${site.url}/favicon.svg`,
+      ...(sameAs.length > 0 ? { sameAs } : {}),
+    },
+    {
+      "@type": "WebSite",
+      name: site.name,
+      url: site.url,
+      description: site.description,
+      inLanguage: "es",
+    },
+  ],
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

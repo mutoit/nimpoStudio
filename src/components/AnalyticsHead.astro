@@ -1,0 +1,28 @@
+---
+import { getAnalyticsConfig, hasCfAnalytics } from "../lib/analytics";
+
+const config = getAnalyticsConfig();
+const cfBeacon = hasCfAnalytics(config)
+  ? JSON.stringify({ token: config.cfWebAnalyticsToken })
+  : null;
+---
+
+{
+  config.gscVerification && (
+    <meta name="google-site-verification" content={config.gscVerification} />
+  )
+}
+{
+  config.bingVerification && (
+    <meta name="msvalidate.01" content={config.bingVerification} />
+  )
+}
+{
+  cfBeacon && (
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon={cfBeacon}
+    />
+  )
+}

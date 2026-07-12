@@ -22,6 +22,7 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 ### Web (fase 1)
 - [x] Home — landing con destacados y CTAs
 - [x] **Música** — `/musica` + ficha `/musica/[slug]` (presentación + tracklist + preview player)
+- [x] Badge destacado **«Composiciones originales MIDI»** en `/musica` y fichas (`MusicMidiBadge.astro`)
 - [x] **Catálogo** — `/catalogo` + ficha producto (software, packs, presets, licencias)
 - [x] **Feed Novedades** — panel lateral derecho (home, pantalla ≥1500px); datos en `updates.json`
 - [x] Cabecera — badge «en construcción» con brillo
@@ -39,6 +40,7 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 - [x] `public/images/products/` y `public/images/music/` — portadas
 - [x] `functions/README.md` — rutas API futuras documentadas
 - [x] `docs/configuracion.md` — DNS, Cloudflare, deploy
+- [x] `docs/analytics-publi.md` — estrategia analíticas, SEO, buscadores
 
 ---
 
@@ -85,13 +87,13 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 ### Opcional — feed
 - [ ] Mini reproductor de preview en el panel Novedades (cuando haya MP3)
 
-### Analíticas y publicidad (código listo — faltan IDs)
+### Analíticas, publicidad y SEO
 - [x] Módulo `src/lib/analytics/` + banner cookies RGPD
-- [x] Cloudflare Web Analytics, GA4, Meta Pixel, GSC, Bing (vía env)
 - [x] Sitemap, robots.txt, JSON-LD, OG/Twitter
-- [ ] **Tú:** rellenar `PUBLIC_*` en `.env` y Cloudflare Build Variables
-- [ ] **Tú:** ampliar token API (Account Analytics Edit) — ver `docs/analytics-publi.md`
-- [ ] **Tú:** verificar Search Console + Bing y enviar sitemap
+- [x] **Cloudflare Web Analytics** — activo en panel (dominio añadido; auto-inject; no usar `PUBLIC_CF_WEB_ANALYTICS_TOKEN`)
+- [ ] **Tú:** Search Console — `PUBLIC_GSC_VERIFICATION` + enviar sitemap — ver `docs/analytics-publi.md`
+- [ ] **Tú:** Bing Webmaster — `PUBLIC_BING_VERIFICATION` (recomendado)
+- [ ] **Tú:** GA4 / Meta Pixel — `PUBLIC_GA_*` / `PUBLIC_META_*` cuando quieras
 
 ---
 
@@ -134,17 +136,17 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 
 ## Próximo paso recomendado
 
-1. **Tú:** primer lanzamiento musical real en `music.json` + 1–2 MP3 preview  
-2. **Tú:** decidir qué va en Catálogo (software) vs Música  
-3. **Dev (cuando digas):** infra "listo para rellenar" — esquema D1, `/cuenta` placeholder, campos precio en JSON  
-4. **Dev (cuando tengas producto + precio):** fase 2 Stripe + R2
+1. **Tú:** Search Console — verificar dominio + enviar sitemap (`docs/analytics-publi.md`)  
+2. **Tú:** primer lanzamiento musical real en `music.json` + 1–2 MP3 preview  
+3. **Tú:** decidir qué va en Catálogo (software) vs Música  
+4. **Dev (cuando digas):** infra "listo para rellenar" — esquema D1, `/cuenta` placeholder, campos precio en JSON  
+5. **Dev (cuando tengas producto + precio):** fase 2 Stripe + R2
 
 ---
 
 ## Historial reciente (commits relevantes)
 
+- Badge «Composiciones originales MIDI» en sección música (`d90f2ba`)
+- Analíticas, SEO, consentimiento RGPD + doc estrategia (`b9bd962`)
 - Feed Novedades + `updates.json` (panel lateral, sin romper container)
-- Utilidades layout (`prose`, `section--full`)
-- Catálogo fase 1 abierto (landing, nav, portadas locales)
-- Email contacto activo en web
-- Sección Música (tracklist, previews, presentación por pack/tema)
+- Catálogo fase 1, email contacto, sección Música (tracklist, previews)

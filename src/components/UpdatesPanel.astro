@@ -1,0 +1,153 @@
+---
+import { getUpdates, tagLabels } from "../lib/updates";
+
+const updates = getUpdates(6);
+
+const formatDate = (iso: string) => {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+};
+---
+
+<div class="updates-panel">
+  <header class="updates-panel__head">
+    <p class="updates-panel__eyebrow">Feed</p>
+    <h2 class="updates-panel__title">Novedades</h2>
+    <p class="updates-panel__desc">Mejoras y próximos pasos del estudio.</p>
+  </header>
+
+  {
+    updates.length === 0 ? (
+      <p class="updates-panel__empty">Sin novedades publicadas.</p>
+    ) : (
+      <ul class="updates-panel__list">
+        {updates.map((item) => (
+          <li class="updates-panel__item">
+            <div class="updates-panel__meta">
+              <span class:list={["updates-panel__tag", `updates-panel__tag--${item.tag}`]}>
+                {tagLabels[item.tag]}
+              </span>
+              <time class="updates-panel__date" datetime={item.date}>
+                {formatDate(item.date)}
+              </time>
+            </div>
+            <p class="updates-panel__item-title">{item.title}</p>
+            <p class="updates-panel__summary">{item.summary}</p>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</div>
+
+<style>
+  .updates-panel {
+    padding: 1.25rem 1.15rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(201 169 98 / 0.22);
+    background: var(--color-surface);
+    box-shadow: var(--glow);
+  }
+
+  .updates-panel__head {
+    margin-bottom: 1.15rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .updates-panel__eyebrow {
+    margin: 0;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-accent-dim);
+  }
+
+  .updates-panel__title {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 500;
+    line-height: 1.1;
+  }
+
+  .updates-panel__desc {
+    margin: 0.45rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  .updates-panel__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: min(52vh, 28rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .updates-panel__item {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .updates-panel__item:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .updates-panel__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .updates-panel__tag {
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius);
+    background: var(--color-accent-light);
+    color: var(--color-accent-dim);
+  }
+
+  .updates-panel__tag--nuevo {
+    color: var(--color-accent);
+    border: 1px solid rgb(201 169 98 / 0.25);
+  }
+
+  .updates-panel__date {
+    font-size: 0.68rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .updates-panel__item-title {
+    margin: 0.45rem 0 0;
+    font-size: 0.88rem;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .updates-panel__summary {
+    margin: 0.3rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+
+  .updates-panel__empty {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+</style>

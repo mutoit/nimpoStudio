@@ -1,0 +1,12 @@
+---
+import UpdatesPanel from "./UpdatesPanel.astro";
+---
+
+<div class="page-frame">
+  <main class="page-frame__main">
+    <slot />
+  </main>
+  <aside class="page-frame__aside" aria-label="Novedades y mejoras">
+    <UpdatesPanel />
+  </aside>
+</div>

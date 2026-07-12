@@ -2,6 +2,7 @@
 import { site } from "../lib/site";
 
 const nav = [
+  { href: "/catalogo", label: "Catálogo" },
   { href: "/sobre", label: "Sobre" },
   { href: "/contacto", label: "Contacto" },
 ];
@@ -27,7 +28,6 @@ const currentPath = Astro.url.pathname;
           </a>
         ))
       }
-      <span class="nav__soon" title="Próximamente">Catálogo</span>
       <span class="nav__soon" title="Próximamente">Tienda</span>
     </nav>
   </div>

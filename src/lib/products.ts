@@ -52,6 +52,10 @@ export function getPublishedProducts(): Product[] {
   );
 }
 
+export function getFeaturedProducts(): Product[] {
+  return getPublishedProducts().filter((product) => product.featured);
+}
+
 export function getProductBySlug(slug: string): Product | undefined {
   const product = allProducts.find((item) => item.slug === slug);
   if (!product || product.status === "draft") return undefined;

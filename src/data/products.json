@@ -7,7 +7,7 @@
     "shortDescription": "12 loops atmosféricos listos para producción.",
     "description": "Colección de loops ambientales grabados y procesados en el estudio. Incluye stems y archivos WAV 24-bit. Ideal para soundscapes, cinemática y música electrónica.",
     "images": [
-      "https://images.unsplash.com/photo-1511379938543-c1f69419868d?w=800&q=80"
+      "/images/products/pack-ambient-loops-vol-1.svg"
     ],
     "tags": ["ambient", "loops", "wav"],
     "licenseType": "commercial",
@@ -24,7 +24,7 @@
     "shortDescription": "20 presets con carácter analógico para sintetizadores.",
     "description": "Presets diseñados para calidez y textura. Compatibles con los formatos más usados en producción. Documentación de cada preset incluida.",
     "images": [
-      "https://images.unsplash.com/photo-1598488035139-bdbb2231ce00?w=800&q=80"
+      "/images/products/preset-pack-analog-warmth.svg"
     ],
     "tags": ["presets", "synth"],
     "licenseType": "personal",
@@ -41,7 +41,7 @@
     "shortDescription": "Pack inicial con loops, presets y recursos de marca.",
     "description": "Bundle de lanzamiento que reunirá los mejores recursos para empezar. Disponible próximamente.",
     "images": [
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&q=80"
+      "/images/products/bundle-creator-starter.svg"
     ],
     "tags": ["bundle"],
     "licenseType": "commercial",
@@ -58,7 +58,7 @@
     "shortDescription": "Cesión exclusiva de obra bajo condiciones personalizadas.",
     "description": "Para proyectos que requieren exclusividad total. Contacta para definir alcance, territorio y condiciones de uso.",
     "images": [
-      "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&q=80"
+      "/images/products/licencia-exclusiva-custom.svg"
     ],
     "tags": ["licencia", "exclusivo"],
     "licenseType": "exclusive",

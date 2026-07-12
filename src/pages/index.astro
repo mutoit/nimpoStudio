@@ -1,138 +1,186 @@
 ---
 import Layout from "../components/Layout.astro";
+import ProductCard from "../components/ProductCard.astro";
+import { getFeaturedProducts } from "../lib/products";
 import { site } from "../lib/site";
+
+const featured = getFeaturedProducts();
 ---
 
-<Layout
-  title={site.name}
-  description="Sitio en construcción. Pronto estará disponible el catálogo de Nimpo 3D Studio."
->
+<Layout title={site.name} description={site.description}>
   <div class="container page">
-    <div class="panel">
-      <p class="eyebrow">En construcción</p>
-      <h1 class="title">{site.name}</h1>
-      <p class="lead">
-        Estamos preparando el catálogo de productos digitales. Volvemos pronto con algo
-        especial.
+    <header class="hero">
+      <p class="hero__eyebrow">{site.tagline}</p>
+      <h1 class="hero__title">{site.name}</h1>
+      <p class="hero__lead">{site.description}</p>
+      <div class="hero__actions">
+        <a href="/catalogo" class="btn btn--primary">Ver catálogo</a>
+        <a href="/contacto" class="btn btn--ghost">Contacto</a>
+      </div>
+    </header>
+
+    {
+      featured.length > 0 && (
+        <section class="featured" aria-labelledby="featured-heading">
+          <div class="featured__head">
+            <h2 id="featured-heading" class="featured__title">Destacados</h2>
+            <a href="/catalogo" class="featured__link">
+              Ver todo →
+            </a>
+          </div>
+          <ul class="featured__grid">
+            {featured.map((product) => (
+              <li>
+                <ProductCard product={product} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="note">
+      <p>
+        La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
+        catálogo y escríbenos si te interesa algún producto.
       </p>
-      <div class="divider" aria-hidden="true"></div>
-      <p class="note">
-        ¿Necesitas contactarnos mientras tanto?
-      </p>
-      <a href={`mailto:${site.email}`} class="cta">{site.email}</a>
-      {
-        site.social.github && (
-          <a
-            href={site.social.github}
-            class="link-secondary"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub
-          </a>
-        )
-      }
-    </div>
+    </section>
   </div>
 </Layout>
 
 <style>
   .page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 12rem);
-    padding-block: 3rem;
+    padding-block: 2.5rem 4rem;
   }
 
-  .panel {
-    width: 100%;
-    max-width: 32rem;
-    padding: 2.5rem 2rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface);
-    box-shadow: var(--glow);
-    text-align: center;
+  .hero {
+    max-width: 40rem;
   }
 
-  @media (min-width: 640px) {
-    .panel {
-      padding: 3rem 2.5rem;
-    }
-  }
-
-  .eyebrow {
+  .hero__eyebrow {
     margin: 0;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.2em;
     text-transform: uppercase;
+    letter-spacing: 0.15em;
     color: var(--color-accent);
   }
 
-  .title {
+  .hero__title {
     margin: 0.75rem 0 0;
     font-family: var(--font-display);
-    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-size: clamp(2.5rem, 6vw, 3.75rem);
     font-weight: 500;
-    line-height: 1.1;
+    line-height: 1.05;
     letter-spacing: 0.02em;
   }
 
-  .lead {
+  .hero__lead {
     margin: 1.25rem 0 0;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 300;
     line-height: 1.7;
     color: var(--color-muted);
   }
 
-  .divider {
-    width: 3rem;
-    height: 1px;
-    margin: 2rem auto;
-    background: linear-gradient(
-      to right,
-      transparent,
-      var(--color-accent),
-      transparent
-    );
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
   }
 
-  .note {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--color-muted);
-  }
-
-  .cta {
-    display: inline-block;
-    margin-top: 0.75rem;
-    font-size: 0.95rem;
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.65rem 1.35rem;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
     font-weight: 500;
-    color: var(--color-accent);
-    text-decoration: none;
-    transition: opacity 0.2s;
-  }
-
-  .cta:hover {
-    opacity: 0.8;
-    text-decoration: underline;
-  }
-
-  .link-secondary {
-    display: block;
-    margin-top: 1.25rem;
-    font-size: 0.8rem;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    text-decoration: none;
+    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+  }
+
+  .btn--primary {
+    background: var(--color-accent-light);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    color: var(--color-accent);
+  }
+
+  .btn--primary:hover {
+    background: rgb(201 169 98 / 0.2);
+  }
+
+  .btn--ghost {
+    border: 1px solid var(--color-border);
+    color: var(--color-muted);
+    background: var(--color-surface);
+  }
+
+  .btn--ghost:hover {
+    color: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .featured {
+    margin-top: 4rem;
+  }
+
+  .featured__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .featured__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 500;
+  }
+
+  .featured__link {
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--color-muted);
     text-decoration: none;
     transition: color 0.2s;
   }
 
-  .link-secondary:hover {
-    color: var(--color-fg);
+  .featured__link:hover {
+    color: var(--color-accent);
+  }
+
+  .featured__grid {
+    display: grid;
+    gap: 2rem 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (min-width: 640px) {
+    .featured__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .note {
+    margin-top: 3.5rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .note p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--color-muted);
   }
 </style>

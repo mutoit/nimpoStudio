@@ -68,6 +68,11 @@ Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras
 
 Cada push a `main` redeploya automáticamente.
 
+## Estado y tareas
+
+Qué está hecho, qué falta y qué depende de contenido real:  
+→ [`docs/estado.md`](docs/estado.md)
+
 ## Documentación de infraestructura
 
 Configuración Cloudflare, Squarespace, DNS, Workers y email:  
@@ -77,7 +82,7 @@ Configuración Cloudflare, Squarespace, DNS, Workers y email:
 
 | Fase | Qué incluye |
 |------|-------------|
-| **1 (ahora)** | Catálogo, fichas, sobre, contacto |
+| **1 (ahora)** | Música, catálogo, fichas, sobre, contacto |
 | **2** | Stripe + R2 + email de confirmación |
 | **3** | Cuentas + descargas + licencias |
 | **4** | Panel admin opcional |
@@ -85,9 +90,12 @@ Configuración Cloudflare, Squarespace, DNS, Workers y email:
 ## Estructura
 
 ```
-src/data/products.json   ← catálogo
+docs/estado.md           ← tareas y estado del proyecto
+src/data/music.json      ← composiciones / lanzamientos
+src/data/products.json   ← catálogo digital
 src/config/site.json     ← marca y contacto
-public/images/products/  ← portadas locales
-public/previews/         ← audio preview
+public/images/music/     ← portadas música
+public/previews/music/   ← MP3 preview
+public/images/products/  ← portadas productos
 functions/               ← API futura (vacía)
 ```

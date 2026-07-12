@@ -1,0 +1,128 @@
+# Estado del proyecto — Nimpo 3D Studio
+
+Última actualización: julio 2026  
+Documento de referencia para saber **qué está hecho**, **qué falta** y **qué depende de ti**.
+
+---
+
+## Resumen en una línea
+
+**Fase 1 en producción** (web estática + música + catálogo). **Contenido real y tienda pendientes.**
+
+---
+
+## Hecho ✅
+
+### Infra y deploy
+- [x] Dominio `nimpo3dstudio.com` en Cloudflare (DNS + Worker)
+- [x] Deploy automático: push a `main` → build + `wrangler deploy`
+- [x] Email Routing: `contacto@nimpo3dstudio.com` → Gmail personal
+- [x] Repo: https://github.com/mutoit/nimpoStudio.git
+
+### Web (fase 1)
+- [x] Home — landing con destacados y CTAs
+- [x] **Música** — `/musica` + ficha `/musica/[slug]` (presentación + tracklist + preview player)
+- [x] **Catálogo** — `/catalogo` + ficha producto (software, packs, presets, licencias)
+- [x] Sobre, Contacto, Privacidad, Términos (esqueleto legal)
+- [x] Diseño carbon + dorado, nav, footer
+- [x] Portadas SVG de ejemplo (productos y música)
+
+### Código preparado para crecer
+- [x] `src/data/products.json` — catálogo digital
+- [x] `src/data/music.json` — lanzamientos musicales
+- [x] `public/previews/music/` — carpeta para MP3 de preview
+- [x] `public/images/products/` y `public/images/music/` — portadas
+- [x] `functions/README.md` — rutas API futuras documentadas
+- [x] `docs/configuracion.md` — DNS, Cloudflare, deploy
+
+---
+
+## Pendiente — depende de ti (contenido) 📝
+
+| Tarea | Archivo / carpeta | Notas |
+|-------|-------------------|--------|
+| Tus composiciones reales | `src/data/music.json` | Sustituir ejemplos (Nocturna, Pulso…) |
+| MP3 de preview | `public/previews/music/*.mp3` | 60–90 s por tema |
+| Portadas música | `public/images/music/` | JPG/PNG o SVG |
+| Productos reales (software, packs) | `src/data/products.json` | Precios, descripciones, licencias |
+| Portadas productos | `public/images/products/` | |
+| Logo definitivo | `public/` + Header | Hoy solo texto + punto dorado |
+| Textos legales finales | `src/content/legal/` | Antes de activar ventas |
+| Redes sociales | `src/config/site.json` → `social` | Instagram vacío |
+| Marcar ejemplos como borrador | `status: "draft"` en JSON | Opcional hasta tener contenido |
+
+---
+
+## Pendiente — desarrollo (cuando tengas 1 producto listo) 🔧
+
+### Fase 2 — Venta simple (sin cuentas)
+- [ ] Stripe (modo test → live)
+- [ ] Cloudflare R2 (archivos digitales)
+- [ ] Cloudflare D1 (pedidos)
+- [ ] `functions/`: checkout, webhook Stripe, enlace descarga firmado
+- [ ] Email de confirmación de compra
+- [ ] Botón "Comprar" en fichas
+
+### Fase 2b — Área de cliente
+- [ ] `/cuenta` — "Mis compras"
+- [ ] Magic link por email (sin contraseña)
+- [ ] Re-descarga de compras
+
+### Fase 3 — Licencias avanzadas
+- [ ] Licencias software con clave/activación (si aplica)
+- [ ] Licencias exclusivas → flujo manual (contacto + contrato)
+- [ ] Integración Keygen u otro (solo si hace falta DRM)
+
+### Fase 4 — Admin (opcional)
+- [ ] Panel o CMS para productos sin tocar JSON
+
+---
+
+## No hacer aún ⏸️
+
+- Stripe live sin productos/precios definidos
+- R2 con archivos reales (coste almacenamiento)
+- Cuentas de usuario antes de primera venta
+- Claves de licencia antes de tener software activable
+- Perfil artista / Twitch (otro proyecto, otro repo)
+
+---
+
+## URLs producción
+
+| Qué | URL |
+|-----|-----|
+| Home | https://www.nimpo3dstudio.com |
+| Música | https://www.nimpo3dstudio.com/musica |
+| Catálogo | https://www.nimpo3dstudio.com/catalogo |
+| Contacto | https://www.nimpo3dstudio.com/contacto |
+
+---
+
+## Archivos clave
+
+| Archivo | Para qué |
+|---------|----------|
+| `docs/estado.md` | **Este doc** — tareas y estado |
+| `docs/configuracion.md` | Infra Cloudflare, DNS, email |
+| `src/config/site.json` | Marca, email, redes |
+| `src/data/music.json` | Lanzamientos musicales |
+| `src/data/products.json` | Catálogo digital |
+| `README.md` | Cómo desarrollar y añadir productos |
+
+---
+
+## Próximo paso recomendado
+
+1. **Tú:** primer lanzamiento musical real en `music.json` + 1–2 MP3 preview  
+2. **Tú:** decidir qué va en Catálogo (software) vs Música  
+3. **Dev (cuando digas):** infra "listo para rellenar" — esquema D1, `/cuenta` placeholder, campos precio en JSON  
+4. **Dev (cuando tengas producto + precio):** fase 2 Stripe + R2
+
+---
+
+## Historial reciente (commits relevantes)
+
+- Catálogo fase 1 abierto (landing, nav, portadas locales)
+- Email contacto activo en web
+- Sección Música (tracklist, previews, presentación por pack/tema)

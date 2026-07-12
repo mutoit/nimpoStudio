@@ -1,8 +1,6 @@
 ---
 import Layout from "../components/Layout.astro";
 import { site } from "../lib/site";
-
-const emailPending = site.emailStatus === "pending";
 ---
 
 <Layout title="Contacto" description={`Contacta con ${site.name}`}>
@@ -16,14 +14,6 @@ const emailPending = site.emailStatus === "pending";
         <p>
           <a href={`mailto:${site.email}`}>{site.email}</a>
         </p>
-        {
-          emailPending && (
-            <p class="hint">
-              Dirección reservada. Activa <strong>Cloudflare Email Routing</strong> (gratis) para
-              reenviar a tu email personal — ver README.
-            </p>
-          )
-        }
       </section>
 
       {
@@ -117,13 +107,6 @@ const emailPending = site.emailStatus === "pending";
 
   .card a:hover {
     text-decoration: underline;
-  }
-
-  .hint {
-    margin-top: 0.75rem !important;
-    font-size: 0.875rem !important;
-    color: var(--color-muted) !important;
-    line-height: 1.5;
   }
 
   .card--muted p {

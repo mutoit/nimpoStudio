@@ -4,7 +4,5 @@ compatibility_date = "2024-07-01"
 [assets]
 directory = "./dist"
 
-routes = [
-  { pattern = "nimpo3dstudio.com", custom_domain = true },
-  { pattern = "www.nimpo3dstudio.com", custom_domain = true },
-]
+# Custom domains (nimpo3dstudio.com / www) are configured in the Cloudflare dashboard
+# under the Worker or via wrangler routes if needed.

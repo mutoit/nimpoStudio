@@ -58,41 +58,15 @@ git push -u origin main
 
 Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras.
 
-## Deploy (automático)
+## Deploy
 
-A partir de ahora **solo tienes que hacer push**:
+Todo el proceso de despliegue está documentado en **[DEPLOY.md](DEPLOY.md)**.
 
-```bash
-git add .
-git commit -m "tu cambio"
-git push
-```
+Resumen:
+- La forma más automática y con menos mantenimiento es usar **Cloudflare Pages** conectado directamente al repositorio de GitHub.
+- Una vez configurado, solo hace falta `git push`.
 
-→ GitHub Actions construye y hace deploy automáticamente a Cloudflare.
-
-### Configuración inicial (una sola vez)
-
-1. Ve a tu repo en GitHub → **Settings** → **Secrets and variables** → **Actions**
-2. Crea un nuevo **Repository secret** llamado:
-   - `CLOUDFLARE_API_TOKEN`
-3. Genera el token en Cloudflare:
-   - Ve a https://dash.cloudflare.com → Mi Perfil → API Tokens → Create Token
-   - Usa "Custom token" con estos permisos **mínimos**:
-     - Account > Workers Scripts > Edit
-     - Account > Workers Routes > Edit (recomendado)
-   - Copia el token y pégalo en el secret de GitHub.
-
-El workflow está en `.github/workflows/deploy.yml`.
-
-### Deploy manual (si no quieres esperar al push)
-
-```bash
-cd nimpo-studio
-npm run build
-npx wrangler deploy
-```
-
-(Requiere tener `CLOUDFLARE_API_TOKEN` en tu `.env` local con los mismos permisos).
+Ya existe también un workflow en `.github/workflows/deploy.yml` como alternativa.
 
 ## Estado y tareas
 

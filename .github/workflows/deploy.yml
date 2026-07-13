@@ -2,35 +2,28 @@ name: Deploy to Cloudflare
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # Allow manual trigger from GitHub UI
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run build
 
-      - name: Build
-        run: npm run build
-
-      - name: Deploy to Cloudflare (Workers + Assets)
+      - name: Deploy with Wrangler
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy
-          # Optional: uncomment if you need specific environment
-          # environment: production
+          # If you ever switch to Cloudflare Pages, you can use:
+          # command: pages deploy dist --project-name=nimpostudioweb
+

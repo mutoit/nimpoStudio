@@ -1,30 +1,37 @@
 ---
-import Layout from "../../components/Layout.astro";
-import ProductCard from "../../components/ProductCard.astro";
+import Layout from "../../../components/Layout.astro";
+import ProductCard from "../../../components/ProductCard.astro";
 import {
-  categoryLabels,
+  getCategoryLabels,
   getAllCategories,
   getPublishedProducts,
-} from "../../lib/products";
-import { site } from "../../lib/site";
+} from "../../../lib/products";
+import { site } from "../../../lib/site";
+import type { Locale } from "../../../i18n/translations";
+import { useTranslations, localizePath } from "../../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
+const categoryLabels = getCategoryLabels(lang);
 
 const products = getPublishedProducts();
 const categories = getAllCategories();
 ---
 
-<Layout title="Catálogo" description={`Catálogo de productos digitales de ${site.name}`}>
+<Layout title={t("catalogTitle")} description={t("catalogDesc")} lang={lang}>
   <div class="container">
     <header class="hero">
-      <p class="hero__eyebrow">Productos digitales</p>
-      <h1 class="hero__title">Catálogo</h1>
-      <p class="hero__desc">
-        Explora packs, presets, licencias y recursos. La tienda y el área de clientes llegarán en
-        fases posteriores.
-      </p>
+      <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
+      <h1 class="hero__title">{t("catalogTitle")}</h1>
+      <p class="hero__desc">{t("catalogDesc")}</p>
     </header>
 
-    <div class="toolbar" role="group" aria-label="Filtrar por categoría">
-      <button type="button" class="filter is-active" data-filter="all">Todos</button>
+    <div class="toolbar" role="group" aria-label={t("navCatalog")}>
+      <button type="button" class="filter is-active" data-filter="all">{t("catalogAll")}</button>
       {
         categories.map((cat) => (
           <button type="button" class="filter" data-filter={cat}>
@@ -37,14 +44,14 @@ const categories = getAllCategories();
     {
       products.length === 0 ? (
         <div class="empty">
-          <p class="empty__title">Sin productos publicados</p>
-          <p class="empty__desc">Añade entradas en <code>src/data/products.json</code></p>
+          <p class="empty__title">{t("catalogEmptyTitle")}</p>
+          <p class="empty__desc">{t("catalogEmptyDesc")}</p>
         </div>
       ) : (
         <ul class="grid" id="product-grid">
           {products.map((product) => (
             <li class="grid__item" data-category={product.category}>
-              <ProductCard product={product} />
+              <ProductCard product={product} lang={lang} />
             </li>
           ))}
         </ul>

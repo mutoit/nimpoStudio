@@ -1,34 +1,51 @@
 ---
-import Layout from "../../components/Layout.astro";
-import ProductGallery from "../../components/ProductGallery.astro";
-import AudioPreview from "../../components/AudioPreview.astro";
+import Layout from "../../../components/Layout.astro";
+import ProductGallery from "../../../components/ProductGallery.astro";
+import AudioPreview from "../../../components/AudioPreview.astro";
 import {
-  categoryLabels,
+  getCategoryLabels,
+  getLicenseLabels,
   getProductBySlug,
   getStaticProductPaths,
-  licenseLabels,
-} from "../../lib/products";
+} from "../../../lib/products";
+import type { Locale } from "../../../i18n/translations";
+import { useTranslations, localizePath } from "../../../lib/locale";
 
 export function getStaticPaths() {
-  return getStaticProductPaths();
+  const langs: Locale[] = ["es", "en", "fr"];
+  const paths: any[] = [];
+  const productPaths = getStaticProductPaths();
+  for (const lang of langs) {
+    for (const p of productPaths) {
+      paths.push({ params: { lang, slug: p.params.slug } });
+    }
+  }
+  return paths;
 }
 
-const { slug } = Astro.params;
-const product = getProductBySlug(slug!);
+const { lang, slug } = Astro.params as { lang: Locale; slug: string };
+const t = useTranslations(lang);
+const categoryLabels = getCategoryLabels(lang);
+const licenseLabels = getLicenseLabels(lang);
+
+const product = getProductBySlug(slug);
 
 if (!product) {
-  return Astro.redirect("/catalogo");
+  return Astro.redirect(localizePath("/catalogo", lang));
 }
+
+const catalogHref = localizePath("/catalogo", lang);
 ---
 
 <Layout
   title={product.name}
   description={product.shortDescription}
   image={product.images[0]}
+  lang={lang}
 >
   <div class="container">
-    <nav class="breadcrumb" aria-label="Migas de pan">
-      <a href="/catalogo">Catálogo</a>
+    <nav class="breadcrumb" aria-label={t("navCatalog")}>
+      <a href={catalogHref}>{t("navCatalog")}</a>
       <span aria-hidden="true">/</span>
       <span>{product.name}</span>
     </nav>
@@ -42,7 +59,7 @@ if (!product) {
 
         {
           product.status === "coming-soon" && (
-            <p class="detail__badge">Próximamente disponible</p>
+            <p class="detail__badge">{t("productSoon")}</p>
           )
         }
 
@@ -50,17 +67,17 @@ if (!product) {
 
         <dl class="meta">
           <div class="meta__row">
-            <dt>Licencia</dt>
+            <dt>{t("productLicense")}</dt>
             <dd>{licenseLabels[product.licenseType]}</dd>
           </div>
           <div class="meta__row">
-            <dt>Formatos</dt>
+            <dt>{t("productFormats")}</dt>
             <dd>{product.formats.join(", ")}</dd>
           </div>
           {
             product.tags.length > 0 && (
               <div class="meta__row">
-                <dt>Etiquetas</dt>
+                <dt>{t("productTags")}</dt>
                 <dd>{product.tags.join(", ")}</dd>
               </div>
             )
@@ -69,16 +86,13 @@ if (!product) {
 
         {
           product.previewAudio && (
-            <AudioPreview src={product.previewAudio} title={product.name} />
+            <AudioPreview src={product.previewAudio} title={product.name} lang={lang} />
           )
         }
 
-        <p class="notice">
-          Compra y descarga disponibles próximamente. Por ahora este producto forma parte del
-          catálogo público.
-        </p>
+        <p class="notice">{t("productNotice")}</p>
 
-        <a href="/catalogo" class="back">← Volver al catálogo</a>
+        <a href={catalogHref} class="back">{t("productBack")}</a>
       </div>
     </article>
   </div>

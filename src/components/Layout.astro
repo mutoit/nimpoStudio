@@ -6,21 +6,32 @@ import ConsentBanner from "./ConsentBanner.astro";
 import StructuredData from "./StructuredData.astro";
 import Header from "./Header.astro";
 import Footer from "./Footer.astro";
+import { getLangFromUrl } from "../lib/locale";
+import type { Locale } from "../i18n/translations";
 
 type Props = {
   title: string;
   description?: string;
   image?: string;
+  lang?: Locale;
 };
 
-const { title, description = site.description, image } = Astro.props;
+const { title, description = site.description, image, lang } = Astro.props;
+const currentLang = lang ?? getLangFromUrl(Astro.url);
 const pageTitle = title === site.name ? title : `${title} · ${site.name}`;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const ogImage = new URL(image ?? "/favicon.svg", site.url).href;
+
+const localeMap: Record<Locale, string> = {
+  es: "es_ES",
+  en: "en_US",
+  fr: "fr_FR",
+};
+const ogLocale = localeMap[currentLang] ?? "es_ES";
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={currentLang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -36,7 +47,7 @@ const ogImage = new URL(image ?? "/favicon.svg", site.url).href;
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <meta property="og:site_name" content={site.name} />
-    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale" content={ogLocale} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
@@ -49,15 +60,15 @@ const ogImage = new URL(image ?? "/favicon.svg", site.url).href;
     <meta name="twitter:image" content={ogImage} />
     <meta name="generator" content={Astro.generator} />
     <AnalyticsHead />
-    <StructuredData />
+    <StructuredData lang={currentLang} />
   </head>
   <body>
-    <Header />
+    <Header lang={currentLang} />
     <main class="main">
       <slot />
     </main>
-    <Footer />
-    <ConsentBanner />
+    <Footer lang={currentLang} />
+    <ConsentBanner lang={currentLang} />
   </body>
 </html>
 

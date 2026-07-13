@@ -1,41 +1,48 @@
 ---
-import Layout from "../../components/Layout.astro";
-import MusicCard from "../../components/MusicCard.astro";
-import MusicMidiBadge from "../../components/MusicMidiBadge.astro";
-import { getPublishedReleases } from "../../lib/music";
-import { site } from "../../lib/site";
+import Layout from "../../../components/Layout.astro";
+import MusicCard from "../../../components/MusicCard.astro";
+import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
+import { getPublishedReleases } from "../../../lib/music";
+import { site } from "../../../lib/site";
+import type { Locale } from "../../../i18n/translations";
+import { useTranslations, localizePath } from "../../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
 
 const releases = getPublishedReleases();
+const musicDetailBase = localizePath("/musica", lang);
 ---
 
 <Layout
-  title="Música — Composiciones originales MIDI"
-  description={`Composiciones originales MIDI de ${site.name}. Piezas propias creadas en MIDI: escucha previews y conoce cada pack o tema.`}
+  title={`${t("musicTitle")} — ${t("musicSubtitle")}`}
+  description={t("musicDesc")}
+  lang={lang}
 >
   <div class="container">
     <header class="hero">
-      <MusicMidiBadge />
-      <h1 class="hero__title">Música</h1>
+      <MusicMidiBadge lang={lang} />
+      <h1 class="hero__title">{t("musicTitle")}</h1>
       <p class="hero__desc">
-        Todas las piezas son <strong>composiciones originales MIDI</strong> del estudio: singles,
-        EPs, álbumes y packs de sincronización. Cada lanzamiento incluye presentación y previews
-        para escuchar antes de comprar.
+        {t("musicDesc")}
       </p>
     </header>
 
     {
       releases.length === 0 ? (
         <div class="empty">
-          <p class="empty__title">Sin lanzamientos publicados</p>
-          <p class="empty__desc">
-            Añade entradas en <code>src/data/music.json</code>
-          </p>
+          <p class="empty__title">{t("musicEmptyTitle")}</p>
+          <p class="empty__desc">{t("musicEmptyDesc")}</p>
         </div>
       ) : (
         <ul class="grid">
           {releases.map((release) => (
             <li>
-              <MusicCard release={release} />
+              <MusicCard release={release} lang={lang} />
             </li>
           ))}
         </ul>
@@ -43,8 +50,7 @@ const releases = getPublishedReleases();
     }
 
     <p class="hint">
-      Sube los MP3 de preview en <code>public/previews/music/</code> y edita{" "}
-      <code>src/data/music.json</code> con tus composiciones reales.
+      {t("musicHint")}
     </p>
   </div>
 </Layout>

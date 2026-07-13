@@ -1,24 +1,27 @@
 ---
-import Layout from "../components/Layout.astro";
-import { site } from "../lib/site";
+import Layout from "../../components/Layout.astro";
+import { site } from "../../lib/site";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations, localizePath } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
+const contactHref = localizePath("/contacto", lang);
 ---
 
-<Layout title="Sobre" description={`Conoce ${site.name}`}>
+<Layout title={t("aboutTitle")} description={`${site.name}`} lang={lang}>
   <div class="container page">
-    <p class="eyebrow">Sobre nosotros</p>
+    <p class="eyebrow">{t("aboutEyebrow")}</p>
     <h1 class="title">{site.name}</h1>
     <div class="prose">
+      <p>{t("aboutP1")}</p>
+      <p>{t("aboutP2")}</p>
       <p>
-        {site.name} es el espacio donde publicamos nuestros productos digitales: packs de audio,
-        presets, licencias y recursos para creadores.
-      </p>
-      <p>
-        Esta web está pensada para crecer contigo — primero el catálogo, después la tienda, el
-        área de clientes y la gestión de licencias. Todo bajo nuestro control, sin depender de
-        plataformas cerradas.
-      </p>
-      <p>
-        ¿Tienes dudas o quieres colaborar? <a href="/contacto">Escríbenos</a>.
+        {t("aboutP3")} <a href={contactHref}>{t("aboutContactLink")}</a>.
       </p>
     </div>
   </div>

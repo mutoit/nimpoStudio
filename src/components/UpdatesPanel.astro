@@ -1,5 +1,15 @@
 ---
-import { getUpdates, tagLabels } from "../lib/updates";
+import { getUpdates, getTagLabels } from "../lib/updates";
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
+type Props = {
+  lang?: Locale;
+};
+
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
+const tagLabels = getTagLabels(lang);
 
 const updates = getUpdates(6);
 
@@ -11,14 +21,14 @@ const formatDate = (iso: string) => {
 
 <div class="updates-panel">
   <header class="updates-panel__head">
-    <p class="updates-panel__eyebrow">Feed</p>
-    <h2 class="updates-panel__title">Novedades</h2>
-    <p class="updates-panel__desc">Mejoras y próximos pasos del estudio.</p>
+    <p class="updates-panel__eyebrow">{t("updatesFeed")}</p>
+    <h2 class="updates-panel__title">{t("updatesTitle")}</h2>
+    <p class="updates-panel__desc">{t("updatesDesc")}</p>
   </header>
 
   {
     updates.length === 0 ? (
-      <p class="updates-panel__empty">Sin novedades publicadas.</p>
+      <p class="updates-panel__empty">{t("updatesEmpty")}</p>
     ) : (
       <ul class="updates-panel__list">
         {updates.map((item) => (

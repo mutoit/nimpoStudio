@@ -1,10 +1,17 @@
 ---
 import UpdatesPanel from "./UpdatesPanel.astro";
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
+type Props = { lang?: Locale };
+
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <div class="page-with-feed">
   <slot />
-  <aside class="page-with-feed__rail" aria-label="Novedades y mejoras">
-    <UpdatesPanel />
+  <aside class="page-with-feed__rail" aria-label={t("updatesTitle")}>
+    <UpdatesPanel lang={lang} />
   </aside>
 </div>

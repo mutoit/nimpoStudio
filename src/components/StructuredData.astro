@@ -1,7 +1,16 @@
 ---
 import { site } from "../lib/site";
+import type { Locale } from "../i18n/translations";
+
+type Props = {
+  lang?: Locale;
+};
+
+const { lang = "es" } = Astro.props;
 
 const sameAs = [site.social.github, site.social.instagram].filter(Boolean);
+
+const langMap: Record<Locale, string> = { es: "es", en: "en", fr: "fr" };
 
 const schema = {
   "@context": "https://schema.org",
@@ -19,7 +28,7 @@ const schema = {
       name: site.name,
       url: site.url,
       description: site.description,
-      inLanguage: "es",
+      inLanguage: langMap[lang] ?? "es",
     },
   ],
 };

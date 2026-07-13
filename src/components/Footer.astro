@@ -1,5 +1,14 @@
 ---
 import { site } from "../lib/site";
+import type { Locale } from "../i18n/translations";
+import { useTranslations, localizePath } from "../lib/locale";
+
+type Props = {
+  lang?: Locale;
+};
+
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <footer class="footer">
@@ -9,11 +18,11 @@ import { site } from "../lib/site";
       <p class="footer__tagline">{site.tagline}</p>
     </div>
     <nav class="footer__nav" aria-label="Legal">
-      <a href="/musica">Música</a>
-      <a href="/catalogo">Catálogo</a>
-      <a href="/privacidad">Privacidad</a>
-      <a href="/terminos">Términos</a>
-      <a href="/contacto">Contacto</a>
+      <a href={localizePath("/musica", lang)}>{t("navMusic")}</a>
+      <a href={localizePath("/catalogo", lang)}>{t("navCatalog")}</a>
+      <a href={localizePath("/privacidad", lang)}>{t("privacyTitle")}</a>
+      <a href={localizePath("/terminos", lang)}>{t("termsTitle")}</a>
+      <a href={localizePath("/contacto", lang)}>{t("navContact")}</a>
     </nav>
   </div>
 </footer>

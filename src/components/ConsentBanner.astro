@@ -1,23 +1,33 @@
 ---
 import { getAnalyticsConfig, hasGa4, hasMetaPixel } from "../lib/analytics";
+import type { Locale } from "../i18n/translations";
+import { useTranslations, localizePath } from "../lib/locale";
+
+type Props = {
+  lang?: Locale;
+};
+
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 
 const config = getAnalyticsConfig();
 const needsConsent = hasGa4(config) || hasMetaPixel(config);
+const privacyHref = localizePath("/privacidad", lang);
 ---
 
 {
   needsConsent && (
     <div class="consent" data-consent-banner hidden>
       <p class="consent__text">
-        Usamos cookies de analítica y publicidad para mejorar la web.{" "}
-        <a href="/privacidad">Privacidad</a>
+        {t("consentText")}{" "}
+        <a href={privacyHref}>{t("consentPrivacy")}</a>
       </p>
       <div class="consent__actions">
         <button type="button" class="consent__btn consent__btn--ghost" data-consent-reject>
-          Rechazar
+          {t("consentReject")}
         </button>
         <button type="button" class="consent__btn consent__btn--primary" data-consent-accept>
-          Aceptar
+          {t("consentAccept")}
         </button>
       </div>
     </div>

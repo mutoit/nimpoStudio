@@ -1,0 +1,50 @@
+---
+import Layout from "../../components/Layout.astro";
+import { site } from "../../lib/site";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
+---
+
+<Layout title={t("termsTitle")} description={`Términos y condiciones de ${site.name}`} lang={lang}>
+  <div class="container page legal">
+    <h1>{t("termsTitle")}</h1>
+    <p><strong>{t("termsDraft")}</strong></p>
+    <p>{t("termsPlaceholder")}</p>
+    <p>{t("termsTopics")}</p>
+    <ul>
+      <li>Condiciones de licencia por producto</li>
+      <li>Política de reembolsos</li>
+      <li>Uso permitido de productos digitales</li>
+      <li>Limitación de responsabilidad</li>
+    </ul>
+  </div>
+</Layout>
+
+<style>
+  .legal {
+    max-width: 40rem;
+  }
+
+  .legal h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    margin: 0 0 1rem;
+  }
+
+  .legal p,
+  .legal li {
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+
+  .legal strong {
+    color: var(--color-warm);
+  }
+</style>

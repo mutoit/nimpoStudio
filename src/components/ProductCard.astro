@@ -1,17 +1,24 @@
 ---
 import {
-  categoryLabels,
-  licenseLabels,
+  getCategoryLabels,
+  getLicenseLabels,
   type Product,
 } from "../lib/products";
+import type { Locale } from "../i18n/translations";
+import { useTranslations, localizePath } from "../lib/locale";
 
-type Props = { product: Product };
+type Props = { product: Product; lang?: Locale };
 
-const { product } = Astro.props;
+const { product, lang = "es" } = Astro.props;
+const t = useTranslations(lang);
+const categoryLabels = getCategoryLabels(lang);
+const licenseLabels = getLicenseLabels(lang);
+
+const detailHref = localizePath(`/catalogo/${product.slug}`, lang);
 ---
 
 <article class="card" data-category={product.category}>
-  <a href={`/catalogo/${product.slug}`} class="card__media">
+  <a href={detailHref} class="card__media">
     <img
       src={product.images[0]}
       alt={`Portada de ${product.name}`}
@@ -21,16 +28,16 @@ const { product } = Astro.props;
     />
     <span class="card__overlay" aria-hidden="true"></span>
     {product.status === "coming-soon" && (
-      <span class="card__badge">Próximamente</span>
+      <span class="card__badge">{t("badgeComingSoon")}</span>
     )}
     {product.featured && product.status !== "coming-soon" && (
-      <span class="card__badge card__badge--featured">Destacado</span>
+      <span class="card__badge card__badge--featured">{t("badgeFeatured")}</span>
     )}
   </a>
   <div class="card__body">
     <p class="card__category">{categoryLabels[product.category]}</p>
     <h2 class="card__title">
-      <a href={`/catalogo/${product.slug}`}>{product.name}</a>
+      <a href={detailHref}>{product.name}</a>
     </h2>
     <p class="card__desc">{product.shortDescription}</p>
     <p class="card__license">{licenseLabels[product.licenseType]}</p>

@@ -9,12 +9,19 @@ export type Update = {
   summary: string;
 };
 
-export const tagLabels: Record<UpdateTag, string> = {
-  nuevo: "Nuevo",
-  mejora: "Mejora",
-  fix: "Fix",
-  proximo: "Próximo",
-};
+import type { Locale } from "../i18n/translations";
+import { getTranslation } from "../i18n/translations";
+
+export function getTagLabels(lang: Locale = "es") {
+  return {
+    nuevo: getTranslation(lang, "tagNew"),
+    mejora: getTranslation(lang, "tagImprovement"),
+    fix: getTranslation(lang, "tagFix"),
+    proximo: getTranslation(lang, "tagNext"),
+  } as const;
+}
+
+export const tagLabels = getTagLabels("es");
 
 const allUpdates = rawUpdates as Update[];
 

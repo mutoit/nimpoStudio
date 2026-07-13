@@ -1,12 +1,21 @@
 ---
-import Layout from "../components/Layout.astro";
-import { site } from "../lib/site";
+import Layout from "../../components/Layout.astro";
+import { site } from "../../lib/site";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
 ---
 
-<Layout title="Privacidad" description={`Política de privacidad de ${site.name}`}>
+<Layout title={t("privacyTitle")} description={`Política de privacidad de ${site.name}`} lang={lang}>
   <div class="container page legal">
-    <h1>Política de privacidad</h1>
-    <p class="legal__updated">Última actualización: julio 2026</p>
+    <h1>{t("privacyTitle")}</h1>
+    <p class="legal__updated">{t("privacyUpdated")}</p>
 
     <section>
       <h2>Responsable</h2>

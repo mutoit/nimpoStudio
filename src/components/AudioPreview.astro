@@ -1,14 +1,18 @@
 ---
-type Props = { src: string; title: string };
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
 
-const { src, title } = Astro.props;
+type Props = { src: string; title: string; lang?: Locale };
+
+const { src, title, lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <div class="preview">
-  <p class="preview__label">Preview</p>
+  <p class="preview__label">{t("audioPreview")}</p>
   <audio class="preview__player" controls preload="none">
     <source src={src} />
-    Tu navegador no soporta audio HTML5.
+    {t("audioNoSupport")}
   </audio>
   <p class="preview__title">{title}</p>
 </div>

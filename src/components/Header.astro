@@ -1,36 +1,51 @@
 ---
 import { site } from "../lib/site";
+import LanguageSelector from "./LanguageSelector.astro";
+import type { Locale } from "../i18n/translations";
+import { useTranslations, localizePath } from "../lib/locale";
 
-const nav = [
-  { href: "/musica", label: "Música" },
-  { href: "/catalogo", label: "Catálogo" },
-  { href: "/sobre", label: "Sobre" },
-  { href: "/contacto", label: "Contacto" },
-];
+type Props = {
+  lang?: Locale;
+};
+
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 
 const currentPath = Astro.url.pathname;
+
+const nav = [
+  { href: "/musica", label: t("navMusic") },
+  { href: "/catalogo", label: t("navCatalog") },
+  { href: "/sobre", label: t("navAbout") },
+  { href: "/contacto", label: t("navContact") },
+];
 ---
 
 <header class="header">
   <div class="container header__inner">
-    <a href="/" class="logo">
+    <a href={localizePath("/", lang)} class="logo">
       <span class="logo__mark" aria-hidden="true"></span>
       <span class="logo__name">{site.name}</span>
-      <span class="logo__status" aria-label="Sitio en construcción">en construcción</span>
+      <span class="logo__status" aria-label={t("construction")}>{t("construction")}</span>
     </a>
     <nav class="nav" aria-label="Principal">
       {
-        nav.map((item) => (
-          <a
-            href={item.href}
-            class:list={["nav__link", { "nav__link--active": currentPath.startsWith(item.href) }]}
-            aria-current={currentPath.startsWith(item.href) ? "page" : undefined}
-          >
-            {item.label}
-          </a>
-        ))
+        nav.map((item) => {
+          const href = localizePath(item.href, lang);
+          const isActive = currentPath.includes(item.href);
+          return (
+            <a
+              href={href}
+              class:list={["nav__link", { "nav__link--active": isActive }]}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          );
+        })
       }
-      <span class="nav__soon" title="Próximamente">Tienda</span>
+      <span class="nav__soon" title={t("navStoreSoon")}>{t("navStoreSoon")}</span>
+      <LanguageSelector lang={lang} currentPath={currentPath} />
     </nav>
   </div>
 </header>

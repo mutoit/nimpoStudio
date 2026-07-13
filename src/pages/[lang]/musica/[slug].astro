@@ -1,34 +1,50 @@
 ---
-import Layout from "../../components/Layout.astro";
-import MusicMidiBadge from "../../components/MusicMidiBadge.astro";
-import MusicTracklist from "../../components/MusicTracklist.astro";
+import Layout from "../../../components/Layout.astro";
+import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
+import MusicTracklist from "../../../components/MusicTracklist.astro";
 import {
   getReleaseBySlug,
   getStaticMusicPaths,
   getTrackCount,
-  releaseTypeLabels,
-} from "../../lib/music";
+  getReleaseTypeLabels,
+} from "../../../lib/music";
+import type { Locale } from "../../../i18n/translations";
+import { useTranslations, localizePath } from "../../../lib/locale";
 
 export function getStaticPaths() {
-  return getStaticMusicPaths();
+  const langs: Locale[] = ["es", "en", "fr"];
+  const paths: any[] = [];
+  const musicPaths = getStaticMusicPaths();
+  for (const lang of langs) {
+    for (const m of musicPaths) {
+      paths.push({ params: { lang, slug: m.params.slug } });
+    }
+  }
+  return paths;
 }
 
-const { slug } = Astro.params;
-const release = getReleaseBySlug(slug!);
+const { lang, slug } = Astro.params as { lang: Locale; slug: string };
+const t = useTranslations(lang);
+const releaseTypeLabels = getReleaseTypeLabels(lang);
+
+const release = getReleaseBySlug(slug);
 
 if (!release) {
-  return Astro.redirect("/musica");
+  return Astro.redirect(localizePath("/musica", lang));
 }
+
+const musicHref = localizePath("/musica", lang);
 ---
 
 <Layout
   title={release.name}
   description={release.shortDescription}
   image={release.cover}
+  lang={lang}
 >
   <div class="container">
-    <nav class="breadcrumb" aria-label="Migas de pan">
-      <a href="/musica">Música</a>
+    <nav class="breadcrumb" aria-label={t("navMusic")}>
+      <a href={musicHref}>{t("navMusic")}</a>
       <span aria-hidden="true">/</span>
       <span>{release.name}</span>
     </nav>
@@ -44,33 +60,33 @@ if (!release) {
         />
         <dl class="release__meta">
           <div>
-            <dt>Formato</dt>
+            <dt>{t("musicFormat")}</dt>
             <dd>{releaseTypeLabels[release.type]}</dd>
           </div>
           <div>
-            <dt>Año</dt>
+            <dt>{t("musicYear")}</dt>
             <dd>{release.year}</dd>
           </div>
           <div>
-            <dt>Temas</dt>
+            <dt>{t("musicTracks")}</dt>
             <dd>{getTrackCount(release)}</dd>
           </div>
         </dl>
       </div>
 
       <div class="release__content">
-        <MusicMidiBadge size="inline" />
+        <MusicMidiBadge size="inline" lang={lang} />
         <h1 class="release__title">{release.name}</h1>
         {
           release.status === "coming-soon" && (
-            <p class="release__badge">Próximamente disponible</p>
+            <p class="release__badge">{t("musicSoon")}</p>
           )
         }
         <p class="release__lead">
-          Composición original MIDI. {release.shortDescription}
+          {t("musicOriginal")} {release.shortDescription}
         </p>
         <div class="release__presentation">
-          <h2 class="release__presentation-title">Presentación</h2>
+          <h2 class="release__presentation-title">{t("musicPresentation")}</h2>
           <p>{release.description}</p>
         </div>
         {
@@ -89,14 +105,14 @@ if (!release) {
       tracks={release.tracks}
       releaseName={release.name}
       releaseSlug={release.slug}
+      lang={lang}
     />
 
     <p class="notice">
-      La compra y descarga de composiciones llegará con la tienda. Por ahora puedes escuchar los
-      previews y <a href="/contacto">contactarnos</a> para licencias o encargos.
+      {t("musicNotice")}
     </p>
 
-    <a href="/musica" class="back">← Volver a música</a>
+    <a href={musicHref} class="back">{t("musicBack")}</a>
   </div>
 </Layout>
 

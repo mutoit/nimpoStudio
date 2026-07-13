@@ -1,13 +1,18 @@
 ---
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
 type Props = {
   size?: "hero" | "inline";
+  lang?: Locale;
 };
 
-const { size = "hero" } = Astro.props;
+const { size = "hero", lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 ---
 
 <p class:list={["midi-badge", size === "inline" && "midi-badge--inline"]} role="note">
-  <span class="midi-badge__text">Composiciones originales MIDI</span>
+  <span class="midi-badge__text">{t("musicSubtitle")}</span>
 </p>
 
 <style>

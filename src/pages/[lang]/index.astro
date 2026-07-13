@@ -1,26 +1,38 @@
 ---
-import Layout from "../components/Layout.astro";
-import PageFrame from "../components/PageFrame.astro";
-import ProductCard from "../components/ProductCard.astro";
-import { getFeaturedProducts } from "../lib/products";
-import { site } from "../lib/site";
+import Layout from "../../components/Layout.astro";
+import PageFrame from "../../components/PageFrame.astro";
+import ProductCard from "../../components/ProductCard.astro";
+import { getFeaturedProducts } from "../../lib/products";
+import { site } from "../../lib/site";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations, localizePath } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
 
 const featured = getFeaturedProducts();
+const catalogHref = localizePath("/catalogo", lang);
+const musicHref = localizePath("/musica", lang);
+const contactHref = localizePath("/contacto", lang);
 ---
 
-<Layout title={site.name} description={site.description}>
-  <PageFrame>
+<Layout title={site.name} description={t("siteDescription")} lang={lang}>
+  <PageFrame lang={lang}>
     <div class="page">
       <section class="section section--pad">
         <div class="container">
           <header class="hero prose">
-            <p class="hero__eyebrow">{site.tagline}</p>
+            <p class="hero__eyebrow">{t("siteTagline")}</p>
             <h1 class="hero__title">{site.name}</h1>
-            <p class="hero__lead">{site.description}</p>
+            <p class="hero__lead">{t("siteDescription")}</p>
             <div class="hero__actions">
-              <a href="/musica" class="btn btn--primary">Escuchar música</a>
-              <a href="/catalogo" class="btn btn--ghost">Catálogo</a>
-              <a href="/contacto" class="btn btn--ghost">Contacto</a>
+              <a href={musicHref} class="btn btn--primary">{t("homeListen")}</a>
+              <a href={catalogHref} class="btn btn--ghost">{t("homeCatalog")}</a>
+              <a href={contactHref} class="btn btn--ghost">{t("homeContact")}</a>
             </div>
           </header>
         </div>
@@ -31,15 +43,15 @@ const featured = getFeaturedProducts();
           <section class="section section--pad" aria-labelledby="featured-heading">
             <div class="container">
               <div class="featured__head">
-                <h2 id="featured-heading" class="featured__title">Destacados</h2>
-                <a href="/catalogo" class="featured__link">
-                  Ver todo →
+                <h2 id="featured-heading" class="featured__title">{t("homeFeatured")}</h2>
+                <a href={catalogHref} class="featured__link">
+                  {t("homeViewAll")}
                 </a>
               </div>
               <ul class="featured__grid">
                 {featured.map((product) => (
                   <li>
-                    <ProductCard product={product} />
+                    <ProductCard product={product} lang={lang} />
                   </li>
                 ))}
               </ul>
@@ -51,10 +63,7 @@ const featured = getFeaturedProducts();
       <section class="section section--pad">
         <div class="container">
           <div class="note prose">
-            <p>
-              La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el
-              catálogo y escríbenos si te interesa algún producto.
-            </p>
+            <p>{t("homeStoreNote")}</p>
           </div>
         </div>
       </section>

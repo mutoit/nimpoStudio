@@ -1,16 +1,25 @@
 ---
-import Layout from "../components/Layout.astro";
-import { site } from "../lib/site";
+import Layout from "../../components/Layout.astro";
+import { site } from "../../lib/site";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
 ---
 
-<Layout title="Contacto" description={`Contacta con ${site.name}`}>
+<Layout title={t("contactTitle")} description={`Contacta con ${site.name}`} lang={lang}>
   <div class="container page">
-    <p class="eyebrow">Contacto</p>
-    <h1 class="title">Hablemos</h1>
+    <p class="eyebrow">{t("contactEyebrow")}</p>
+    <h1 class="title">{t("contactTitle")}</h1>
 
     <div class="cards">
       <section class="card">
-        <h2>Email</h2>
+        <h2>{t("contactEmail")}</h2>
         <p>
           <a href={`mailto:${site.email}`}>{site.email}</a>
         </p>
@@ -19,7 +28,7 @@ import { site } from "../lib/site";
       {
         site.social.github && (
           <section class="card">
-            <h2>GitHub</h2>
+            <h2>{t("contactGithub")}</h2>
             <p>
               <a href={site.social.github} target="_blank" rel="noopener noreferrer">
                 {site.social.github.replace("https://github.com/", "@")}
@@ -32,7 +41,7 @@ import { site } from "../lib/site";
       {
         site.social.instagram ? (
           <section class="card">
-            <h2>Instagram</h2>
+            <h2>{t("contactInstagram")}</h2>
             <p>
               <a href={site.social.instagram} target="_blank" rel="noopener noreferrer">
                 Instagram
@@ -41,8 +50,8 @@ import { site } from "../lib/site";
           </section>
         ) : (
           <section class="card card--muted">
-            <h2>Redes</h2>
-            <p>Añade tus redes en <code>src/config/site.json</code></p>
+            <h2>{t("contactNetworks")}</h2>
+            <p>{t("contactAddNetworks")}</p>
           </section>
         )
       }

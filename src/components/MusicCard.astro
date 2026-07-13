@@ -1,31 +1,37 @@
 ---
 import {
   getTrackCount,
-  releaseTypeLabels,
+  getReleaseTypeLabels,
   type MusicRelease,
 } from "../lib/music";
+import type { Locale } from "../i18n/translations";
+import { useTranslations, localizePath } from "../lib/locale";
 
-type Props = { release: MusicRelease };
+type Props = { release: MusicRelease; lang?: Locale };
 
-const { release } = Astro.props;
+const { release, lang = "es" } = Astro.props;
+const t = useTranslations(lang);
+const releaseTypeLabels = getReleaseTypeLabels(lang);
 const trackCount = getTrackCount(release);
+const countLabel = trackCount === 1 ? t("themeSingular") : t("themePlural");
+
+const href = localizePath(`/musica/${release.slug}`, lang);
 ---
 
 <article class="card">
-  <a href={`/musica/${release.slug}`} class="card__cover">
+  <a href={href} class="card__cover">
     <img src={release.cover} alt={`Portada de ${release.name}`} width={400} height={400} loading="lazy" />
     <span class="card__overlay" aria-hidden="true"></span>
     {release.status === "coming-soon" && (
-      <span class="card__badge">Próximamente</span>
+      <span class="card__badge">{t("badgeComingSoon")}</span>
     )}
   </a>
   <div class="card__body">
     <p class="card__meta">
-      {releaseTypeLabels[release.type]} · {release.year} · {trackCount}{" "}
-      {trackCount === 1 ? "tema" : "temas"}
+      {releaseTypeLabels[release.type]} · {release.year} · {trackCount} {countLabel}
     </p>
     <h2 class="card__title">
-      <a href={`/musica/${release.slug}`}>{release.name}</a>
+      <a href={href}>{release.name}</a>
     </h2>
     <p class="card__desc">{release.shortDescription}</p>
     {

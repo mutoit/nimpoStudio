@@ -1,18 +1,22 @@
 ---
 import type { MusicTrack } from "../lib/music";
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
 
 type Props = {
   tracks: MusicTrack[];
   releaseName: string;
   releaseSlug: string;
+  lang?: Locale;
 };
 
-const { tracks, releaseName, releaseSlug } = Astro.props;
+const { tracks, releaseName, releaseSlug, lang = "es" } = Astro.props;
+const t = useTranslations(lang);
 const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
 ---
 
-<section class="tracklist" aria-label="Lista de temas">
-  <h2 class="tracklist__heading">Temas</h2>
+<section class="tracklist" aria-label={t("tracklistTitle")}>
+  <h2 class="tracklist__heading">{t("tracklistTitle")}</h2>
   <ol class="tracklist__list" id={listId}>
     {
       tracks.map((track, index) => (
@@ -34,12 +38,12 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
                   data-title={track.title}
                   data-track-slug={track.slug}
                   data-release-slug={releaseSlug}
-                  aria-label={`Escuchar preview de ${track.title}`}
+                  aria-label={`${t("tracklistPreview")} ${track.title}`}
                 >
                   <span class="tracklist__play-icon" aria-hidden="true">▶</span>
                 </button>
               ) : (
-                <span class="tracklist__no-preview">Sin preview</span>
+                <span class="tracklist__no-preview">{t("tracklistNoPreview")}</span>
               )
             }
           </div>
@@ -49,10 +53,10 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
   </ol>
 
   <div class="player" data-music-player hidden>
-    <p class="player__label">Preview</p>
+    <p class="player__label">{t("tracklistPreview")}</p>
     <p class="player__title" data-player-title></p>
     <audio class="player__audio" controls preload="none" data-player-audio>
-      Tu navegador no soporta audio HTML5.
+      {t("tracklistBrowserNoSupport")}
     </audio>
   </div>
 </section>

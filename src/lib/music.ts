@@ -26,12 +26,20 @@ export type MusicRelease = {
   tracks: MusicTrack[];
 };
 
-export const releaseTypeLabels: Record<MusicReleaseType, string> = {
-  single: "Single",
-  ep: "EP",
-  album: "Álbum",
-  pack: "Pack",
-};
+import type { Locale } from "../i18n/translations";
+import { getTranslation } from "../i18n/translations";
+
+export function getReleaseTypeLabels(lang: Locale = "es") {
+  return {
+    single: getTranslation(lang, "single"),
+    ep: getTranslation(lang, "ep"),
+    album: getTranslation(lang, "album"),
+    pack: getTranslation(lang, "pack"),
+  } as const;
+}
+
+// Legacy default
+export const releaseTypeLabels = getReleaseTypeLabels("es");
 
 const allReleases = rawReleases as MusicRelease[];
 

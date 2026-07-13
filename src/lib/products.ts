@@ -28,21 +28,32 @@ export type Product = {
   featured?: boolean;
 };
 
-export const categoryLabels: Record<ProductCategory, string> = {
-  "sample-packs": "Sample Packs",
-  presets: "Presets",
-  loops: "Loops",
-  licencias: "Licencias",
-  bundles: "Bundles",
-  servicios: "Servicios",
-};
+import type { Locale } from "../i18n/translations";
+import { getTranslation } from "../i18n/translations";
 
-export const licenseLabels: Record<LicenseType, string> = {
-  personal: "Uso personal",
-  commercial: "Uso comercial",
-  exclusive: "Exclusiva",
-  custom: "Bajo consulta",
-};
+export function getCategoryLabels(lang: Locale = "es") {
+  return {
+    "sample-packs": "Sample Packs",
+    presets: "Presets",
+    loops: "Loops",
+    licencias: lang === "es" ? "Licencias" : getTranslation(lang, "cardCustom"), // fallback ok
+    bundles: "Bundles",
+    servicios: "Servicios",
+  } as const;
+}
+
+export function getLicenseLabels(lang: Locale = "es") {
+  return {
+    personal: getTranslation(lang, "cardPersonal"),
+    commercial: getTranslation(lang, "cardCommercial"),
+    exclusive: getTranslation(lang, "cardExclusive"),
+    custom: getTranslation(lang, "cardCustom"),
+  } as const;
+}
+
+// Keep legacy exports for compatibility (default es)
+export const categoryLabels = getCategoryLabels("es");
+export const licenseLabels = getLicenseLabels("es");
 
 const allProducts = rawProducts as Product[];
 

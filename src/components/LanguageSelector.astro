@@ -1,0 +1,71 @@
+---
+import type { Locale } from "../i18n/translations";
+import { locales, localeLabels, localeNames } from "../i18n/translations";
+import { localizePath, useTranslations } from "../lib/locale";
+
+type Props = {
+  lang: Locale;
+  currentPath?: string;
+};
+
+const { lang, currentPath = "/" } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<div class="lang-switcher">
+  <select
+    id="lang-select"
+    class="lang-switcher__select"
+    aria-label={t("language")}
+    onchange="window.location.href=this.value"
+  >
+    {
+      locales.map((l) => {
+        const href = localizePath(currentPath, l);
+        return (
+          <option value={href} selected={l === lang}>
+            {localeLabels[l]} — {localeNames[l]}
+          </option>
+        );
+      })
+    }
+  </select>
+</div>
+
+<style>
+  .lang-switcher {
+    position: relative;
+    display: inline-block;
+  }
+
+  .lang-switcher__select {
+    appearance: none;
+    background: var(--color-surface);
+    color: var(--color-muted);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.25rem 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    min-width: 5.5rem;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .lang-switcher__select:hover {
+    color: var(--color-fg);
+    border-color: var(--color-fg);
+  }
+
+  .lang-switcher__select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+</style>
+
+<script>
+  // Enhance: keep current path on client nav if possible (simple version)
+  // The select already uses currentPath from server render.
+</script>

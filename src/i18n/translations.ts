@@ -39,7 +39,7 @@ export const translations = {
     homeListen: "Escuchar música",
     homeCatalog: "Catálogo",
     homeContact: "Contacto",
-    homeFeatured: "Destacados",
+    homeFeatured: "Destacados ✓",
     homeViewAll: "Ver todo →",
     homeStoreNote:
       "La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el catálogo y escríbenos si te interesa algún producto.",

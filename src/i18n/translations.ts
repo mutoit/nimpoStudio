@@ -19,9 +19,9 @@ export const localeNames: Record<Locale, string> = {
 export const translations = {
   es: {
     // Site / common
-    siteTagline: "Productos digitales para creadores",
+    siteTagline: "Música MIDI original",
     siteDescription:
-      "Nimpo 3D Studio — productos digitales para creadores: sample packs, presets, licencias y más.",
+      "Composiciones originales MIDI del estudio. Ofrecemos trabajos a medida y packs gratuitos. Estamos trabajando activamente en el catálogo completo.",
     construction: "en construcción",
 
     // Navigation
@@ -42,7 +42,7 @@ export const translations = {
     homeFeatured: "Destacados",
     homeViewAll: "Ver todo →",
     homeStoreNote:
-      "La tienda y el área de clientes llegarán en fases posteriores. Por ahora explora el catálogo y escríbenos si te interesa algún producto.",
+      "Estamos construyendo composiciones MIDI originales, trabajos a medida y packs gratuitos. La tienda y el área de clientes llegarán en próximas fases.",
 
     // Catalog
     catalogTitle: "Catálogo",
@@ -158,9 +158,9 @@ export const translations = {
     noReleases: "Sin lanzamientos publicados",
   },
   en: {
-    siteTagline: "Digital products for creators",
+    siteTagline: "Original MIDI music",
     siteDescription:
-      "Nimpo 3D Studio — digital products for creators: sample packs, presets, licenses and more.",
+      "Original MIDI compositions from the studio. We offer custom work and free packs. We are actively building the full catalog.",
     construction: "in construction",
 
     navMusic: "Music",
@@ -178,7 +178,7 @@ export const translations = {
     homeFeatured: "Featured",
     homeViewAll: "View all →",
     homeStoreNote:
-      "The store and client area will arrive in later phases. For now, explore the catalog and write to us if you're interested in any product.",
+      "We are building original MIDI compositions, custom work and free packs. The store and client area will arrive in upcoming phases.",
 
     catalogTitle: "Catalog",
     catalogSubtitle: "Digital products",
@@ -280,9 +280,9 @@ export const translations = {
     noReleases: "No releases published",
   },
   fr: {
-    siteTagline: "Produits numériques pour créateurs",
+    siteTagline: "Musique MIDI originale",
     siteDescription:
-      "Nimpo 3D Studio — produits numériques pour créateurs : packs d'échantillons, presets, licences et plus.",
+      "Compositions MIDI originales du studio. Nous proposons des travaux sur mesure et des packs gratuits. Nous travaillons activement au catalogue complet.",
     construction: "en construction",
 
     navMusic: "Musique",
@@ -300,7 +300,7 @@ export const translations = {
     homeFeatured: "En vedette",
     homeViewAll: "Voir tout →",
     homeStoreNote:
-      "La boutique et l'espace client arriveront dans les phases ultérieures. Pour l'instant, explorez le catalogue et écrivez-nous si un produit vous intéresse.",
+      "Nous construisons des compositions MIDI originales, des travaux sur mesure et des packs gratuits. La boutique et l'espace client arriveront dans les prochaines phases.",
 
     catalogTitle: "Catalogue",
     catalogSubtitle: "Produits numériques",

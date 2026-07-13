@@ -10,6 +10,11 @@ export type MusicTrack = {
   duration: string;
   previewAudio: string | null;
   description: string;
+  stems?: Array<{
+    id: string;
+    label: string;
+    src: string;
+  }>;
 };
 
 export type MusicRelease = {

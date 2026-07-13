@@ -16,7 +16,13 @@
         "title": "Umbral",
         "duration": "4:12",
         "previewAudio": "/previews/music/nocturna-umbral.mp3",
-        "description": "Apertura etérea con pads en capas y percusión mínima."
+        "description": "Apertura etérea con pads en capas y percusión mínima.",
+        "stems": [
+          { "id": "pads", "label": "Pads & Ambiente", "src": "/previews/music/nocturna-umbral.mp3" },
+          { "id": "melody", "label": "Melodía Principal", "src": "/previews/music/nocturna-luz-tenue.mp3" },
+          { "id": "perc", "label": "Percusión", "src": "/previews/music/nocturna-deriva.mp3" },
+          { "id": "fx", "label": "Texturas & Cuerdas", "src": "/previews/music/nocturna-ultima-hora.mp3" }
+        ]
       },
       {
         "slug": "luz-tenue",

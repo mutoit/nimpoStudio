@@ -2,6 +2,7 @@
 import Layout from "../../../components/Layout.astro";
 import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
 import MusicTracklist from "../../../components/MusicTracklist.astro";
+import StemPlayer from "../../../components/StemPlayer.astro";
 import {
   getReleaseBySlug,
   getStaticMusicPaths,
@@ -100,6 +101,21 @@ const musicHref = localizePath("/musica", lang);
         }
       </div>
     </article>
+
+    {
+      release.tracks[0]?.stems && release.tracks[0].stems.length > 0 && (
+        <div class="stems-section">
+          <h2 class="stems-title">Reproductor por capas</h2>
+          <p class="stems-desc">Silencia o aísla cada capa individualmente. Todo sincronizado.</p>
+          <StemPlayer 
+            title={release.tracks[0].title}
+            stems={release.tracks[0].stems}
+            duration={240} 
+          />
+          <small class="stems-note">* Demo usando archivos de preview. Reemplaza con tus stems reales (un archivo por capa).</small>
+        </div>
+      )
+    }
 
     <MusicTracklist
       tracks={release.tracks}
@@ -257,6 +273,31 @@ const musicHref = localizePath("/musica", lang);
     color: var(--color-accent);
     font-size: 0.875rem;
     line-height: 1.55;
+  }
+
+  .stems-section {
+    margin: 2rem 0 3rem;
+  }
+
+  .stems-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--color-accent-dim);
+  }
+
+  .stems-desc {
+    margin: 0 0 1rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  .stems-note {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--color-muted);
+    opacity: 0.6;
   }
 
   .notice a {

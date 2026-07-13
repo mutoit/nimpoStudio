@@ -58,15 +58,41 @@ git push -u origin main
 
 Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras.
 
-## Deploy en Cloudflare
+## Deploy (automático)
 
-1. Conectar repo `mutoit/nimpoStudio` en Cloudflare.
-2. **Build command:** `npm run build`
-3. **Deploy command:** `npx wrangler deploy` (usa `wrangler.toml` → carpeta `dist/`)
-4. **Node version:** 22
-5. Tras el deploy: **Custom domain** → `nimpo3dstudio.com`
+A partir de ahora **solo tienes que hacer push**:
 
-Cada push a `main` redeploya automáticamente.
+```bash
+git add .
+git commit -m "tu cambio"
+git push
+```
+
+→ GitHub Actions construye y hace deploy automáticamente a Cloudflare.
+
+### Configuración inicial (una sola vez)
+
+1. Ve a tu repo en GitHub → **Settings** → **Secrets and variables** → **Actions**
+2. Crea un nuevo **Repository secret** llamado:
+   - `CLOUDFLARE_API_TOKEN`
+3. Genera el token en Cloudflare:
+   - Ve a https://dash.cloudflare.com → Mi Perfil → API Tokens → Create Token
+   - Usa "Custom token" con estos permisos **mínimos**:
+     - Account > Workers Scripts > Edit
+     - Account > Workers Routes > Edit (recomendado)
+   - Copia el token y pégalo en el secret de GitHub.
+
+El workflow está en `.github/workflows/deploy.yml`.
+
+### Deploy manual (si no quieres esperar al push)
+
+```bash
+cd nimpo-studio
+npm run build
+npx wrangler deploy
+```
+
+(Requiere tener `CLOUDFLARE_API_TOKEN` en tu `.env` local con los mismos permisos).
 
 ## Estado y tareas
 

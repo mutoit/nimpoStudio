@@ -17,7 +17,7 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 - [x] Dominio `nimpo3dstudio.com` en Cloudflare (DNS)
 - [x] **Migración Pages** — proyecto `nimpo-studio`, dominios `www` + apex, deploy Git en `main`
 - [x] Deploy automático: push a `main` → Cloudflare Pages build (~30 s)
-- [x] Worker legacy `nimpostudioweb` — rutas DNS quitadas, Git desconectado (opcional: borrar Worker)
+- [x] Worker legacy `nimpostudioweb` — rutas DNS quitadas (pendiente: desconectar Git del Worker en panel; opcional: borrar Worker)
 - [x] Email Routing: `contacto@nimpo3dstudio.com` → Gmail personal
 - [x] Repo: https://github.com/mutoit/nimpoStudio.git
 

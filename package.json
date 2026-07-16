@@ -9,6 +9,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "pwsh -File scripts/deploy.ps1",
+    "cf:audit": "pwsh -File scripts/cloudflare-audit.ps1",
+    "cf:token": "pwsh -File scripts/test-cloudflare-token.ps1",
     "astro": "astro"
   },
   "dependencies": {

@@ -26,8 +26,8 @@ $tests = @(
   @{ Name = "DNS"; Url = "https://api.cloudflare.com/client/v4/zones/$zone/dns_records?per_page=1" },
   @{ Name = "Email rules"; Url = "https://api.cloudflare.com/client/v4/zones/$zone/email/routing/rules" },
   @{ Name = "Web Analytics RUM"; Url = "https://api.cloudflare.com/client/v4/accounts/$account/rum/site_info/list"; Need = "Account > Account Analytics > Read + Edit" },
-  @{ Name = "Workers scripts"; Url = "https://api.cloudflare.com/client/v4/accounts/$account/workers/scripts"; Need = "Account > Workers Scripts > Edit" },
-  @{ Name = "Workers routes"; Url = "https://api.cloudflare.com/client/v4/zones/$zone/workers/routes"; Need = "Zone > Workers Routes > Edit" },
+  @{ Name = "Pages projects"; Url = "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects"; Need = "Account > Cloudflare Pages > Edit" },
+  @{ Name = "Workers scripts (legacy)"; Url = "https://api.cloudflare.com/client/v4/accounts/$account/workers/scripts"; Need = "Account > Workers Scripts > Edit" },
   @{ Name = "Cache purge"; Url = "POST:https://api.cloudflare.com/client/v4/zones/$zone/purge_cache"; Need = "Zone > Cache Purge > Purge" }
 )
 

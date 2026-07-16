@@ -14,8 +14,9 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 ## Hecho ✅
 
 ### Infra y deploy
-- [x] Dominio `nimpo3dstudio.com` en Cloudflare (DNS + Worker)
-- [x] Deploy automático: push a `main` → build + `wrangler deploy`
+- [x] Dominio `nimpo3dstudio.com` en Cloudflare (DNS)
+- [ ] **Migración Pages** — checklist en `SETUP-PAGES.md` (usuario, una vez)
+- [x] Deploy automático (objetivo): push a `main` → Cloudflare Pages build
 - [x] Email Routing: `contacto@nimpo3dstudio.com` → Gmail personal
 - [x] Repo: https://github.com/mutoit/nimpoStudio.git
 

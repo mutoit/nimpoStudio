@@ -1,84 +1,62 @@
-# Despliegue Automático - Nimpo 3D Studio
+# Despliegue — Nimpo 3D Studio
 
-## Objetivo
-Que **cualquier cambio** (incluso cambiar una palabra) se publique automáticamente haciendo solo `git push`.
+## Cómo funciona (después de la migración a Pages)
 
-## Opción Recomendada (la más fácil a largo plazo): Cloudflare Pages + GitHub
-
-Esta es la forma más automática y con menos mantenimiento.
-
-### Configuración (se hace **una sola vez**)
-
-1. Ve a [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Pages** → **Create a project** → **Connect to Git**.
-
-2. Conecta tu cuenta de GitHub y selecciona el repositorio `mutoit/nimpoStudio`.
-
-3. En la configuración del proyecto:
-   - **Production branch**: `main`
-   - **Root directory**: `nimpo-studio`   ← Importante
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-   - **Node.js version**: 22
-
-4. Haz clic en **Save and Deploy**.
-
-5. Una vez desplegado:
-   - Ve a **Custom domains**
-   - Añade `nimpo3dstudio.com` y `www.nimpo3dstudio.com` (ya los tenías configurados antes).
-
-### A partir de ahora
-
-```bash
-# Cambias lo que sea (una palabra, un texto, un componente...)
-git add .
-git commit -m "actualización"
+```
+Editas código / pides cambio a la IA
+        ↓
 git push origin main
+        ↓
+Cloudflare Pages (Git conectado) → npm run build → publica dist/
+        ↓
+https://www.nimpo3dstudio.com actualizado (~1–2 min)
 ```
 
-→ En menos de 2 minutos estará publicado.
+**Una sola vez:** sigue [SETUP-PAGES.md](SETUP-PAGES.md) para crear el proyecto Pages y enganchar el dominio.
 
-**Ventajas**:
-- No tienes que gestionar tokens API.
-- Previews automáticos en Pull Requests.
-- Cloudflare se encarga de todo.
+## Configuración Pages (referencia)
 
-## Opción Alternativa: GitHub Actions + Wrangler
+| Campo | Valor |
+|-------|--------|
+| Proyecto | `nimpo-studio` |
+| Repo | `mutoit/nimpoStudio` |
+| Rama producción | `main` |
+| Root directory | *(vacío — la raíz del repo)* |
+| Build command | `npm run build` |
+| Build output | `dist` |
+| Node.js | 22 |
 
-Ya está configurado en `.github/workflows/deploy.yml`.
+## Para la IA (agente)
 
-### Requisito (una sola vez)
+Tras cualquier cambio listo para publicar:
 
-1. En GitHub → tu repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
-2. Nombre: `CLOUDFLARE_API_TOKEN`
-3. Valor: Crea un token en Cloudflare con estos permisos:
-   - Account > **Workers Scripts** → Edit
-   - Account > **Workers Routes** → Edit
+1. `npm run build` en `nimpo-studio/` (verificar que compila).
+2. `git add` → `git commit` → `git push origin main`.
+3. Esperar ~2 min y comprobar `https://www.nimpo3dstudio.com/es/`.
+4. Si no se ve el cambio: Cloudflare → Caching → Purge Everything.
 
-Una vez puesto el secret, cada `git push` dispara el workflow automáticamente.
+No hace falta `wrangler deploy` ni tocar el Worker antiguo.
 
-## Para mí (el agente de IA)
-
-Después de la configuración de arriba:
-- Yo puedo editar archivos directamente.
-- Cuando el cambio esté listo, haré commit + push.
-- El deploy se hace solo.
-- Tú no tienes que tocar nada más.
-
-## Comandos útiles
+## Respaldo manual
 
 ```bash
-# Desarrollo
-npm run dev
-
-# Build local para comprobar
-npm run build
-
-# Deploy manual (solo si es necesario)
-npm run build && npx wrangler deploy
+npm run deploy          # build + wrangler pages deploy (requiere CLOUDFLARE_API_TOKEN en .env)
 ```
 
-## Notas
+O en GitHub → Actions → **Deploy to Cloudflare Pages** → Run workflow (requiere secret `CLOUDFLARE_API_TOKEN`).
 
-- El sitio usa rutas con prefijo de idioma (`/es`, `/en`, `/fr`).
-- El redirect `/` → `/es` está en `astro.config.mjs`.
-- Si usas Cloudflare Pages, el redirect también se puede manejar con `_redirects` en `public/`.
+## Desarrollo local
+
+```bash
+npm install
+npm run dev      # http://localhost:4321
+npm run build    # genera dist/
+```
+
+## Pages Functions
+
+`/api/track` vive en `functions/api/track.ts` — analíticas first-party. Pages la despliega automáticamente junto al sitio estático.
+
+## Histórico
+
+Antes el sitio usaba el Worker `nimpostudioweb`. Tras migrar a Pages, quita el dominio del Worker (ver SETUP-PAGES.md paso 5).

@@ -1,8 +1,22 @@
-name = "nimpostudioweb"
+# Cloudflare Pages — proyecto nimpo-studio
+# Deploy principal: Git conectado en el panel (push a main → build automático).
+# Deploy manual/respaldo: npm run deploy  o  GitHub Actions (workflow_dispatch).
+
+name = "nimpo-studio"
 compatibility_date = "2024-07-01"
+pages_build_output_dir = "./dist"
 
-[assets]
-directory = "./dist"
+[observability]
+enabled = true
+head_sampling_rate = 1
 
-# Custom domains (nimpo3dstudio.com / www) are configured in the Cloudflare dashboard
-# under the Worker or via wrangler routes if needed.
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1

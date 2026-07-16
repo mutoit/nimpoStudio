@@ -1,8 +1,8 @@
-name: Deploy to Cloudflare
+# Respaldo manual — el deploy principal es Cloudflare Pages conectado a GitHub.
+# No se dispara en push para evitar doble deploy con Pages Git.
+name: Deploy to Cloudflare Pages
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -14,16 +14,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
       - run: npm ci
       - run: npm run build
 
-      - name: Deploy with Wrangler
+      - name: Deploy to Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy
-          # If you ever switch to Cloudflare Pages, you can use:
-          # command: pages deploy dist --project-name=nimpostudioweb
-
+          command: pages deploy dist --project-name=nimpo-studio

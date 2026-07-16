@@ -11,9 +11,9 @@ Actualízalo si cambias DNS, dominio, email o deploy.
 |-----|--------|
 | Dominio | `nimpo3dstudio.com` |
 | Web producción | https://www.nimpo3dstudio.com/catalogo |
-| Worker (respaldo) | https://nimpostudioweb.nosinfantasia.workers.dev/catalogo |
+| Pages preview | `https://nimpo-studio.pages.dev` (tras crear proyecto) |
 | Repo GitHub | https://github.com/mutoit/nimpoStudio.git |
-| Stack | Astro 7 → build estático → Cloudflare Worker (assets) |
+| Stack | Astro 7 → build estático → **Cloudflare Pages** (`nimpo-studio`) |
 | Cuenta Cloudflare | `nosinfantasia@gmail.com` (subdominio workers: `nosinfantasia.workers.dev`) |
 
 ---
@@ -61,9 +61,9 @@ Estado esperado: **Active**
 | Tipo | Nombre | Contenido | Proxy |
 |------|--------|-----------|-------|
 | A | `@` | `192.0.2.1` | Proxied (nube naranja) |
-| CNAME | `www` | `nimpostudioweb.nosinfantasia.workers.dev` | Proxied |
+| CNAME | `www` | *(Pages lo gestiona al añadir custom domain)* | Proxied |
 
-> `192.0.2.1` es un placeholder. Con proxy activado, Cloudflare enruta el tráfico al Worker.
+> `192.0.2.1` es placeholder en apex. Tras migrar a Pages, el tráfico va al proyecto `nimpo-studio`.
 
 ### Registros de email (Cloudflare Email Routing)
 
@@ -82,53 +82,37 @@ Estado esperado: **Active**
 
 ---
 
-## Cloudflare — Workers Routes
+## Cloudflare — Pages (deploy actual)
 
-**Ruta:** Domains → `nimpo3dstudio.com` → **Workers Routes**
-
-| Ruta | Worker |
-|------|--------|
-| `nimpo3dstudio.com/*` | `nimpostudioweb` |
-| `www.nimpo3dstudio.com/*` | `nimpostudioweb` |
-
----
-
-## Cloudflare — Worker / Deploy
-
-**Ruta:** Build → **Compute** → **Workers & Pages** → `nimpostudioweb`  
-(O Ctrl+K → buscar `nimpostudioweb`)
+**Ruta:** Build → **Compute** → **Workers & Pages** → **nimpo-studio** (Pages)
 
 | Campo | Valor |
 |-------|--------|
-| Proyecto | `nimpostudioweb` |
+| Proyecto | `nimpo-studio` |
 | Repo conectado | `mutoit/nimpoStudio` |
 | Rama | `main` |
+| Root directory | *(vacío — raíz del repo)* |
 | Build command | `npm run build` |
-| Deploy command | `npx wrangler deploy` |
+| Build output | `dist` |
 | Node | 22 (`.node-version`) |
-| Salida build | `dist/` |
 
 ### wrangler.toml (en el repo)
 
 ```toml
-name = "nimpostudioweb"
-compatibility_date = "2024-07-01"
-
-[assets]
-directory = "./dist"
-
-routes = [
-  { pattern = "nimpo3dstudio.com", custom_domain = true },
-  { pattern = "www.nimpo3dstudio.com", custom_domain = true },
-]
+name = "nimpo-studio"
+pages_build_output_dir = "./dist"
 ```
 
 ### Flujo de publicación
 
-1. Editas código en `nimpo-studio/`
+1. Editas código (o la IA lo hace)
 2. `git push` a `main`
-3. Cloudflare build + deploy automático
-4. Si no ves cambios: **Caching** → Purge Everything + `Ctrl+Shift+R` en el navegador
+3. Cloudflare Pages build + deploy automático
+4. Si no ves cambios: **Caching** → Purge Everything + `Ctrl+Shift+R`
+
+### Migración desde Worker
+
+El Worker `nimpostudioweb` es legacy. Quitar sus rutas de dominio tras enganchar Pages — ver `SETUP-PAGES.md`.
 
 ---
 
@@ -155,7 +139,7 @@ Antes había MX de Google (`smtp.google.com`); se sustituyeron al activar Email 
 |-----|-----|
 | https://www.nimpo3dstudio.com/catalogo | Producción principal |
 | https://nimpo3dstudio.com/catalogo | Apex (mismo sitio) |
-| https://nimpostudioweb.nosinfantasia.workers.dev/catalogo | URL Worker directa |
+| https://nimpo-studio.pages.dev | URL Pages (preview) |
 | http://localhost:4321/catalogo | Desarrollo local (`npm run dev`) |
 
 ---
@@ -178,7 +162,9 @@ npm run build    # genera dist/
 | `src/config/site.json` | Nombre, URL, email, redes |
 | `src/data/products.json` | Catálogo de productos |
 | `astro.config.mjs` | `site: https://nimpo3dstudio.com` |
-| `wrangler.toml` | Worker, assets, dominios |
+| `wrangler.toml` | Pages, output dir |
+| `SETUP-PAGES.md` | Checklist migración Pages |
+| `AGENTS.md` | Runbook para la IA |
 | `public/_headers` | Anti-caché para ver cambios de diseño |
 
 ---
@@ -188,8 +174,8 @@ npm run build    # genera dist/
 ### La web no carga en el dominio
 
 1. Comprobar DNS (registro A `@` y CNAME `www`)
-2. Comprobar Workers Routes
-3. Probar URL `.workers.dev`
+2. Comprobar Custom domains en proyecto Pages
+3. Probar URL `.pages.dev`
 4. `ipconfig /flushdns` (Windows)
 
 ### Veo diseño viejo tras un deploy
@@ -202,10 +188,10 @@ npm run build    # genera dist/
 - Esperar propagación DNS o usar `www` mientras tanto
 - Redirect Rule opcional: `nimpo3dstudio.com` → `www.nimpo3dstudio.com`
 
-### No encuentro Workers en el menú
+### No encuentro Pages en el menú
 
-- **Build** → **Compute** → Workers & Pages
-- O **Ctrl + K** → `nimpostudioweb`
+- **Build** → **Compute** → Workers & Pages → pestaña **Pages**
+- O **Ctrl + K** → `nimpo-studio`
 
 ---
 

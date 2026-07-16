@@ -2,7 +2,7 @@
 
 Catálogo de productos digitales. Fase 1: vitrina estática. Preparado para tienda, clientes y licencias.
 
-- **Dominio:** https://nimpo3dstudio.com (custom domain vía wrangler routes)
+- **Dominio:** https://nimpo3dstudio.com (Cloudflare Pages)
 - **Repo:** https://github.com/mutoit/nimpoStudio.git
 
 ## Desarrollo local
@@ -60,13 +60,9 @@ Si el repo ya tiene contenido, haz `git pull` primero o fusiona según prefieras
 
 ## Deploy
 
-Todo el proceso de despliegue está documentado en **[DEPLOY.md](DEPLOY.md)**.
-
-Resumen:
-- La forma más automática y con menos mantenimiento es usar **Cloudflare Pages** conectado directamente al repositorio de GitHub.
-- Una vez configurado, solo hace falta `git push`.
-
-Ya existe también un workflow en `.github/workflows/deploy.yml` como alternativa.
+- **Primera vez (tú):** [SETUP-PAGES.md](SETUP-PAGES.md) — crear proyecto Pages y dominios (~15 min).
+- **Día a día:** pides cambios → la IA edita y hace `git push` → Pages publica solo.
+- Detalle: [DEPLOY.md](DEPLOY.md) · Runbook IA: [AGENTS.md](AGENTS.md)
 
 ## Estado y tareas
 

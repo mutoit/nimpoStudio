@@ -24,6 +24,7 @@ export function safeMediaUrl(url: string | null | undefined): string {
       host === "nimpo3dstudio.com" ||
       host === "www.nimpo3dstudio.com" ||
       host.endsWith(".nimpo-studio.pages.dev") ||
+      host.endsWith(".r2.dev") ||
       host === "localhost" ||
       host === "127.0.0.1"
     ) {

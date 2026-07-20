@@ -1,9 +1,7 @@
 /**
  * POST /admin/upload (multipart)
- * Requiere cookie admin. Sube a R2 si hay binding LIBRARY_BUCKET.
- * Body fields: slug, kind, files (video | cover | stem_*), stemLabels (JSON)
- *
- * R2 debe estar activado en la cuenta y el binding en wrangler.toml / Pages.
+ * Requiere cookie admin. Sube a R2 (binding LIBRARY_BUCKET).
+ * Devuelve URLs públicas (r2.dev o LIBRARY_PUBLIC_BASE).
  */
 
 import {
@@ -21,6 +19,7 @@ type Env = AdminEnv & {
       opts?: { httpMetadata?: { contentType?: string } },
     ) => Promise<unknown>;
   };
+  /** ej. https://pub-xxx.r2.dev */
   LIBRARY_PUBLIC_BASE?: string;
 };
 
@@ -52,6 +51,10 @@ export async function onRequest(context: {
 }) {
   const { request, env } = context;
 
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204 });
+  }
+
   if (request.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
@@ -68,10 +71,7 @@ export async function onRequest(context: {
   const ip = clientIp(request);
   const rl = checkRateLimit(`admin-upload:${ip}`, { limit: 30, windowSec: 3600 });
   if (!rl.ok) {
-    return json(
-      { ok: false, error: "rate_limited" },
-      429,
-    );
+    return json({ ok: false, error: "rate_limited" }, 429);
   }
 
   if (!env.LIBRARY_BUCKET) {
@@ -80,7 +80,7 @@ export async function onRequest(context: {
         ok: false,
         error: "r2_not_configured",
         message:
-          "R2 no está activado o falta binding LIBRARY_BUCKET. Usa la descarga local del panel o activa R2 en Cloudflare.",
+          "Falta binding LIBRARY_BUCKET. Revisa wrangler.toml y redespliega Pages.",
       },
       503,
     );
@@ -94,27 +94,51 @@ export async function onRequest(context: {
   }
 
   const slug = safeName(String(form.get("slug") || "item")) || "item";
-  const uploaded: { field: string; key: string; publicPath: string; bytes: number }[] = [];
-  const base = (env.LIBRARY_PUBLIC_BASE || "/library").replace(/\/$/, "");
+  const publicBase = (
+    env.LIBRARY_PUBLIC_BASE ||
+    "https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev"
+  ).replace(/\/$/, "");
+
+  const uploaded: {
+    field: string;
+    key: string;
+    publicUrl: string;
+    publicPath: string;
+    bytes: number;
+  }[] = [];
 
   for (const [field, value] of form.entries()) {
+    if (field === "slug" || field === "kind") continue;
     if (!(value instanceof File) || value.size === 0) continue;
     if (value.size > MAX_BYTES) {
       return json(
-        { ok: false, error: "file_too_large", field, maxMb: MAX_BYTES / (1024 * 1024) },
+        {
+          ok: false,
+          error: "file_too_large",
+          field,
+          maxMb: MAX_BYTES / (1024 * 1024),
+        },
         413,
       );
     }
-    const ext = (value.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const key = `library/${slug}/${safeName(field)}.${ext}`;
+
+    // field o nombre de archivo ya viene con extensión desde el admin
+    const rawName = field.includes(".") ? field : value.name;
+    const fileName = safeName(rawName) || `file-${uploaded.length + 1}.bin`;
+    const key = `library/${slug}/${fileName}`;
     const buf = await value.arrayBuffer();
     await env.LIBRARY_BUCKET.put(key, buf, {
-      httpMetadata: { contentType: value.type || "application/octet-stream" },
+      httpMetadata: {
+        contentType: value.type || "application/octet-stream",
+      },
     });
+    const publicUrl = `${publicBase}/${key}`;
     uploaded.push({
       field,
       key,
-      publicPath: `${base}/${slug}/${safeName(field)}.${ext}`,
+      publicUrl,
+      // path usable en library.json (URL absoluta r2.dev)
+      publicPath: publicUrl,
       bytes: value.size,
     });
   }
@@ -123,5 +147,10 @@ export async function onRequest(context: {
     return json({ ok: false, error: "no_files" }, 400);
   }
 
-  return json({ ok: true, slug, uploaded });
+  return json({
+    ok: true,
+    slug,
+    publicBase,
+    uploaded,
+  });
 }

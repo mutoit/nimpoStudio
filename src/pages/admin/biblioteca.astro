@@ -417,7 +417,7 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
-  // Intento R2 (opcional)
+  // Subida a R2 (bucket nimpo-library, público en r2.dev)
   document.querySelector("[data-try-r2]")?.addEventListener("click", async () => {
     const form = document.querySelector("[data-admin-form]");
     if (!(form instanceof HTMLFormElement)) return;
@@ -438,35 +438,63 @@ import Layout from "../../components/Layout.astro";
       const data = await res.json();
       if (!res.ok) {
         setStatus(
-          data.message || data.error || "R2 no disponible — usa «Preparar archivos + JSON»",
+          data.message || data.error || "Error al subir a R2",
           false,
         );
         return;
       }
-      setStatus(`Subido a R2: ${data.uploaded?.length || 0} archivos`);
+
+      // Reescribir rutas del ítem a URLs públicas de R2
+      const byName = new Map(
+        (data.uploaded || []).map((u: { field: string; publicUrl: string }) => [
+          u.field,
+          u.publicUrl,
+        ]),
+      );
+      if (item.video && typeof item.video === "string") {
+        const base = item.video.split("/").pop() || "";
+        if (byName.has(base)) item.video = byName.get(base);
+      }
+      if (item.cover && typeof item.cover === "string") {
+        const base = item.cover.split("/").pop() || "";
+        if (byName.has(base)) item.cover = byName.get(base);
+      }
+      if (Array.isArray(item.stems)) {
+        item.stems = item.stems.map((s: { id: string; label: string; src: string }) => {
+          const base = s.src.split("/").pop() || "";
+          return { ...s, src: byName.get(base) || s.src };
+        });
+      }
+
+      const json = JSON.stringify(item, null, 2);
+      downloadBlob(new Blob([json], { type: "application/json" }), `${slug}.library-item.json`);
+
+      setStatus(
+        `✅ Subido a R2 (${data.uploaded?.length || 0} archivos). JSON descargado — pégalo en library.json`,
+      );
       const out = document.querySelector("[data-out]");
+      const copy = document.querySelector("[data-copy]");
       if (out instanceof HTMLElement) {
         out.hidden = false;
-        out.textContent = JSON.stringify({ item, upload: data }, null, 2);
+        out.textContent = [
+          `✅ Media en R2 (público): ${data.publicBase}`,
+          "",
+          "Pega este ítem en src/data/library.json y haz deploy:",
+          "",
+          json,
+        ].join("\n");
       }
+      if (copy instanceof HTMLElement) copy.hidden = false;
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error R2", false);
     }
   });
 
-  // Mostrar botón R2 solo si el endpoint responde (no 404)
-  fetch("/admin/upload", { method: "OPTIONS", credentials: "same-origin" })
-    .then(() => {
-      const b = document.querySelector("[data-try-r2]");
-      if (b instanceof HTMLElement) b.hidden = false;
-    })
-    .catch(() => {
-      const b = document.querySelector("[data-try-r2]");
-      if (b instanceof HTMLElement) b.hidden = false; // mostrar igual: dará mensaje claro
-    });
-  // siempre visible con mensaje claro
   const r2btn = document.querySelector("[data-try-r2]");
-  if (r2btn instanceof HTMLElement) r2btn.hidden = false;
+  if (r2btn instanceof HTMLElement) {
+    r2btn.hidden = false;
+    r2btn.textContent = "Subir a R2 (recomendado)";
+  }
 
   document.querySelector("[data-copy]")?.addEventListener("click", async () => {
     const out = document.querySelector("[data-out]");

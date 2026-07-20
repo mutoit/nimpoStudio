@@ -3,8 +3,11 @@ name = "nimpo-studio"
 compatibility_date = "2024-07-01"
 pages_build_output_dir = "./dist"
 
-# Opcional: tras activar R2 en el dashboard y crear el bucket:
-# [[r2_buckets]]
-# binding = "LIBRARY_BUCKET"
-# bucket_name = "nimpo-library"
-# preview_bucket_name = "nimpo-library"
+# Biblioteca: media subida desde /admin (preview público vía r2.dev)
+[[r2_buckets]]
+binding = "LIBRARY_BUCKET"
+bucket_name = "nimpo-library"
+preview_bucket_name = "nimpo-library"
+
+[vars]
+LIBRARY_PUBLIC_BASE = "https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev"

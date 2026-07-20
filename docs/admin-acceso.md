@@ -41,9 +41,13 @@ Copia local del valor (gitignored): `.admin-secret.local` / `.dev.vars` (solo tu
 3. Tú mueves los media a `public/library/` y pegas el JSON en `src/data/library.json`.
 4. `npm run build` / deploy.
 
-### R2 (opcional, servidor)
-Si en la cuenta Cloudflare activas **R2** y añades el binding `LIBRARY_BUCKET` al proyecto Pages, el botón **Subir a R2** usa `POST /admin/upload` (misma cookie admin).  
-Hoy la cuenta puede tener R2 desactivado (`enable R2 in dashboard`); hasta entonces usa la descarga local.
+### R2 (recomendado, servidor)
+- Bucket: **`nimpo-library`**
+- Binding Pages: **`LIBRARY_BUCKET`** (en `wrangler.toml`)
+- Público: `https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev/...`
+- Botón **Subir a R2**: `POST /admin/upload` (misma cookie admin) → sube media y genera JSON con URLs r2.dev.
+
+Si R2 falla, usa **Preparar archivos + JSON** (descarga local a `public/library/`).
 
 - **No** es un almacén de masters de entrega: lo público es preview de catálogo.
 - Masters finales: fuera de la web.

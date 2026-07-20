@@ -84,7 +84,24 @@ import Layout from "../../components/Layout.astro";
           <div class="stems-box">
             <div class="stems-head">
               <span>Capas (stems) *</span>
-              <button type="button" class="btn btn--sm" data-add-stem>+ Añadir stem</button>
+              <button type="button" class="btn btn--sm" data-add-stem>+ Fila vacía</button>
+            </div>
+            <div
+              class="dropzone"
+              data-stems-drop
+              tabindex="0"
+              role="button"
+              aria-label="Arrastra stems de audio aquí"
+            >
+              <input
+                type="file"
+                accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac"
+                multiple
+                hidden
+                data-stems-pick
+              />
+              <p class="dropzone__title">Arrastra aquí los stems</p>
+              <p class="dropzone__sub">mp3 / wav / m4a · varios a la vez · o haz clic</p>
             </div>
             <div class="stems-list" data-stems-list></div>
           </div>
@@ -280,10 +297,7 @@ import Layout from "../../components/Layout.astro";
   });
 
   let channel: "video" | "stems" = "video";
-  let stemRows: StemRow[] = [
-    { label: "", file: null },
-    { label: "", file: null },
-  ];
+  let stemRows: StemRow[] = [];
 
   const slugify = (s: string) =>
     s
@@ -333,17 +347,51 @@ import Layout from "../../components/Layout.astro";
   bindPreview("[data-stems-video]", "[data-stems-video-preview]", "video");
   bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
 
+  const setStatus = (msg: string, ok = true) => {
+    const el = document.querySelector("[data-status]");
+    if (!(el instanceof HTMLElement)) return;
+    el.hidden = false;
+    el.textContent = msg;
+    el.classList.toggle("is-err", !ok);
+  };
+
   const stemsList = document.querySelector("[data-stems-list]");
+  const isAudioFile = (f: File) => {
+    const n = f.name.toLowerCase();
+    if (/\.(mp3|wav|m4a|ogg|aac|flac|aiff?)$/.test(n)) return true;
+    return (f.type || "").startsWith("audio/");
+  };
+
+  const addStemFiles = (files: FileList | File[]) => {
+    const list = [...files].filter(isAudioFile);
+    if (!list.length) {
+      setStatus("Suelta archivos de audio (mp3, wav…)", false);
+      return;
+    }
+    stemRows = stemRows.filter((r) => r.file);
+    for (const f of list) {
+      stemRows.push({
+        label: f.name.replace(/\.[^.]+$/, ""),
+        file: f,
+      });
+    }
+    renderStems();
+    setStatus(`${list.length} stem(s) añadido(s). Puedes renombrar o quitar filas.`);
+  };
+
   const renderStems = () => {
     if (!stemsList) return;
+    if (!stemRows.length) {
+      stemsList.innerHTML = `<p class="stems-empty">Aún no hay capas. Arrastra archivos arriba.</p>`;
+      return;
+    }
     stemsList.innerHTML = stemRows
       .map(
         (row, i) => `
       <div class="stem-row" data-stem-i="${i}">
         <input type="text" placeholder="Etiqueta" value="${(row.label || "").replace(/"/g, "&quot;")}" data-stem-label />
-        <input type="file" accept="audio/*,.mp3,.wav" data-stem-file />
-        <span class="stem-fname">${row.file ? row.file.name : "—"}</span>
-        <button type="button" class="btn btn--sm btn--danger" data-stem-remove>×</button>
+        <span class="stem-fname" title="${row.file ? row.file.name.replace(/"/g, "") : ""}">${row.file ? row.file.name : "sin archivo"}</span>
+        <button type="button" class="btn btn--sm btn--danger" data-stem-remove aria-label="Quitar">×</button>
       </div>`,
       )
       .join("");
@@ -352,33 +400,60 @@ import Layout from "../../components/Layout.astro";
       el.querySelector("[data-stem-label]")?.addEventListener("input", (ev) => {
         if (stemRows[i]) stemRows[i]!.label = (ev.target as HTMLInputElement).value;
       });
-      el.querySelector("[data-stem-file]")?.addEventListener("change", (ev) => {
-        const f = (ev.target as HTMLInputElement).files?.[0] || null;
-        if (stemRows[i]) {
-          stemRows[i]!.file = f;
-          if (f && !stemRows[i]!.label) stemRows[i]!.label = f.name.replace(/\.[^.]+$/, "");
-          renderStems();
-        }
-      });
       el.querySelector("[data-stem-remove]")?.addEventListener("click", () => {
         stemRows.splice(i, 1);
         renderStems();
       });
     });
   };
+
+  const drop = document.querySelector("[data-stems-drop]");
+  const pick = document.querySelector("[data-stems-pick]");
+  if (drop instanceof HTMLElement) {
+    const setDrag = (on: boolean) => drop.classList.toggle("is-drag", on);
+    ["dragenter", "dragover"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDrag(true);
+      });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (ev === "dragleave") setDrag(false);
+      });
+    });
+    drop.addEventListener("drop", (e) => {
+      setDrag(false);
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt?.files?.length) addStemFiles(dt.files);
+    });
+    drop.addEventListener("click", () => {
+      if (pick instanceof HTMLInputElement) pick.click();
+    });
+    drop.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (pick instanceof HTMLInputElement) pick.click();
+      }
+    });
+  }
+  if (pick instanceof HTMLInputElement) {
+    pick.addEventListener("change", () => {
+      if (pick.files?.length) addStemFiles(pick.files);
+      pick.value = "";
+    });
+  }
+
   document.querySelector("[data-add-stem]")?.addEventListener("click", () => {
     stemRows.push({ label: "", file: null });
     renderStems();
   });
+  // Arranque: sin filas; solo drop zone
+  stemRows = [];
   renderStems();
-
-  const setStatus = (msg: string, ok = true) => {
-    const el = document.querySelector("[data-status]");
-    if (!(el instanceof HTMLElement)) return;
-    el.hidden = false;
-    el.textContent = msg;
-    el.classList.toggle("is-err", !ok);
-  };
 
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -469,10 +544,7 @@ import Layout from "../../components/Layout.astro";
         );
       }
       form.reset();
-      stemRows = [
-        { label: "", file: null },
-        { label: "", file: null },
-      ];
+      stemRows = [];
       renderStems();
       document.querySelectorAll(".preview").forEach((p) => {
         if (p instanceof HTMLElement) {
@@ -636,9 +708,46 @@ import Layout from "../../components/Layout.astro";
     color: var(--color-fg);
     font-size: 0.85rem;
   }
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 7.5rem;
+    margin-bottom: 0.85rem;
+    padding: 1.1rem;
+    border-radius: 12px;
+    border: 2px dashed rgb(201 169 98 / 0.4);
+    background: rgb(201 169 98 / 0.05);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover,
+  .dropzone.is-drag {
+    border-color: #c9a962;
+    background: rgb(201 169 98 / 0.12);
+  }
+  .dropzone__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .dropzone__sub {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .stems-empty {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
   .stem-row {
     display: grid;
-    grid-template-columns: 1fr 1fr auto auto;
+    grid-template-columns: 1fr minmax(0, 1.2fr) auto;
     gap: 0.4rem;
     margin-bottom: 0.45rem;
     align-items: center;
@@ -646,6 +755,9 @@ import Layout from "../../components/Layout.astro";
   .stem-fname {
     font-size: 0.7rem;
     color: var(--color-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chips-field {
     border: 1px solid var(--color-border);

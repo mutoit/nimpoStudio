@@ -324,7 +324,10 @@ const payload = {
       let gridVideo: HTMLVideoElement | null = null;
       let playingId: string | null = null;
       let progressRaf = 0;
+      /** true mientras el usuario arrastra el seek (evita que el RAF pise el thumb) */
       let seeking = false;
+      /** segundos objetivo del último seek (hasta que el media alcance o se suelte) */
+      let seekTargetSec: number | null = null;
 
       const fmtTime = (sec: number) => {
         if (!Number.isFinite(sec) || sec < 0) return "0:00";
@@ -358,12 +361,27 @@ const payload = {
         return gridVideo || modalVid || null;
       };
 
+      const mediaDuration = (): number => {
+        const el = clockEl();
+        if (el && Number.isFinite(el.duration) && el.duration > 0) return el.duration;
+        for (const l of stemLayers) {
+          if (Number.isFinite(l.audio.duration) && l.audio.duration > 0) return l.audio.duration;
+        }
+        return 0;
+      };
+
       const updateProgressUI = () => {
         const el = clockEl();
         const seek = root.querySelector<HTMLInputElement>("[data-lb-seek]");
         const timeEl = root.querySelector("[data-lb-time]");
-        const dur = el && Number.isFinite(el.duration) ? el.duration : 0;
-        const cur = el ? el.currentTime : 0;
+        const dur = mediaDuration();
+        // Si hay seek en curso, mostrar el objetivo (no el currentTime viejo del media)
+        let cur = el ? el.currentTime : 0;
+        if (seekTargetSec != null && (seeking || Math.abs(cur - seekTargetSec) > 0.35)) {
+          cur = seekTargetSec;
+        } else if (seekTargetSec != null && Math.abs(cur - seekTargetSec) <= 0.35) {
+          seekTargetSec = null;
+        }
         if (seek && !seeking) {
           seek.value = dur > 0 ? String(Math.round((cur / dur) * 1000)) : "0";
         }
@@ -438,6 +456,8 @@ const payload = {
 
       const stopAll = () => {
         stopProgressLoop();
+        seeking = false;
+        seekTargetSec = null;
         stemLayers.forEach((l) => {
           l.audio.pause();
           l.audio.currentTime = 0;
@@ -515,18 +535,51 @@ const payload = {
 
       const syncStemTime = (t: number) => {
         if (!Number.isFinite(t) || t < 0) return;
+        seekTargetSec = t;
         stemLayers.forEach((l) => {
           try {
             const dur = l.audio.duration;
-            if (Number.isFinite(dur) && dur > 0) {
-              l.audio.currentTime = Math.min(t, Math.max(0, dur - 0.05));
+            const clamped =
+              Number.isFinite(dur) && dur > 0 ? Math.min(t, Math.max(0, dur - 0.05)) : t;
+            // Algunos browsers solo aceptan seek si readyState >= 1
+            if (l.audio.readyState >= 1) {
+              l.audio.currentTime = clamped;
             } else {
-              l.audio.currentTime = t;
+              const once = () => {
+                try {
+                  l.audio.currentTime = clamped;
+                } catch {
+                  /* ignore */
+                }
+                l.audio.removeEventListener("loadedmetadata", once);
+              };
+              l.audio.addEventListener("loadedmetadata", once);
             }
           } catch {
             /* metadata aún no lista */
           }
         });
+      };
+
+      /** Salto de posición (stems o vídeo). */
+      const seekToRatio = (ratio: number) => {
+        const dur = mediaDuration();
+        if (!(dur > 0)) return false;
+        const t = Math.max(0, Math.min(ratio, 1)) * dur;
+        if (stemLayers.length) {
+          syncStemTime(t);
+        } else {
+          const el = clockEl();
+          if (!el) return false;
+          seekTargetSec = t;
+          try {
+            el.currentTime = t;
+          } catch {
+            return false;
+          }
+        }
+        updateProgressUI();
+        return true;
       };
 
       const playStems = async (item: Item, playId: string) => {
@@ -928,31 +981,47 @@ const payload = {
       });
 
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
+      const endSeeking = () => {
+        seeking = false;
+        // dejar seekTargetSec hasta que el media se acerque (updateProgressUI lo limpia)
+        updateProgressUI();
+        startProgressLoop();
+      };
       seekInput?.addEventListener("pointerdown", () => {
         seeking = true;
       });
-      seekInput?.addEventListener("pointerup", () => {
-        seeking = false;
+      seekInput?.addEventListener("mousedown", () => {
+        seeking = true;
       });
+      seekInput?.addEventListener("touchstart", () => {
+        seeking = true;
+      }, { passive: true });
+      seekInput?.addEventListener("pointerup", endSeeking);
+      seekInput?.addEventListener("mouseup", endSeeking);
+      seekInput?.addEventListener("touchend", endSeeking);
       seekInput?.addEventListener("input", () => {
         if (!seekInput) return;
-        const el = clockEl() || stemLayers[0]?.audio || null;
-        if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
-        const t = (Number(seekInput.value) / 1000) * el.duration;
-        if (stemLayers.length) {
-          syncStemTime(t);
-        } else {
-          try {
-            el.currentTime = t;
-          } catch {
-            /* ignore */
-          }
+        seeking = true;
+        const dur = mediaDuration();
+        if (!(dur > 0)) return;
+        const ratio = Number(seekInput.value) / 1000;
+        seekToRatio(ratio);
+        // reflejar valor del usuario en el range (no dejar que el RAF lo mueva)
+        seekInput.value = String(Math.round(ratio * 1000));
+        const timeEl = root.querySelector("[data-lb-time]");
+        if (timeEl) {
+          timeEl.textContent = `${fmtTime(ratio * dur)} / ${fmtTime(dur)}`;
         }
-        updateProgressUI();
       });
       seekInput?.addEventListener("change", () => {
-        seeking = false;
-        updateProgressUI();
+        if (!seekInput) return;
+        const dur = mediaDuration();
+        if (dur > 0) seekToRatio(Number(seekInput.value) / 1000);
+        endSeeking();
+      });
+      // Si suelta fuera del input
+      document.addEventListener("pointerup", () => {
+        if (seeking) endSeeking();
       });
 
       root.querySelectorAll("[data-type]").forEach((btn) => {
@@ -1192,8 +1261,14 @@ const payload = {
   .lb__seek {
     flex: 1;
     min-width: 0;
+    height: 1.35rem;
     accent-color: var(--color-accent, #c9a962);
     cursor: pointer;
+    touch-action: none;
+  }
+  .lb__seek:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
   .lb__time {
     flex-shrink: 0;

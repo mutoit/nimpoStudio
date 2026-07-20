@@ -85,16 +85,17 @@ async function main() {
   const time2 = await page.locator("[data-lb-time]").textContent();
   ok("progress time advances", time1 !== time2, `${time1} -> ${time2}`);
 
+  const sec = (t) => {
+    const m = t?.match(/(\d+):(\d+)/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+  };
+
   // Uncheck one stem — should NOT reset time to 0:00
   if (stemCount > 0) {
     const beforeUncheck = await page.locator("[data-lb-time]").textContent();
     await mixRows.nth(0).click(); // uncheck first
     await page.waitForTimeout(800);
     const afterUncheck = await page.locator("[data-lb-time]").textContent();
-    const sec = (t) => {
-      const m = t?.match(/(\d+):(\d+)/);
-      return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
-    };
     const s1 = sec(beforeUncheck);
     const s2 = sec(afterUncheck);
     ok(
@@ -104,7 +105,24 @@ async function main() {
     );
     // re-check
     await mixRows.nth(0).click();
+    await page.waitForTimeout(400);
   }
+
+  // —— Seek bar: saltar ~50% ——
+  await page.waitForTimeout(1500);
+  const seek = page.locator("[data-lb-seek]");
+  await seek.waitFor({ state: "visible" });
+  // Forzar valor al 50% y disparar input/change
+  await seek.evaluate((el) => {
+    el.value = "500";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForTimeout(1200);
+  const afterSeek = await page.locator("[data-lb-time]").textContent();
+  const seekSec = sec(afterSeek);
+  // pista ~48s → mitad ~24s; aceptar 15–40s
+  ok("seek bar jumps position", seekSec >= 15 && seekSec <= 40, `time=${afterSeek}`);
 
   // —— Live price by term ——
   const usage = page.locator('[name="usage"]');

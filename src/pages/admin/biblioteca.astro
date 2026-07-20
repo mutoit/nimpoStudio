@@ -273,11 +273,18 @@ import Layout from "../../components/Layout.astro";
     <aside class="pub-rail" data-pub-rail>
       <div class="pub-rail__head">
         <h2 class="subhead">Publicaciones</h2>
-        <button type="button" class="btn btn--sm" data-pub-refresh>Actualizar</button>
+        <button type="button" class="btn btn--sm" data-pub-refresh title="Actualizar">↻</button>
       </div>
-      <p class="lead lead--sm">Miniaturas del catálogo vivo. Editar o borrar sin tocar JSON.</p>
-      <div class="pub-grid" data-pub-grid>
-        <p class="pub-empty">Cargando…</p>
+      <p class="lead lead--sm">Catálogo vivo · miniaturas</p>
+      <div class="pub-frame" data-pub-frame>
+        <div class="pub-grid" data-pub-grid>
+          <p class="pub-empty">Cargando…</p>
+        </div>
+        <div class="pub-pager" data-pub-pager hidden>
+          <button type="button" class="btn btn--sm" data-pub-prev aria-label="Anterior">‹</button>
+          <span class="pub-page" data-pub-page>1 / 1</span>
+          <button type="button" class="btn btn--sm" data-pub-next aria-label="Siguiente">›</button>
+        </div>
       </div>
     </aside>
     </div>
@@ -355,6 +362,8 @@ import Layout from "../../components/Layout.astro";
   let editingSlug: string | null = null;
   let editingItem: Record<string, unknown> | null = null;
   let publications: Record<string, unknown>[] = [];
+  const PUB_PAGE_SIZE = 6;
+  let pubPage = 0;
 
   const slugify = (s: string) =>
     s
@@ -660,12 +669,32 @@ import Layout from "../../components/Layout.astro";
 
   const renderPubs = () => {
     const grid = document.querySelector("[data-pub-grid]");
+    const pager = document.querySelector("[data-pub-pager]");
+    const pageLabel = document.querySelector("[data-pub-page]");
     if (!(grid instanceof HTMLElement)) return;
+
     if (!publications.length) {
-      grid.innerHTML = `<p class="pub-empty">No hay publicaciones en el catálogo vivo.</p>`;
+      grid.innerHTML = `<p class="pub-empty">No hay publicaciones.</p>`;
+      if (pager instanceof HTMLElement) pager.hidden = true;
       return;
     }
-    grid.innerHTML = publications
+
+    const totalPages = Math.max(1, Math.ceil(publications.length / PUB_PAGE_SIZE));
+    if (pubPage >= totalPages) pubPage = totalPages - 1;
+    if (pubPage < 0) pubPage = 0;
+    const start = pubPage * PUB_PAGE_SIZE;
+    const slice = publications.slice(start, start + PUB_PAGE_SIZE);
+
+    if (pager instanceof HTMLElement) {
+      pager.hidden = totalPages <= 1;
+    }
+    if (pageLabel) pageLabel.textContent = `${pubPage + 1} / ${totalPages}`;
+    const prev = document.querySelector("[data-pub-prev]");
+    const next = document.querySelector("[data-pub-next]");
+    if (prev instanceof HTMLButtonElement) prev.disabled = pubPage <= 0;
+    if (next instanceof HTMLButtonElement) next.disabled = pubPage >= totalPages - 1;
+
+    grid.innerHTML = slice
       .map((item) => {
         const slug = String(item.slug || "");
         const title = String(item.title || slug);
@@ -673,14 +702,14 @@ import Layout from "../../components/Layout.astro";
         const video = String(item.video || "");
         const kind = String(item.kind || "");
         const thumb = cover
-          ? `<img src="${cover.replace(/"/g, "")}" alt="" loading="lazy" />`
+          ? `<img src="${cover.replace(/"/g, "")}" alt="" loading="lazy" width="48" height="48" />`
           : video
-            ? `<video src="${video.replace(/"/g, "")}" muted playsinline preload="metadata"></video>`
-            : `<div class="pub-ph">${kind === "stems" ? "STEMS" : "·"}</div>`;
+            ? `<video src="${video.replace(/"/g, "")}" muted playsinline preload="metadata" width="48" height="48"></video>`
+            : `<span class="pub-ph">${kind === "stems" ? "S" : "V"}</span>`;
         return `<article class="pub-card" data-pub-slug="${slug.replace(/"/g, "")}">
-          <div class="pub-thumb">${thumb}</div>
+          <div class="pub-thumb" aria-hidden="true">${thumb}</div>
           <div class="pub-meta">
-            <strong title="${title.replace(/"/g, "")}">${title.slice(0, 42)}${title.length > 42 ? "…" : ""}</strong>
+            <strong title="${title.replace(/"/g, "")}">${title.slice(0, 28)}${title.length > 28 ? "…" : ""}</strong>
             <span>${kind}${item.provisional ? " · demo" : ""}</span>
           </div>
           <div class="pub-actions">
@@ -732,6 +761,7 @@ import Layout from "../../components/Layout.astro";
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo cargar");
       publications = Array.isArray(data.items) ? data.items : [];
+      pubPage = 0;
       renderPubs();
     } catch (e) {
       if (grid instanceof HTMLElement) {
@@ -740,6 +770,14 @@ import Layout from "../../components/Layout.astro";
     }
   };
 
+  document.querySelector("[data-pub-prev]")?.addEventListener("click", () => {
+    pubPage -= 1;
+    renderPubs();
+  });
+  document.querySelector("[data-pub-next]")?.addEventListener("click", () => {
+    pubPage += 1;
+    renderPubs();
+  });
   document.querySelector("[data-pub-refresh]")?.addEventListener("click", () => {
     void loadPubs();
   });
@@ -953,75 +991,137 @@ import Layout from "../../components/Layout.astro";
   .pub-rail {
     position: sticky;
     top: 5rem;
-    padding: 0.85rem;
+    width: 100%;
+    max-width: 17rem;
+    padding: 0.75rem;
     border-radius: 12px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     max-height: calc(100dvh - 6rem);
-    overflow: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .pub-rail__head {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
   }
-  .pub-grid {
+  .pub-frame {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-  }
-  .pub-card {
     border: 1px solid var(--color-border);
     border-radius: 10px;
+    background: #0a0a0c;
     overflow: hidden;
-    background: #0c0c10;
+  }
+  .pub-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0.25rem;
+    scrollbar-width: thin;
+  }
+  .pub-card {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.2rem 0.45rem;
+    align-items: center;
+    padding: 0.4rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+  }
+  .pub-card:hover {
+    border-color: rgb(201 169 98 / 0.25);
+    background: rgb(201 169 98 / 0.05);
   }
   .pub-thumb {
-    aspect-ratio: 1;
+    grid-row: 1 / span 2;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+    border-radius: 6px;
+    overflow: hidden;
     background: #08080a;
+    border: 1px solid var(--color-border);
     display: grid;
     place-items: center;
   }
   .pub-thumb img,
   .pub-thumb video {
-    width: 100%;
-    height: 100%;
+    width: 48px !important;
+    height: 48px !important;
+    max-width: 48px;
+    max-height: 48px;
     object-fit: cover;
     display: block;
   }
   .pub-ph {
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     color: var(--color-muted);
   }
   .pub-meta {
-    padding: 0.4rem 0.5rem 0.15rem;
+    min-width: 0;
+    padding: 0;
   }
   .pub-meta strong {
     display: block;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .pub-meta span {
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     color: var(--color-muted);
   }
   .pub-actions {
+    grid-column: 2;
     display: flex;
-    gap: 0.35rem;
-    padding: 0.4rem 0.5rem 0.55rem;
+    gap: 0.25rem;
+    padding: 0;
   }
   .pub-actions .btn {
     flex: 1;
+    font-size: 0.65rem;
+    padding: 0.22rem 0.3rem;
+  }
+  .pub-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.4rem 0.45rem;
+    border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+  .pub-page {
     font-size: 0.72rem;
-    padding: 0.3rem 0.35rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .pub-pager .btn:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
   .pub-empty {
-    margin: 0;
-    font-size: 0.8rem;
+    margin: 0.75rem;
+    font-size: 0.78rem;
     color: var(--color-muted);
   }
   .pub-empty.is-err {

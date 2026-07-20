@@ -1,9 +1,9 @@
 /**
  * Reproductor multi-stem con Web Audio (buffers en memoria).
  * Pages no sirve Range/partial content → HTMLAudioElement no scrubea.
+ * El ruido de preview se incrusta al publicar (admin), no aquí.
  *
- * Incluye bus de música + ruido de preview (watermark ligero).
- * P⇒Q: load(stems) ⇒ play/pause/seek/mute + setPreviewMix(música, ruido).
+ * P⇒Q: load(stems) ⇒ play/pause/seek/mute con currentTime coherente.
  */
 
 export type StemDef = { src: string; label?: string };
@@ -32,35 +32,15 @@ function normSrc(s: string) {
   }
 }
 
-/** Ruido blanco en buffer corto (loop). */
-function makeNoiseBuffer(ctx: AudioContext, seconds = 2): AudioBuffer {
-  const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-  return buf;
-}
-
 export class StemTransport {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  /** Nivel global de las capas musicales (0–1). */
-  private musicBus: GainNode | null = null;
-  /** Nivel de ruido de preview (0–1). */
-  private noiseBus: GainNode | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
-  private noiseSource: AudioBufferSourceNode | null = null;
   private layers: Layer[] = [];
   private itemId: string | null = null;
   private playing = false;
   private startCtx = 0;
   private startOffset = 0;
   private pauseAt = 0;
-  private musicLevel = 1;
-  /** Default ~12 % ruido: preview no limpio sin quitar la pieza. */
-  private noiseLevel = 0.12;
   duration = 0;
 
   get isPlaying() {
@@ -69,14 +49,6 @@ export class StemTransport {
 
   get loadedItemId() {
     return this.itemId;
-  }
-
-  get musicMix() {
-    return this.musicLevel;
-  }
-
-  get noiseMix() {
-    return this.noiseLevel;
   }
 
   get currentTime() {
@@ -96,18 +68,7 @@ export class StemTransport {
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 1;
       this.master.connect(this.ctx.destination);
-
-      this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = this.musicLevel;
-      this.musicBus.connect(this.master);
-
-      this.noiseBus = this.ctx.createGain();
-      this.noiseBus.gain.value = this.noiseLevel;
-      this.noiseBus.connect(this.master);
-
-      this.noiseBuffer = makeNoiseBuffer(this.ctx, 2);
     }
     return this.ctx;
   }
@@ -115,18 +76,6 @@ export class StemTransport {
   async resumeCtx() {
     const ctx = this.ensureCtx();
     if (ctx.state === "suspended") await ctx.resume();
-  }
-
-  /**
-   * Mezcla preview: música 0–1, ruido 0–1 (independientes).
-   * Ej. music=1, noise=0.2 → pieza clara con capa de ruido.
-   */
-  setPreviewMix(music: number, noise: number) {
-    this.musicLevel = Math.max(0, Math.min(1, music));
-    this.noiseLevel = Math.max(0, Math.min(1, noise));
-    this.ensureCtx();
-    if (this.musicBus) this.musicBus.gain.value = this.musicLevel;
-    if (this.noiseBus) this.noiseBus.gain.value = this.noiseLevel;
   }
 
   async load(itemId: string, stems: StemDef[]) {
@@ -139,16 +88,10 @@ export class StemTransport {
     this.duration = 0;
 
     const ctx = this.ensureCtx();
-    if (!this.musicBus || !this.master) {
+    if (!this.master) {
       this.master = ctx.createGain();
       this.master.connect(ctx.destination);
-      this.musicBus = ctx.createGain();
-      this.musicBus.connect(this.master);
-      this.noiseBus = ctx.createGain();
-      this.noiseBus.connect(this.master);
     }
-    this.musicBus.gain.value = this.musicLevel;
-    if (this.noiseBus) this.noiseBus.gain.value = this.noiseLevel;
 
     const loaded = await Promise.all(
       stems.map(async (s) => {
@@ -159,7 +102,7 @@ export class StemTransport {
         const buffer = await ctx.decodeAudioData(raw.slice(0));
         const gain = ctx.createGain();
         gain.gain.value = 1;
-        gain.connect(this.musicBus!);
+        gain.connect(this.master!);
         return {
           src: s.src,
           buffer,
@@ -189,38 +132,6 @@ export class StemTransport {
         l.source = null;
       }
     }
-    if (this.noiseSource) {
-      try {
-        this.noiseSource.stop();
-      } catch {
-        /* ignore */
-      }
-      try {
-        this.noiseSource.disconnect();
-      } catch {
-        /* ignore */
-      }
-      this.noiseSource = null;
-    }
-  }
-
-  private startNoise() {
-    const ctx = this.ensureCtx();
-    if (!this.noiseBuffer || !this.noiseBus) return;
-    if (this.noiseSource) {
-      try {
-        this.noiseSource.stop();
-      } catch {
-        /* ignore */
-      }
-      this.noiseSource = null;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    src.loop = true;
-    src.connect(this.noiseBus);
-    src.start(0);
-    this.noiseSource = src;
   }
 
   play(offset?: number) {
@@ -240,10 +151,6 @@ export class StemTransport {
       src.start(0, o);
       l.source = src;
     }
-    this.startNoise();
-    if (this.musicBus) this.musicBus.gain.value = this.musicLevel;
-    if (this.noiseBus) this.noiseBus.gain.value = this.noiseLevel;
-
     this.startCtx = ctx.currentTime;
     this.startOffset = o;
     this.pauseAt = o;

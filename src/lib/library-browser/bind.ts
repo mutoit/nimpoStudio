@@ -206,20 +206,7 @@ export function bindLibraryBrowser() {
         }
       };
 
-      const applyPreviewLevelsFromUi = () => {
-        const musicEl = root.querySelector<HTMLInputElement>("[data-lb-music-level]");
-        const noiseEl = root.querySelector<HTMLInputElement>("[data-lb-noise-level]");
-        const musicPct = root.querySelector("[data-lb-music-pct]");
-        const noisePct = root.querySelector("[data-lb-noise-pct]");
-        const m = musicEl ? Number(musicEl.value) / 100 : 1;
-        const n = noiseEl ? Number(noiseEl.value) / 100 : 0.12;
-        stemsTx.setPreviewMix(m, n);
-        if (musicPct) musicPct.textContent = `${Math.round(m * 100)}%`;
-        if (noisePct) noisePct.textContent = `${Math.round(n * 100)}%`;
-      };
-
       const applyStemMixFromUi = () => {
-        applyPreviewLevelsFromUi();
         const modalOpen =
           overlay instanceof HTMLElement &&
           !overlay.hidden &&
@@ -627,11 +614,8 @@ export function bindLibraryBrowser() {
 
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");
-        const previewMix = root.querySelector("[data-lb-preview-mix]");
         const hasStems = !!(item.stems && item.stems.length);
         if (stemsWrap instanceof HTMLElement) stemsWrap.hidden = !hasStems;
-        // Controles música/ruido solo con stems (Web Audio)
-        if (previewMix instanceof HTMLElement) previewMix.hidden = !hasStems;
         if (mixer && hasStems && item.stems) {
           mixer.innerHTML = item.stems
             .map((s) => {
@@ -640,7 +624,6 @@ export function bindLibraryBrowser() {
             })
             .join("");
         }
-        applyPreviewLevelsFromUi();
 
         const licWrap = root.querySelector("[data-lb-lic-wrap]");
         const noLic = root.querySelector("[data-lb-no-lic]");
@@ -724,14 +707,6 @@ export function bindLibraryBrowser() {
         if (t instanceof HTMLInputElement && t.hasAttribute("data-stem-src")) {
           onStemMixChange();
         }
-      });
-
-      // Sliders música / ruido (preview watermark)
-      root.querySelector("[data-lb-music-level]")?.addEventListener("input", () => {
-        applyPreviewLevelsFromUi();
-      });
-      root.querySelector("[data-lb-noise-level]")?.addEventListener("input", () => {
-        applyPreviewLevelsFromUi();
       });
 
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");

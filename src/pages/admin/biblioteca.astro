@@ -105,11 +105,32 @@ import Layout from "../../components/Layout.astro";
             </div>
             <div class="stems-list" data-stems-list></div>
           </div>
+
+          <label class="noise-block">
+            <span class="noise-block__head">
+              Ruido en preview (incrustado al subir)
+              <em data-noise-pct>12%</em>
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="40"
+              value="12"
+              step="1"
+              data-noise-level
+              aria-label="Porcentaje de ruido en stems de preview"
+            />
+            <p class="hint">
+              Solo tú lo eliges. Se mezcla <strong>en el archivo</strong> que oye el visitante
+              (no hay slider en la web pública). 0 = limpio · 12 ≈ protección suave · 25+ fuerte.
+              Re-sube si cambias el valor.
+            </p>
+          </label>
         </div>
 
         <fieldset class="chips-field">
           <legend>Moods</legend>
-          <div class="pick">
+          <div class="pick" data-mood-pick>
             {
               [
                 "oscuro",
@@ -130,11 +151,15 @@ import Layout from "../../components/Layout.astro";
               ))
             }
           </div>
+          <div class="add-chip">
+            <input type="text" placeholder="Nuevo mood…" data-mood-custom maxlength="40" />
+            <button type="button" class="btn btn--sm" data-mood-add>Añadir</button>
+          </div>
         </fieldset>
 
         <fieldset class="chips-field">
           <legend>Tags</legend>
-          <div class="pick">
+          <div class="pick" data-tag-pick>
             {
               [
                 "ambient",
@@ -154,6 +179,10 @@ import Layout from "../../components/Layout.astro";
                 </label>
               ))
             }
+          </div>
+          <div class="add-chip">
+            <input type="text" placeholder="Nuevo tag…" data-tag-custom maxlength="40" />
+            <button type="button" class="btn btn--sm" data-tag-add>Añadir</button>
           </div>
         </fieldset>
 
@@ -234,6 +263,8 @@ import Layout from "../../components/Layout.astro";
 </Layout>
 
 <script>
+  import { bakePreviewNoise } from "../../lib/preview-noise-bake";
+
   type StemRow = { label: string; file: File | null };
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
@@ -455,6 +486,59 @@ import Layout from "../../components/Layout.astro";
   stemRows = [];
   renderStems();
 
+  // Slider ruido (solo admin)
+  const noiseRange = document.querySelector<HTMLInputElement>("[data-noise-level]");
+  const noisePct = document.querySelector("[data-noise-pct]");
+  noiseRange?.addEventListener("input", () => {
+    if (noisePct) noisePct.textContent = `${noiseRange.value}%`;
+  });
+
+  // Moods / tags personalizados
+  const addCustomChip = (
+    pickSel: string,
+    inputSel: string,
+    name: "moodPick" | "tagPick",
+  ) => {
+    const pick = document.querySelector(pickSel);
+    const input = document.querySelector(inputSel);
+    if (!(pick instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
+    const add = () => {
+      const v = input.value.trim().toLowerCase().slice(0, 40);
+      if (!v) return;
+      const exists = [...pick.querySelectorAll("input")].some(
+        (el) => el instanceof HTMLInputElement && el.value === v,
+      );
+      if (exists) {
+        const box = pick.querySelector(`input[value="${CSS.escape(v)}"]`);
+        if (box instanceof HTMLInputElement) box.checked = true;
+        input.value = "";
+        return;
+      }
+      const label = document.createElement("label");
+      label.className = "pick-item";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.name = name;
+      cb.value = v;
+      cb.checked = true;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" " + v));
+      pick.appendChild(label);
+      input.value = "";
+    };
+    document
+      .querySelector(inputSel === "[data-mood-custom]" ? "[data-mood-add]" : "[data-tag-add]")
+      ?.addEventListener("click", add);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        add();
+      }
+    });
+  };
+  addCustomChip("[data-mood-pick]", "[data-mood-custom]", "moodPick");
+  addCustomChip("[data-tag-pick]", "[data-tag-custom]", "tagPick");
+
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -492,14 +576,28 @@ import Layout from "../../components/Layout.astro";
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
+        const noise01 = Number(noiseRange?.value || 12) / 100;
         let n = 0;
-        for (const row of stemRows) {
+        const withFile = stemRows.filter((r) => r.file);
+        if (!withFile.length) throw new Error("Añade al menos un stem con audio.");
+        setStatus(
+          noise01 > 0.005
+            ? `Procesando ruido (${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`
+            : `Preparando ${withFile.length} stem(s)…`,
+        );
+        for (const row of withFile) {
           if (!row.file) continue;
-          body.set(`stem_${n}_file`, row.file, row.file.name);
+          let file = row.file;
+          try {
+            file = await bakePreviewNoise(row.file, noise01);
+          } catch (err) {
+            console.warn("[bake noise]", err);
+            // Si falla el bake, sube original
+          }
+          body.set(`stem_${n}_file`, file, file.name);
           body.set(`stem_${n}_label`, row.label || row.file.name);
           n++;
         }
-        if (!n) throw new Error("Añade al menos un stem con audio.");
       }
 
       setStatus("Publicando… (subida + catálogo)");
@@ -601,6 +699,45 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.75rem;
     line-height: 1.4;
     color: var(--color-muted);
+  }
+  .noise-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+    padding: 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.28);
+    background: rgb(201 169 98 / 0.06);
+  }
+  .noise-block__head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .noise-block__head em {
+    font-style: normal;
+    color: var(--color-accent);
+  }
+  .noise-block input[type="range"] {
+    width: 100%;
+    accent-color: #c9a962;
+  }
+  .add-chip {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+  }
+  .add-chip input {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    color: var(--color-fg);
+    font: inherit;
   }
   .sep {
     border: none;

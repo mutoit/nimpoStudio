@@ -118,38 +118,6 @@ const payload = {
             </div>
           </div>
 
-          <!-- Preview: balance música / ruido (no es el master de entrega) -->
-          <div class="lb__preview-mix" data-lb-preview-mix hidden>
-            <p class="lb__label">Preview · música / ruido</p>
-            <p class="lb__help-mini">
-              Solo en la web. El master limpio se entrega tras licencia. Ajusta cuánto oyes de
-              cada uno.
-            </p>
-            <label class="lb__mix-slider">
-              <span>Música <em data-lb-music-pct>100%</em></span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value="100"
-                step="1"
-                data-lb-music-level
-                aria-label="Nivel de música en preview"
-              />
-            </label>
-            <label class="lb__mix-slider">
-              <span>Ruido <em data-lb-noise-pct>12%</em></span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value="12"
-                step="1"
-                data-lb-noise-level
-                aria-label="Nivel de ruido en preview"
-              />
-            </label>
-          </div>
           <p class="lb__label">{t("libDescription")}</p>
           <p class="lb__text" data-lb-desc></p>
           <p class="lb__label">{t("libNotes")}</p>

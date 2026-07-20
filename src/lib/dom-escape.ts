@@ -29,7 +29,20 @@ export function safeAspectLabel(raw: string | null | undefined): "1:1" | "9:16" 
  */
 export function safeMediaUrl(url: string | null | undefined): string {
   if (!url) return "";
-  const u = String(url).trim().slice(0, 2048);
+  let u = String(url).trim().slice(0, 2048);
+  // r2.dev → same-origin proxy (Web Audio fetch necesita CORS)
+  try {
+    if (u.startsWith("library/")) return `/api/media/${u}`;
+    if (u.includes(".r2.dev/")) {
+      const parsed = new URL(u);
+      if (parsed.hostname.endsWith(".r2.dev")) {
+        const key = parsed.pathname.replace(/^\/+/, "");
+        if (key.startsWith("library/")) return `/api/media/${key}`;
+      }
+    }
+  } catch {
+    /* continue */
+  }
   if (u.startsWith("/") && !u.startsWith("//")) return u;
   try {
     const parsed = new URL(u);

@@ -4,9 +4,26 @@
 
 import { safeAspect, safeName, clipText, clipStringList, safeItemId } from "./media-upload";
 
+/** Reescribe r2.dev → /api/media/... (same-origin, Web Audio OK). */
+function toSameOriginMedia(u: string): string {
+  try {
+    if (u.startsWith("/api/media/")) return u;
+    if (u.startsWith("library/")) return `/api/media/${u}`;
+    const parsed = new URL(u);
+    if (parsed.hostname.endsWith(".r2.dev")) {
+      const key = parsed.pathname.replace(/^\/+/, "");
+      if (key.startsWith("library/")) return `/api/media/${key}`;
+    }
+  } catch {
+    /* keep */
+  }
+  return u;
+}
+
 function safeMediaUrlField(url: unknown): string | null {
   if (url == null || url === "") return null;
-  const u = String(url).trim().slice(0, 2048);
+  let u = String(url).trim().slice(0, 2048);
+  u = toSameOriginMedia(u);
   if (u.startsWith("/") && !u.startsWith("//")) return u;
   try {
     const parsed = new URL(u);
@@ -20,7 +37,7 @@ function safeMediaUrlField(url: unknown): string | null {
       host === "localhost" ||
       host === "127.0.0.1"
     ) {
-      return u;
+      return toSameOriginMedia(u);
     }
   } catch {
     return null;

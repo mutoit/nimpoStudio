@@ -96,10 +96,8 @@ export async function onRequest(context: {
   const slug = safeSlug(String(form.get("slug") || ""), title);
   const kind = String(form.get("kind") || "video") === "stems" ? "stems" : "video";
   const aspect = safeAspect(String(form.get("aspect") || "1:1"));
-  const publicBase = (
-    env.LIBRARY_PUBLIC_BASE ||
-    "https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev"
-  ).replace(/\/$/, "");
+  // Same-origin: el front hace fetch (Web Audio) sin CORS de r2.dev
+  const publicBase = "/api/media";
 
   const parseList = (raw: FormDataEntryValue | null) => {
     if (!raw) return [] as string[];

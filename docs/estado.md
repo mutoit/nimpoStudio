@@ -92,7 +92,9 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [ ] Extra “retirar del catálogo” en formulario de exclusiva
 - [ ] Plantillas legales `docs/licencias/plantilla-*.md` alineadas a precios actuales
 - [ ] Email cliente con desglose (hoy prioriza email al estudio)
-- [x] Mixer preview música/ruido (sliders en modal stems; default ~12 % ruido)
+- [x] Ruido de preview incrustado al publicar (admin); no slider público
+- [x] Proxy `/api/media/*` same-origin (CORS stems Web Audio)
+- [x] Moods/tags personalizados en admin
 - [ ] QA visual mobile modal full-screen
 
 ### Fase 2 — Venta / entrega automática

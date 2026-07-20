@@ -1,0 +1,18 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://nimpo3dstudio.com",
+          "https://www.nimpo3dstudio.com",
+          "http://localhost:4321",
+          "http://127.0.0.1:4321"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["Range", "Content-Type"]
+      },
+      "exposeHeaders": ["Content-Length", "Content-Type", "Accept-Ranges", "ETag"],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

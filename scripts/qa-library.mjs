@@ -108,21 +108,28 @@ async function main() {
     await page.waitForTimeout(400);
   }
 
-  // —— Seek bar: saltar ~50% ——
+  // —— Seek bar: saltar ~50% (input + change = commit real) ——
   await page.waitForTimeout(1500);
   const seek = page.locator("[data-lb-seek]");
   await seek.waitFor({ state: "visible" });
-  // Forzar valor al 50% y disparar input/change
   await seek.evaluate((el) => {
     el.value = "500";
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(1800);
   const afterSeek = await page.locator("[data-lb-time]").textContent();
   const seekSec = sec(afterSeek);
-  // pista ~48s → mitad ~24s; aceptar 15–40s
+  // pista ~48s → mitad ~24s; aceptar 15–40s y que no se quede en 0
   ok("seek bar jumps position", seekSec >= 15 && seekSec <= 40, `time=${afterSeek}`);
+  // Confirmar que sigue avanzando tras el seek (no se pegó)
+  await page.waitForTimeout(1500);
+  const afterSeek2 = await page.locator("[data-lb-time]").textContent();
+  ok(
+    "seek keeps playing forward",
+    sec(afterSeek2) >= seekSec,
+    `${afterSeek} -> ${afterSeek2}`,
+  );
 
   // —— Live price by term ——
   const usage = page.locator('[name="usage"]');

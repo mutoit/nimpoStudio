@@ -47,10 +47,15 @@
   max-width: none;
 }
 
-/* ── Feed lateral (no altera el .container centrado) ─── */
+/* ── Feed lateral (en flujo, pegado al contenido) ─── */
+/*
+  Antes: position fixed con left: 50% + 36rem → en monitores anchos
+  el panel quedaba en el borde del viewport, muy lejos del hero.
+  Ahora: grid de 4 columnas [margen | contenido | feed | margen]
+  el feed va justo a la derecha del bloque centrado.
+*/
 
 .page-with-feed {
-  position: relative;
   width: 100%;
 }
 
@@ -58,17 +63,45 @@
   display: none;
 }
 
-/* Panel fijo a la derecha del marco centrado (72rem) */
-@media (min-width: 1500px) {
+@media (min-width: 1100px) {
+  .page-with-feed {
+    display: grid;
+    grid-template-columns:
+      minmax(0.75rem, 1fr)
+      minmax(0, var(--max-width))
+      17.5rem
+      minmax(0.75rem, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
+  }
+
+  /* Slot principal (home, etc.): columna 2 */
+  .page-with-feed > :first-child {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  /* Evitar doble max-width: el container ya vive dentro de la col 2 */
+  .page-with-feed > :first-child .container {
+    max-width: none;
+    padding-inline: 0;
+  }
+
   .page-with-feed__rail {
     display: block;
-    position: fixed;
-    left: calc(50% + var(--max-width) / 2 + 1.75rem);
-    top: 50%;
-    transform: translateY(-50%);
-    width: 17.5rem;
+    grid-column: 3;
+    position: sticky;
+    top: 5.5rem;
+    width: 100%;
     max-height: calc(100dvh - 7rem);
-    z-index: 40;
+    z-index: 30;
+    padding-block: 2.5rem 2rem;
   }
 }
 
+/* Pantallas muy estrechas para el feed: debajo del contenido */
+@media (max-width: 1099px) {
+  .page-with-feed__rail {
+    display: none;
+  }
+}

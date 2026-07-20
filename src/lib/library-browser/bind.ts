@@ -508,8 +508,15 @@ export function bindLibraryBrowser() {
               gridVideo.pause();
               gridVideo = null;
             }
-            // Preferir stems (audio real); vídeo solo si no hay stems
+            // Stems = audio (Web Audio). Si hay vídeo, es visual: se enciende muted en bucle.
             if (item.stems?.length) {
+              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);
+              if (v) {
+                v.muted = true;
+                v.loop = true;
+                void v.play().catch(() => {});
+                gridVideo = v;
+              }
               void playStems(item, id);
             } else if (safeMediaUrl(item.video)) {
               const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);

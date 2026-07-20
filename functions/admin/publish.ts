@@ -167,6 +167,12 @@ export async function onRequest(context: {
         cover = await putFile("cover", coverFile, "image", `${slug}-cover`);
       }
     } else {
+      // Canal stems: audio obligatorio; vídeo y cover opcionales (vídeo sirve de miniatura visual)
+      const videoFile = form.get("video");
+      if (videoFile instanceof File && videoFile.size) {
+        video = await putFile("video", videoFile, "video", slug);
+      }
+
       const coverFile = form.get("cover");
       if (coverFile instanceof File && coverFile.size) {
         cover = await putFile("cover", coverFile, "image", `${slug}-cover`);

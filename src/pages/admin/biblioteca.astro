@@ -40,36 +40,50 @@ import Layout from "../../components/Layout.astro";
           <input name="slug" placeholder="auto-desde-titulo" data-slug />
         </label>
 
+        <label>
+          Aspecto
+          <select name="aspect">
+            <option value="1:1">1:1</option>
+            <option value="9:16">9:16</option>
+            <option value="16:9">16:9</option>
+          </select>
+        </label>
+
         <div data-video-fields>
-          <label>
-            Aspecto
-            <select name="aspect">
-              <option value="1:1">1:1</option>
-              <option value="9:16">9:16</option>
-              <option value="16:9">16:9</option>
-            </select>
-          </label>
           <label class="file-label">
             Vídeo (mp4 / webm) *
             <input type="file" accept="video/mp4,video/webm,video/*" data-video-file required />
           </label>
           <div class="preview" data-video-preview hidden></div>
           <label class="file-label">
-            Miniatura / cover (opcional)
+            Miniatura imagen (opcional)
             <input type="file" accept="image/*" data-cover-file />
           </label>
+          <p class="hint">
+            No hace falta si subes vídeo: la tarjeta usa el vídeo (primer fotograma). La imagen solo
+            ayuda a cargar más rápido o si quieres un still fijo.
+          </p>
           <div class="preview preview--img" data-cover-preview hidden></div>
         </div>
 
         <div data-stems-fields hidden>
           <label class="file-label">
-            Cover / miniatura
+            Vídeo de fondo / visual (opcional)
+            <input type="file" accept="video/mp4,video/webm,video/*" data-stems-video />
+          </label>
+          <div class="preview" data-stems-video-preview hidden></div>
+          <label class="file-label">
+            Miniatura imagen (opcional)
             <input type="file" accept="image/*" data-stems-cover />
           </label>
+          <p class="hint">
+            Con vídeo basta para la miniatura. La imagen es opcional (poster / carga más ligera).
+            Lo obligatorio son las capas de audio.
+          </p>
           <div class="preview preview--img" data-stems-cover-preview hidden></div>
           <div class="stems-box">
             <div class="stems-head">
-              <span>Capas (stems)</span>
+              <span>Capas (stems) *</span>
               <button type="button" class="btn btn--sm" data-add-stem>+ Añadir stem</button>
             </div>
             <div class="stems-list" data-stems-list></div>
@@ -316,6 +330,7 @@ import Layout from "../../components/Layout.astro";
   };
   bindPreview("[data-video-file]", "[data-video-preview]", "video");
   bindPreview("[data-cover-file]", "[data-cover-preview]", "img");
+  bindPreview("[data-stems-video]", "[data-stems-video-preview]", "video");
   bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
 
   const stemsList = document.querySelector("[data-stems-list]");
@@ -398,6 +413,8 @@ import Layout from "../../components/Layout.astro";
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
       } else {
+        const v = (form.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
+        if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
         let n = 0;
@@ -506,6 +523,12 @@ import Layout from "../../components/Layout.astro";
   }
   .lead a {
     color: var(--color-accent);
+  }
+  .hint {
+    margin: -0.35rem 0 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--color-muted);
   }
   .sep {
     border: none;

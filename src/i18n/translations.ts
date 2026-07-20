@@ -62,13 +62,14 @@ export const translations = {
     languageLabel: "Cambiar idioma",
 
     // Home
+    homeLibrary: "Ver biblioteca",
     homeListen: "Escuchar música",
     homeCatalog: "Catálogo",
     homeContact: "Contacto",
     homeFeatured: "Destacados",
     homeViewAll: "Ver todo →",
     homeStoreNote:
-      "Estamos construyendo composiciones MIDI originales, trabajos a medida y packs gratuitos. La tienda y el área de clientes llegarán en próximas fases.",
+      "Composiciones originales y previews en la biblioteca. La tienda y el área de clientes llegarán en próximas fases.",
 
     // Catalog
     catalogTitle: "Catálogo",
@@ -107,6 +108,9 @@ export const translations = {
     contactInstagram: "Instagram",
     contactNetworks: "Redes",
     contactAddNetworks: "Añade tus redes en src/config/site.json",
+    contactLicenseTitle: "Consultas sobre licencias",
+    contactLicenseLead:
+      "Si tienes dudas sobre licencias, usos o un presupuesto, escríbenos. Para pedir una licencia de una obra concreta, usa el botón Licenciar en la biblioteca.",
 
     // Product detail
     productBack: "← Volver al catálogo",
@@ -315,13 +319,14 @@ export const translations = {
     language: "Language",
     languageLabel: "Change language",
 
+    homeLibrary: "Browse library",
     homeListen: "Listen to music",
     homeCatalog: "Catalog",
     homeContact: "Contact",
     homeFeatured: "Featured",
     homeViewAll: "View all →",
     homeStoreNote:
-      "We are building original MIDI compositions, custom work and free packs. The store and client area will arrive in upcoming phases.",
+      "Original compositions and previews live in the library. The store and client area will arrive in later phases.",
 
     catalogTitle: "Catalog",
     catalogSubtitle: "Digital products",
@@ -356,6 +361,9 @@ export const translations = {
     contactInstagram: "Instagram",
     contactNetworks: "Social",
     contactAddNetworks: "Add your social links in src/config/site.json",
+    contactLicenseTitle: "License questions",
+    contactLicenseLead:
+      "If you have questions about licenses, uses or a quote, write to us. To license a specific work, use the License button in the library.",
 
     productBack: "← Back to catalog",
     productLicense: "License",
@@ -552,13 +560,14 @@ export const translations = {
     language: "Langue",
     languageLabel: "Changer de langue",
 
+    homeLibrary: "Voir la bibliothèque",
     homeListen: "Écouter la musique",
     homeCatalog: "Catalogue",
     homeContact: "Contact",
     homeFeatured: "En vedette",
     homeViewAll: "Voir tout →",
     homeStoreNote:
-      "Nous construisons des compositions MIDI originales, des travaux sur mesure et des packs gratuits. La boutique et l'espace client arriveront dans les prochaines phases.",
+      "Compositions originales et extraits dans la bibliothèque. La boutique et l'espace client arriveront plus tard.",
 
     catalogTitle: "Catalogue",
     catalogSubtitle: "Produits numériques",
@@ -593,6 +602,9 @@ export const translations = {
     contactInstagram: "Instagram",
     contactNetworks: "Réseaux",
     contactAddNetworks: "Ajoutez vos réseaux dans src/config/site.json",
+    contactLicenseTitle: "Questions sur les licences",
+    contactLicenseLead:
+      "Si vous avez des questions sur les licences, les usages ou un devis, écrivez-nous. Pour licencier une œuvre précise, utilisez le bouton Licencier dans la bibliothèque.",
 
     productBack: "← Retour au catalogue",
     productLicense: "Licence",

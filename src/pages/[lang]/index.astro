@@ -1,8 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
 import PageFrame from "../../components/PageFrame.astro";
-import ProductCard from "../../components/ProductCard.astro";
-import { getFeaturedProducts } from "../../lib/products";
 import { site } from "../../lib/site";
 import type { Locale } from "../../i18n/translations";
 import { useTranslations, localizePath } from "../../lib/locale";
@@ -14,9 +12,7 @@ export function getStaticPaths() {
 const { lang } = Astro.params as { lang: Locale };
 const t = useTranslations(lang);
 
-const featured = getFeaturedProducts();
-const catalogHref = localizePath("/catalogo", lang);
-const musicHref = localizePath("/musica", lang);
+const libraryHref = localizePath("/biblioteca", lang);
 const contactHref = localizePath("/contacto", lang);
 ---
 
@@ -30,35 +26,12 @@ const contactHref = localizePath("/contacto", lang);
             <h1 class="hero__title">{site.name}</h1>
             <p class="hero__lead">{t("siteDescription")}</p>
             <div class="hero__actions">
-              <a href={musicHref} class="btn btn--primary">{t("homeListen")}</a>
-              <a href={catalogHref} class="btn btn--ghost">{t("homeCatalog")}</a>
+              <a href={libraryHref} class="btn btn--primary">{t("homeLibrary")}</a>
               <a href={contactHref} class="btn btn--ghost">{t("homeContact")}</a>
             </div>
           </header>
         </div>
       </section>
-
-      {
-        featured.length > 0 && (
-          <section class="section section--pad" aria-labelledby="featured-heading">
-            <div class="container">
-              <div class="featured__head">
-                <h2 id="featured-heading" class="featured__title">{t("homeFeatured")}</h2>
-                <a href={catalogHref} class="featured__link">
-                  {t("homeViewAll")}
-                </a>
-              </div>
-              <ul class="featured__grid">
-                {featured.map((product) => (
-                  <li>
-                    <ProductCard product={product} lang={lang} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )
-      }
 
       <section class="section section--pad">
         <div class="container">
@@ -141,47 +114,6 @@ const contactHref = localizePath("/contacto", lang);
   .btn--ghost:hover {
     color: var(--color-fg);
     border-color: var(--color-fg);
-  }
-
-  .featured__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.75rem;
-  }
-
-  .featured__title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 1.75rem;
-    font-weight: 500;
-  }
-
-  .featured__link {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--color-muted);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-
-  .featured__link:hover {
-    color: var(--color-accent);
-  }
-
-  .featured__grid {
-    display: grid;
-    gap: 2rem 1.5rem;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  @media (min-width: 640px) {
-    .featured__grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
   }
 
   .note {

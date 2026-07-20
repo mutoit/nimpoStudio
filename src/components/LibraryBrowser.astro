@@ -402,23 +402,44 @@ const payload = {
         renderGrid();
       };
 
-      const playStems = (item: Item, btn: Element | null) => {
+      /** Reproduce stems según checkboxes del mixer (modal) o todos si no hay checks. */
+      const playStems = (item: Item, btn: Element | null, playId?: string) => {
         const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]:checked");
         let srcs = [...checks].map((c) => c.dataset.stemSrc).filter(Boolean) as string[];
+        // Sin mixer (thumb en grid) o sin ninguno marcado: todos los stems
         if (!srcs.length) srcs = (item.stems || []).map((s) => s.src);
         if (!srcs.length) return;
+        // Parar solo capas de audio, no el id visual si reiniciamos el mix
+        stemAudios.forEach((a) => {
+          a.pause();
+          a.currentTime = 0;
+        });
         stemAudios = srcs.map((src) => {
           const a = new Audio(src);
           a.loop = true;
           return a;
         });
         Promise.all(stemAudios.map((a) => a.play().catch(() => {}))).then(() => {
-          playingId = item.id;
+          playingId = playId || item.id;
           if (btn) {
             btn.textContent = L.stop;
             btn.setAttribute("aria-pressed", "true");
           }
         });
+      };
+
+      /** Si ya suena el modal, al cambiar capas re-mezcla al vuelo. */
+      const onStemMixChange = () => {
+        if (!active?.stems?.length) return;
+        const modalPlayId = "modal-" + active.id;
+        if (playingId !== modalPlayId && playingId !== active.id) return;
+        const btn = root.querySelector("[data-lb-preview-play]");
+        const anyOn = root.querySelector<HTMLInputElement>("[data-stem-src]:checked");
+        if (!anyOn) {
+          stopAll();
+          return;
+        }
+        playStems(active, btn, modalPlayId);
       };
 
       const renderGrid = () => {
@@ -627,22 +648,33 @@ const payload = {
       root.querySelector("[data-lb-preview-play]")?.addEventListener("click", () => {
         if (!active) return;
         const btn = root.querySelector("[data-lb-preview-play]");
-        if (playingId === "modal-" + active.id) {
+        const modalPlayId = "modal-" + active.id;
+        if (playingId === modalPlayId || playingId === active.id) {
           stopAll();
           return;
         }
         stopAll();
-        const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
-        if (v) {
-          v.play()
-            .then(() => {
-              playingId = "modal-" + active!.id;
-              if (btn) btn.textContent = L.stop;
-            })
-            .catch(() => {});
-        } else if (active.stems?.length) {
-          playStems(active, btn);
-          if (btn) btn.textContent = L.stop;
+        // Preferir stems (mixer) si hay capas; si no, vídeo
+        if (active.stems?.length) {
+          playStems(active, btn, modalPlayId);
+        } else {
+          const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+          if (v) {
+            v.play()
+              .then(() => {
+                playingId = modalPlayId;
+                if (btn) btn.textContent = L.stop;
+              })
+              .catch(() => {});
+          }
+        }
+      });
+
+      // Checkboxes del mixer: al marcar/desmarcar, re-aplica la mezcla si suena
+      root.addEventListener("change", (e) => {
+        const t = e.target;
+        if (t instanceof HTMLInputElement && t.hasAttribute("data-stem-src")) {
+          onStemMixChange();
         }
       });
 

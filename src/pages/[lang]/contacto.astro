@@ -1,11 +1,6 @@
 ---
 import Layout from "../../components/Layout.astro";
 import { site } from "../../lib/site";
-import {
-  buildLicenseMailto,
-  getPublishedReleases,
-  getReleaseLicense,
-} from "../../lib/music";
 import type { Locale } from "../../i18n/translations";
 import { useTranslations } from "../../lib/locale";
 
@@ -16,23 +11,13 @@ export function getStaticPaths() {
 const { lang } = Astro.params as { lang: Locale };
 const t = useTranslations(lang);
 
-/** Prefill maps for static hosting (query params read client-side). */
-const licensePrefill: Record<
-  string,
-  { name: string; mailto: string; tiers: Record<string, string> }
-> = {};
-
-for (const release of getPublishedReleases()) {
-  const tiers: Record<string, string> = {};
-  for (const tier of getReleaseLicense(release).tiers) {
-    tiers[tier.id] = buildLicenseMailto(site.email, release, lang, tier.id);
-  }
-  licensePrefill[release.slug] = {
-    name: release.name,
-    mailto: buildLicenseMailto(site.email, release, lang),
-    tiers,
-  };
-}
+const licenseMailto = `mailto:${site.email}?subject=${encodeURIComponent(
+  lang === "en"
+    ? "License question"
+    : lang === "fr"
+      ? "Question licence"
+      : "Consulta sobre licencias",
+)}`;
 ---
 
 <Layout title={t("contactTitle")} description={`Contacta con ${site.name}`} lang={lang}>
@@ -40,36 +25,19 @@ for (const release of getPublishedReleases()) {
     <p class="eyebrow">{t("contactEyebrow")}</p>
     <h1 class="title">{t("contactTitle")}</h1>
 
-    <aside class="license-hint" id="license-hint" hidden role="note">
-      <p>
-        <strong>{t("musicLicenseTitle")}:</strong>
-        <span id="license-hint-name"></span>
-      </p>
-      <a id="license-hint-cta" class="license-hint__cta" href={`mailto:${site.email}`}>
-        {t("musicLicenseCta")}
-      </a>
-    </aside>
+    <section class="license-note" aria-labelledby="license-note-title">
+      <h2 id="license-note-title">{t("contactLicenseTitle")}</h2>
+      <p>{t("contactLicenseLead")}</p>
+      <a class="license-note__mail" href={licenseMailto}>{site.email}</a>
+    </section>
 
     <div class="cards">
       <section class="card">
         <h2>{t("contactEmail")}</h2>
         <p>
-          <a id="contact-email" href={`mailto:${site.email}`}>{site.email}</a>
+          <a href={`mailto:${site.email}`}>{site.email}</a>
         </p>
       </section>
-
-      {
-        site.social.github && (
-          <section class="card">
-            <h2>{t("contactGithub")}</h2>
-            <p>
-              <a href={site.social.github} target="_blank" rel="noopener noreferrer">
-                {site.social.github.replace("https://github.com/", "@")}
-              </a>
-            </p>
-          </section>
-        )
-      }
 
       {
         site.social.instagram ? (
@@ -81,42 +49,11 @@ for (const release of getPublishedReleases()) {
               </a>
             </p>
           </section>
-        ) : (
-          <section class="card card--muted">
-            <h2>{t("contactNetworks")}</h2>
-            <p>{t("contactAddNetworks")}</p>
-          </section>
-        )
+        ) : null
       }
     </div>
   </div>
 </Layout>
-
-<script define:vars={{ licensePrefill }}>
-  const applyLicensePrefill = () => {
-    const params = new URLSearchParams(window.location.search);
-    const work = (params.get("work") || "").trim();
-    const tier = (params.get("tier") || "").trim();
-    if (!work || !licensePrefill[work]) return;
-
-    const entry = licensePrefill[work];
-    const mailto = (tier && entry.tiers[tier]) || entry.mailto;
-    const label = tier ? `${entry.name} · ${tier}` : entry.name;
-
-    const hint = document.getElementById("license-hint");
-    const nameEl = document.getElementById("license-hint-name");
-    const cta = document.getElementById("license-hint-cta");
-    const email = document.getElementById("contact-email");
-
-    if (nameEl) nameEl.textContent = label;
-    if (cta instanceof HTMLAnchorElement) cta.href = mailto;
-    if (email instanceof HTMLAnchorElement) email.href = mailto;
-    if (hint) hint.hidden = false;
-  };
-
-  document.addEventListener("DOMContentLoaded", applyLicensePrefill);
-  document.addEventListener("astro:page-load", applyLicensePrefill);
-</script>
 
 <style>
   .page {
@@ -139,46 +76,47 @@ for (const release of getPublishedReleases()) {
     font-weight: 600;
   }
 
-  .license-hint {
-    margin-top: 1.5rem;
-    padding: 1rem 1.15rem;
+  .license-note {
+    margin-top: 1.75rem;
+    padding: 1.15rem 1.25rem;
     border-radius: var(--radius);
-    border: 1px solid rgb(201 169 98 / 0.28);
+    border: 1px solid rgb(201 169 98 / 0.22);
     background: var(--color-accent-light);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem 1rem;
   }
 
-  .license-hint p {
+  .license-note h2 {
     margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.45;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: var(--color-accent);
   }
 
-  .license-hint__cta {
-    display: inline-flex;
-    padding: 0.5rem 0.95rem;
-    border-radius: 999px;
-    background: var(--color-accent);
-    color: #0a0a0c;
-    font-size: 0.85rem;
+  .license-note p {
+    margin: 0.55rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--color-fg);
+  }
+
+  .license-note__mail {
+    display: inline-block;
+    margin-top: 0.75rem;
+    color: var(--color-accent);
     font-weight: 600;
     text-decoration: none;
   }
 
-  .license-hint__cta:hover {
-    filter: brightness(1.08);
+  .license-note__mail:hover {
+    text-decoration: underline;
   }
 
   .cards {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    margin-top: 2rem;
+    margin-top: 1.5rem;
   }
 
   .card {
@@ -210,17 +148,5 @@ for (const release of getPublishedReleases()) {
 
   .card a:hover {
     text-decoration: underline;
-  }
-
-  .card--muted p {
-    color: var(--color-muted);
-    font-size: 0.9rem;
-  }
-
-  code {
-    font-size: 0.85em;
-    background: var(--color-accent-light);
-    padding: 0.1em 0.35em;
-    border-radius: 4px;
   }
 </style>

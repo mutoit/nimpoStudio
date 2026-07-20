@@ -94,9 +94,9 @@ export const translations = {
     aboutEyebrow: "Sobre nosotros",
     aboutTitle: "Sobre",
     aboutP1:
-      "Nimpo 3D Studio es el espacio donde publicamos nuestros productos digitales: packs de audio, presets, licencias y recursos para creadores.",
+      "Nimpo 3D Studio es un estudio de composición original en MIDI: piezas hechas aquí, con criterio musical y trato directo. En la biblioteca puedes escuchar previews, explorar stems y solicitar licencia para tu proyecto.",
     aboutP2:
-      "Esta web está pensada para crecer contigo — primero el catálogo, después la tienda, el área de clientes y la gestión de licencias. Todo bajo nuestro control, sin depender de plataformas cerradas.",
+      "No somos un stock genérico ni un marketplace opaco. Licenciamos obra propia con precios claros, alcance definido y entrega del master (y stems si los contratas) tras acuerdo y pago. Si tu uso es especial o exclusivo, lo revisamos contigo a medida.",
     aboutP3: "¿Tienes dudas o quieres colaborar?",
     aboutContactLink: "Escríbenos",
 
@@ -349,9 +349,9 @@ export const translations = {
     aboutEyebrow: "About us",
     aboutTitle: "About",
     aboutP1:
-      "Nimpo 3D Studio is the space where we publish our digital products: audio packs, presets, licenses and resources for creators.",
+      "Nimpo 3D Studio is an original MIDI composition studio: work made here, with musical care and direct contact. In the library you can preview pieces, explore stems and request a license for your project.",
     aboutP2:
-      "This site is designed to grow with you — first the catalog, then the store, the client area and license management. Everything under our control, without depending on closed platforms.",
+      "We are not generic stock or an opaque marketplace. We license our own work with clear pricing, defined scope, and master delivery (plus stems if contracted) after agreement and payment. Special or exclusive uses are reviewed with you case by case.",
     aboutP3: "Have questions or want to collaborate?",
     aboutContactLink: "Contact us",
 
@@ -591,9 +591,9 @@ export const translations = {
     aboutEyebrow: "À propos de nous",
     aboutTitle: "À propos",
     aboutP1:
-      "Nimpo 3D Studio est l'espace où nous publions nos produits numériques : packs audio, presets, licences et ressources pour créateurs.",
+      "Nimpo 3D Studio est un studio de composition MIDI originale : des pièces faites ici, avec soin musical et contact direct. Dans la bibliothèque, vous pouvez écouter les previews, explorer les stems et demander une licence pour votre projet.",
     aboutP2:
-      "Ce site est conçu pour grandir avec vous — d'abord le catalogue, puis la boutique, l'espace client et la gestion des licences. Tout sous notre contrôle, sans dépendre de plateformes fermées.",
+      "Nous ne sommes pas un stock générique ni une marketplace opaque. Nous licenciions nos œuvres avec des prix clairs, un périmètre défini, et livraison du master (et des stems si prévus) après accord et paiement. Les usages spéciaux ou exclusifs se discutent au cas par cas.",
     aboutP3: "Des questions ou envie de collaborer ?",
     aboutContactLink: "Contactez-nous",
 

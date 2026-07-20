@@ -677,7 +677,7 @@ const payload = {
               ? `<button type="button" class="lb__play-fab" data-thumb-play="${item.id}" aria-label="${L.play}" aria-pressed="${isPlayingHere ? "true" : "false"}">${isPlayingHere ? L.stop : "▶"}</button>`
               : "";
             const prog = canPlay
-              ? `<div class="lb__thumb-progress" data-thumb-progress="${item.id}" ${isPlayingHere ? "" : "hidden"} style="--p:0%"></div>`
+              ? `<div class="lb__thumb-progress" data-thumb-progress="${item.id}" ${isPlayingHere ? "" : "hidden"} style="--p:0%" role="slider" aria-label="Progreso" aria-valuemin="0" aria-valuemax="100"></div>`
               : "";
 
             return `<article class="lb__card ${active?.id === item.id ? "is-on" : ""}" data-card="${item.id}">
@@ -746,6 +746,55 @@ const payload = {
               const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);
               if (v) void playVideoThumb(item, v);
             }
+          });
+        });
+
+        // Barra gorda en miniatura: clic / arrastre = seek
+        grid.querySelectorAll("[data-thumb-progress]").forEach((bar) => {
+          if (!(bar instanceof HTMLElement)) return;
+          const seekFromEvent = (clientX: number) => {
+            const id = bar.dataset.thumbProgress || "";
+            const activeHere =
+              stemsTx.loadedItemId === id ||
+              playingId === id ||
+              playingId === "modal-" + id ||
+              (gridVideo && playingId === id);
+            if (!activeHere) return;
+            const rect = bar.getBoundingClientRect();
+            if (rect.width <= 0) return;
+            const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            // Si estaba en play, seek reanuda; si no, deja posición
+            if (!transportPlaying && stemsTx.loadedItemId === id) {
+              stemsTx.seek(ratio * (mediaDuration() || 0));
+              updateProgressUI();
+              return;
+            }
+            void seekToRatio(ratio);
+          };
+          bar.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            bar.setPointerCapture(e.pointerId);
+            seeking = true;
+            seekFromEvent(e.clientX);
+          });
+          bar.addEventListener("pointermove", (e) => {
+            if (!bar.hasPointerCapture(e.pointerId)) return;
+            e.preventDefault();
+            seekFromEvent(e.clientX);
+          });
+          bar.addEventListener("pointerup", (e) => {
+            e.stopPropagation();
+            if (bar.hasPointerCapture(e.pointerId)) {
+              bar.releasePointerCapture(e.pointerId);
+            }
+            seeking = false;
+            seekTargetSec = null;
+            updateProgressUI();
+          });
+          bar.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
           });
         });
       };
@@ -1165,10 +1214,16 @@ const payload = {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 4;
-    height: 3px;
-    background: rgb(255 255 255 / 0.12);
-    pointer-events: none;
+    z-index: 5;
+    height: 12px;
+    background: rgb(0 0 0 / 0.45);
+    pointer-events: auto;
+    cursor: pointer;
+    touch-action: none;
+    border-radius: 0 0 9px 9px;
+  }
+  .lb__thumb-progress:hover {
+    background: rgb(0 0 0 / 0.55);
   }
   .lb__thumb-progress::after {
     content: "";
@@ -1176,7 +1231,8 @@ const payload = {
     height: 100%;
     width: var(--p, 0%);
     background: var(--color-accent, #c9a962);
-    transition: width 0.08s linear;
+    box-shadow: 0 0 10px rgb(201 169 98 / 0.45);
+    pointer-events: none;
   }
 
   .lb__transport {

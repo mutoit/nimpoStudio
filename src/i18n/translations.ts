@@ -59,6 +59,7 @@ export const translations = {
     libPreviewProtect:
       "Preview protegido: oyes ruido (y/o calidad reducida) a propósito para proteger la obra. No es el master. Tras licencia y pago entregamos audio limpio (y stems si los contratas).",
     libPreviewProtectShort: "Hay ruido a propósito · preview protegido · no es el master",
+    libPreviewProtectTag: "Preview protegido",
 
     // Language
     language: "Idioma",
@@ -322,6 +323,7 @@ export const translations = {
     libPreviewProtect:
       "Protected preview: you hear noise (and/or reduced quality) on purpose to protect the work. This is not the master. After license and payment we deliver clean audio (and stems if purchased).",
     libPreviewProtectShort: "Noise on purpose · protected preview · not the master",
+    libPreviewProtectTag: "Protected preview",
 
     language: "Language",
     languageLabel: "Change language",
@@ -567,6 +569,7 @@ export const translations = {
     libPreviewProtect:
       "Extrait protégé : vous entendez du bruit (et/ou une qualité réduite) exprès pour protéger l'œuvre. Ce n'est pas le master. Après licence et paiement, audio propre (et stems si prévus).",
     libPreviewProtectShort: "Bruit volontaire · extrait protégé · pas le master",
+    libPreviewProtectTag: "Extrait protégé",
 
     language: "Langue",
     languageLabel: "Changer de langue",

@@ -913,13 +913,31 @@ const payload = {
   .lb__check {
     display: flex !important;
     flex-direction: row !important;
+    flex-wrap: nowrap;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
+    justify-content: flex-start;
+    gap: 0.55rem;
+    margin-top: 0.45rem;
+    width: 100%;
+    max-width: 100%;
     font-size: 0.85rem !important;
     font-weight: 400 !important;
     color: #e0e0e6 !important;
     cursor: pointer;
+    line-height: 1.4;
+  }
+  /* Evita width:100% de .lb__form input que separaba el check del texto */
+  .lb__form .lb__check input[type="checkbox"] {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    min-width: 1.05rem !important;
+    max-width: 1.05rem !important;
+    margin: 0.15rem 0 0;
+    padding: 0;
+    flex: 0 0 auto;
+    accent-color: #c9a962;
+    border: none;
+    background: transparent;
   }
   .lb__help {
     margin: 0 0 0.5rem;

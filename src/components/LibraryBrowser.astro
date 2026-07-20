@@ -78,13 +78,18 @@ const payload = {
 
 <div class="lb" data-library-root data-payload={JSON.stringify(payload)}>
   <div class="lb__bar" role="toolbar" aria-label={t("libFilters")}>
-    <div class="lb__chips" data-lb-types>
+    <div class="lb__chips lb__chips--row" data-lb-types>
       <button type="button" class="lb__chip is-on" data-type="all">{t("libFilterAll")}</button>
-      <button type="button" class="lb__chip" data-type="1:1">{t("libFilter11")}</button>
-      <button type="button" class="lb__chip" data-type="9:16">{t("libFilter916")}</button>
       <button type="button" class="lb__chip" data-type="stems">{t("libFilterStems")}</button>
     </div>
-    <div class="lb__chips" data-lb-moods></div>
+    <div class="lb__filter-block">
+      <span class="lb__filter-label">{t("libMoods")}</span>
+      <div class="lb__chips lb__chips--wrap" data-lb-moods></div>
+    </div>
+    <div class="lb__filter-block">
+      <span class="lb__filter-label">{t("libTags")}</span>
+      <div class="lb__chips lb__chips--wrap" data-lb-tags></div>
+    </div>
     <span class="lb__count" data-lb-count></span>
   </div>
 
@@ -298,15 +303,34 @@ const payload = {
 <style is:global>
   .lb__bar {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.65rem 1rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
     margin-bottom: 1.5rem;
   }
   .lb__chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+  }
+  .lb__chips--row {
+    align-items: center;
+  }
+  .lb__chips--wrap {
+    /* 2 filas naturales con wrap; crece si hay muchos moods/tags */
+    max-width: 100%;
+  }
+  .lb__filter-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .lb__filter-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgb(201 169 98 / 0.85);
   }
   .lb__chip {
     padding: 0.4rem 0.8rem;
@@ -324,8 +348,11 @@ const payload = {
     color: #e8c97a;
     background: rgb(201 169 98 / 0.12);
   }
+  .lb__chip-empty {
+    font-size: 0.78rem;
+    color: rgb(120 120 130);
+  }
   .lb__count {
-    margin-left: auto;
     font-size: 0.8rem;
     color: rgb(140 140 150);
   }

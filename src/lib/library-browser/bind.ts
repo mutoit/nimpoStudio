@@ -19,6 +19,8 @@ type Item = {
     stems?: Stem[];
     tags: string[];
     moods: string[];
+    filterMoods?: string[];
+    filterTags?: string[];
     description?: string;
     notes?: string;
     provisional?: boolean;
@@ -40,7 +42,8 @@ export function bindLibraryBrowser() {
       // items mutables: semilla del build + catálogo vivo /api/library
       let items: Item[] = Array.isArray(data.items) ? [...data.items] : [];
       const lang = data.lang;
-      let moods: string[] = Array.isArray(data.moods) ? [...data.moods] : [];
+      let filterMoods: string[] = Array.isArray(data.moods) ? [...data.moods] : [];
+      let filterTags: string[] = [];
       const L = data.labels;
 
       const grid = root.querySelector("[data-lb-grid]");
@@ -48,27 +51,70 @@ export function bindLibraryBrowser() {
       const form = root.querySelector("[data-lb-form]");
       const countEl = root.querySelector("[data-lb-count]");
       const moodsBar = root.querySelector("[data-lb-moods]");
+      const tagsBar = root.querySelector("[data-lb-tags]");
 
-      const paintMoods = () => {
-        if (!moodsBar) return;
-        moodsBar.innerHTML = moods
-          .map((m) => `<button type="button" class="lb__chip" data-mood="${escapeHtml(m)}">${escapeHtml(m)}</button>`)
+      const collectFilters = (list: Item[]) => {
+        const m = new Set<string>();
+        const t = new Set<string>();
+        for (const i of list) {
+          const fm = Array.isArray(i.filterMoods) ? i.filterMoods : [];
+          const ft = Array.isArray(i.filterTags) ? i.filterTags : [];
+          for (const x of fm) if (x) m.add(String(x));
+          for (const x of ft) if (x) t.add(String(x));
+        }
+        // Fallback: ítems antiguos sin filterMoods → moods usados
+        if (!m.size) {
+          for (const i of list) {
+            for (const x of i.moods || []) if (x) m.add(String(x));
+          }
+        }
+        filterMoods = [...m].sort();
+        filterTags = [...t].sort();
+      };
+
+      const paintChipBar = (
+        bar: Element | null,
+        values: string[],
+        attr: "mood" | "tag",
+        getActive: () => string | null,
+        setActive: (v: string | null) => void,
+      ) => {
+        if (!bar) return;
+        if (!values.length) {
+          bar.innerHTML = `<span class="lb__chip-empty">—</span>`;
+          return;
+        }
+        const active = getActive();
+        bar.innerHTML = values
+          .map(
+            (v) =>
+              `<button type="button" class="lb__chip${active === v ? " is-on" : ""}" data-${attr}="${escapeHtml(v)}">${escapeHtml(v)}</button>`,
+          )
           .join("");
-        moodsBar.querySelectorAll("[data-mood]").forEach((btn) => {
+        bar.querySelectorAll(`[data-${attr}]`).forEach((btn) => {
           btn.addEventListener("click", () => {
-            const m = (btn as HTMLElement).dataset.mood || null;
-            moodFilter = moodFilter === m ? null : m;
-            moodsBar.querySelectorAll("[data-mood]").forEach((b) => {
-              b.classList.toggle("is-on", (b as HTMLElement).dataset.mood === moodFilter);
-            });
+            const v = (btn as HTMLElement).getAttribute(`data-${attr}`) || null;
+            setActive(getActive() === v ? null : v);
+            paintFilters();
             renderGrid();
           });
         });
       };
-      paintMoods();
 
       let typeFilter = "all";
       let moodFilter: string | null = null;
+      let tagFilter: string | null = null;
+
+      const paintFilters = () => {
+        paintChipBar(moodsBar, filterMoods, "mood", () => moodFilter, (v) => {
+          moodFilter = v;
+        });
+        paintChipBar(tagsBar, filterTags, "tag", () => tagFilter, (v) => {
+          tagFilter = v;
+        });
+      };
+      collectFilters(items);
+      paintFilters();
       let active: Item | null = null;
       /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
       const stemsTx = new StemTransport();
@@ -362,10 +408,9 @@ export function bindLibraryBrowser() {
           if (i.availability === "off_catalog") return false;
           if (typeFilter === "stems") {
             if (!(i.kind === "stems" || (i.stems && i.stems.length))) return false;
-          } else if (typeFilter === "1:1" || typeFilter === "9:16") {
-            if (safeAspectLabel(i.aspect) !== typeFilter) return false;
           }
-          if (moodFilter && !i.moods.includes(moodFilter)) return false;
+          if (moodFilter && !(i.moods || []).includes(moodFilter)) return false;
+          if (tagFilter && !(i.tags || []).includes(tagFilter)) return false;
           return true;
         });
 
@@ -815,7 +860,7 @@ export function bindLibraryBrowser() {
         });
       });
 
-      // moods: se re-bindean en paintMoods()
+      // moods/tags: se re-pintan en paintFilters()
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);
@@ -910,6 +955,10 @@ export function bindLibraryBrowser() {
             title: String(raw.title || ""),
             moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
             tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+            filterMoods: Array.isArray(raw.filterMoods)
+              ? raw.filterMoods.map(String)
+              : [],
+            filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
             video: safeMediaUrl(raw.video) || null,
             cover: safeMediaUrl(raw.cover) || null,
             stems: Array.isArray(raw.stems)
@@ -922,10 +971,8 @@ export function bindLibraryBrowser() {
                   .filter((s) => s.src)
               : undefined,
           }));
-          moods = [
-            ...new Set(items.flatMap((i) => (Array.isArray(i.moods) ? i.moods : []))),
-          ].sort();
-          paintMoods();
+          collectFilters(items);
+          paintFilters();
           renderGrid();
         } catch {
           /* keep build seed */

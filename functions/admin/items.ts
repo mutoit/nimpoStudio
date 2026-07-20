@@ -137,6 +137,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
       notes: clipText(body.notes ?? existing.notes, 2000),
       moods: body.moods != null ? clipStringList(body.moods) : existing.moods,
       tags: body.tags != null ? clipStringList(body.tags) : existing.tags,
+      filterMoods:
+        body.filterMoods != null
+          ? clipStringList(body.filterMoods)
+          : existing.filterMoods,
+      filterTags:
+        body.filterTags != null
+          ? clipStringList(body.filterTags)
+          : existing.filterTags,
       provisional:
         body.provisional != null
           ? Boolean(body.provisional)

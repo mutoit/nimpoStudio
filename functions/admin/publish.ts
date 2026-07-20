@@ -129,6 +129,9 @@ export async function onRequest(context: {
 
   const moods = parseList(form.get("moods"));
   const tags = parseList(form.get("tags"));
+  // Subconjunto marcado “mostrar en filtros biblioteca”
+  const filterMoods = parseList(form.get("filterMoods")).filter((m) => moods.includes(m));
+  const filterTags = parseList(form.get("filterTags")).filter((t) => tags.includes(t));
 
   type Uploaded = { role: string; key: string; url: string; name: string };
   const uploaded: Uploaded[] = [];
@@ -221,6 +224,8 @@ export async function onRequest(context: {
       stems,
       tags,
       moods,
+      filterMoods,
+      filterTags,
       description: clipText(form.get("description"), 2000),
       notes: clipText(form.get("notes"), 2000),
       year: Number(form.get("year") || new Date().getFullYear()) || new Date().getFullYear(),

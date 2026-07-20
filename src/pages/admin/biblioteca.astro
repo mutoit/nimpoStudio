@@ -157,6 +157,10 @@ import Layout from "../../components/Layout.astro";
 
         <fieldset class="chips-field">
           <legend>Moods</legend>
+          <p class="hint">
+            Marca el mood de la obra. El check <strong>filtro</strong> lo muestra en la biblioteca
+            pública.
+          </p>
           <div class="pick" data-mood-pick>
             {
               [
@@ -171,10 +175,16 @@ import Layout from "../../components/Layout.astro";
                 "cinematic",
                 "minimal",
               ].map((m) => (
-                <label class="pick-item">
-                  <input type="checkbox" name="moodPick" value={m} />
-                  {m}
-                </label>
+                <div class="pick-item">
+                  <label class="pick-main">
+                    <input type="checkbox" name="moodPick" value={m} data-chip-main />
+                    {m}
+                  </label>
+                  <label class="pick-filter" title="Mostrar en filtros de biblioteca">
+                    <input type="checkbox" name="moodFilter" value={m} data-chip-filter />
+                    <span>filtro</span>
+                  </label>
+                </div>
               ))
             }
           </div>
@@ -186,6 +196,9 @@ import Layout from "../../components/Layout.astro";
 
         <fieldset class="chips-field">
           <legend>Tags</legend>
+          <p class="hint">
+            Igual: tag de la obra + opcional <strong>filtro</strong> en la biblioteca.
+          </p>
           <div class="pick" data-tag-pick>
             {
               [
@@ -200,10 +213,16 @@ import Layout from "../../components/Layout.astro";
                 "strings",
                 "synth",
               ].map((t) => (
-                <label class="pick-item">
-                  <input type="checkbox" name="tagPick" value={t} />
-                  {t}
-                </label>
+                <div class="pick-item">
+                  <label class="pick-main">
+                    <input type="checkbox" name="tagPick" value={t} data-chip-main />
+                    {t}
+                  </label>
+                  <label class="pick-filter" title="Mostrar en filtros de biblioteca">
+                    <input type="checkbox" name="tagFilter" value={t} data-chip-filter />
+                    <span>filtro</span>
+                  </label>
+                </div>
               ))
             }
           </div>
@@ -631,37 +650,86 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
-  // Moods / tags personalizados
+  // Moods / tags: chip principal + check “filtro” en biblioteca
+  const makeChipRow = (
+    name: "moodPick" | "tagPick",
+    filterName: "moodFilter" | "tagFilter",
+    value: string,
+    opts?: { main?: boolean; filter?: boolean },
+  ) => {
+    const row = document.createElement("div");
+    row.className = "pick-item";
+    const mainLab = document.createElement("label");
+    mainLab.className = "pick-main";
+    const mainCb = document.createElement("input");
+    mainCb.type = "checkbox";
+    mainCb.name = name;
+    mainCb.value = value;
+    mainCb.dataset.chipMain = "1";
+    mainCb.checked = opts?.main ?? true;
+    mainLab.appendChild(mainCb);
+    mainLab.appendChild(document.createTextNode(" " + value));
+    const filLab = document.createElement("label");
+    filLab.className = "pick-filter";
+    filLab.title = "Mostrar en filtros de biblioteca";
+    const filCb = document.createElement("input");
+    filCb.type = "checkbox";
+    filCb.name = filterName;
+    filCb.value = value;
+    filCb.dataset.chipFilter = "1";
+    filCb.checked = opts?.filter ?? false;
+    filLab.appendChild(filCb);
+    filLab.appendChild(document.createElement("span")).textContent = "filtro";
+    // Si quitas el mood/tag, quita el filtro
+    mainCb.addEventListener("change", () => {
+      if (!mainCb.checked) filCb.checked = false;
+    });
+    filCb.addEventListener("change", () => {
+      if (filCb.checked) mainCb.checked = true;
+    });
+    row.appendChild(mainLab);
+    row.appendChild(filLab);
+    return row;
+  };
+
+  const wireChipPair = (pick: HTMLElement) => {
+    pick.querySelectorAll("[data-chip-main]").forEach((el) => {
+      if (!(el instanceof HTMLInputElement) || el.dataset.wired) return;
+      el.dataset.wired = "1";
+      const val = el.value;
+      const fil = pick.querySelector(
+        `[data-chip-filter][value="${CSS.escape(val)}"]`,
+      ) as HTMLInputElement | null;
+      el.addEventListener("change", () => {
+        if (!el.checked && fil) fil.checked = false;
+      });
+      fil?.addEventListener("change", () => {
+        if (fil.checked) el.checked = true;
+      });
+    });
+  };
+
   const addCustomChip = (
     pickSel: string,
     inputSel: string,
     name: "moodPick" | "tagPick",
+    filterName: "moodFilter" | "tagFilter",
   ) => {
     const pick = document.querySelector(pickSel);
     const input = document.querySelector(inputSel);
     if (!(pick instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
+    wireChipPair(pick);
     const add = () => {
       const v = input.value.trim().toLowerCase().slice(0, 40);
       if (!v) return;
-      const exists = [...pick.querySelectorAll("input")].some(
-        (el) => el instanceof HTMLInputElement && el.value === v,
-      );
-      if (exists) {
-        const box = pick.querySelector(`input[value="${CSS.escape(v)}"]`);
-        if (box instanceof HTMLInputElement) box.checked = true;
+      const exists = pick.querySelector(`[data-chip-main][value="${CSS.escape(v)}"]`);
+      if (exists instanceof HTMLInputElement) {
+        exists.checked = true;
         input.value = "";
         return;
       }
-      const label = document.createElement("label");
-      label.className = "pick-item";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.name = name;
-      cb.value = v;
-      cb.checked = true;
-      label.appendChild(cb);
-      label.appendChild(document.createTextNode(" " + v));
-      pick.appendChild(label);
+      pick.appendChild(makeChipRow(name, filterName, v, { main: true, filter: false }));
+      wireChipPair(pick);
       input.value = "";
     };
     document
@@ -674,8 +742,8 @@ import Layout from "../../components/Layout.astro";
       }
     });
   };
-  addCustomChip("[data-mood-pick]", "[data-mood-custom]", "moodPick");
-  addCustomChip("[data-tag-pick]", "[data-tag-custom]", "tagPick");
+  addCustomChip("[data-mood-pick]", "[data-mood-custom]", "moodPick", "moodFilter");
+  addCustomChip("[data-tag-pick]", "[data-tag-custom]", "tagPick", "tagFilter");
 
   const setChannel = (ch: "video" | "stems") => {
     channel = ch;
@@ -740,33 +808,44 @@ import Layout from "../../components/Layout.astro";
       : "video";
     setChannel(kind);
 
-    // Marcar moods/tags (y crear chips si faltan)
-    const ensureChip = (pickSel: string, name: "moodPick" | "tagPick", value: string) => {
+    const ensureChip = (
+      pickSel: string,
+      name: "moodPick" | "tagPick",
+      filterName: "moodFilter" | "tagFilter",
+      value: string,
+      asFilter: boolean,
+    ) => {
       const pick = document.querySelector(pickSel);
       if (!(pick instanceof HTMLElement)) return;
-      let box = pick.querySelector(`input[value="${CSS.escape(value)}"]`);
-      if (!box) {
-        const label = document.createElement("label");
-        label.className = "pick-item";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.name = name;
-        cb.value = value;
-        label.appendChild(cb);
-        label.appendChild(document.createTextNode(" " + value));
-        pick.appendChild(label);
-        box = cb;
+      let main = pick.querySelector(
+        `[data-chip-main][value="${CSS.escape(value)}"]`,
+      ) as HTMLInputElement | null;
+      if (!main) {
+        pick.appendChild(
+          makeChipRow(name, filterName, value, { main: true, filter: asFilter }),
+        );
+        wireChipPair(pick);
+        main = pick.querySelector(
+          `[data-chip-main][value="${CSS.escape(value)}"]`,
+        ) as HTMLInputElement | null;
       }
-      if (box instanceof HTMLInputElement) box.checked = true;
+      if (main) main.checked = true;
+      const fil = pick.querySelector(
+        `[data-chip-filter][value="${CSS.escape(value)}"]`,
+      ) as HTMLInputElement | null;
+      if (fil) fil.checked = asFilter;
     };
-    document.querySelectorAll("[name=moodPick]").forEach((el) => {
+    document.querySelectorAll("[name=moodPick], [name=moodFilter], [name=tagPick], [name=tagFilter]").forEach((el) => {
       if (el instanceof HTMLInputElement) el.checked = false;
     });
-    document.querySelectorAll("[name=tagPick]").forEach((el) => {
-      if (el instanceof HTMLInputElement) el.checked = false;
-    });
-    for (const m of (item.moods as string[]) || []) ensureChip("[data-mood-pick]", "moodPick", m);
-    for (const t of (item.tags as string[]) || []) ensureChip("[data-tag-pick]", "tagPick", t);
+    const fMoods = new Set((item.filterMoods as string[]) || []);
+    const fTags = new Set((item.filterTags as string[]) || []);
+    for (const m of (item.moods as string[]) || []) {
+      ensureChip("[data-mood-pick]", "moodPick", "moodFilter", m, fMoods.has(m));
+    }
+    for (const t of (item.tags as string[]) || []) {
+      ensureChip("[data-tag-pick]", "tagPick", "tagFilter", t, fTags.has(t));
+    }
 
     stemRows = [];
     renderStems();
@@ -911,6 +990,8 @@ import Layout from "../../components/Layout.astro";
         slugify(title);
       const moods = fd.getAll("moodPick").map(String);
       const tags = fd.getAll("tagPick").map(String);
+      const filterMoods = fd.getAll("moodFilter").map(String).filter((m) => moods.includes(m));
+      const filterTags = fd.getAll("tagFilter").map(String).filter((t) => tags.includes(t));
 
       const hasVideoFile =
         channel === "video"
@@ -941,6 +1022,8 @@ import Layout from "../../components/Layout.astro";
             notes: String(fd.get("notes") || ""),
             moods,
             tags,
+            filterMoods,
+            filterTags,
             year: Number(fd.get("year") || 2026),
             provisional: fd.get("provisional") === "on",
             licenseEnabled: fd.get("licenseEnabled") === "on",
@@ -961,6 +1044,8 @@ import Layout from "../../components/Layout.astro";
       body.set("aspect", String(fd.get("aspect") || "1:1"));
       body.set("moods", JSON.stringify(moods));
       body.set("tags", JSON.stringify(tags));
+      body.set("filterMoods", JSON.stringify(filterMoods));
+      body.set("filterTags", JSON.stringify(filterTags));
       body.set("description", String(fd.get("description") || ""));
       body.set("notes", String(fd.get("notes") || ""));
       body.set("year", String(fd.get("year") || "2026"));
@@ -1554,7 +1639,39 @@ import Layout from "../../components/Layout.astro";
   .pick {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.45rem;
+  }
+  .pick-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem 0.25rem 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    font-size: 0.8rem;
+  }
+  .pick-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: pointer;
+    color: var(--color-fg);
+  }
+  .pick-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+    border: 1px solid rgb(201 169 98 / 0.3);
+    background: rgb(201 169 98 / 0.08);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    cursor: pointer;
   }
   .pick-item {
     flex-direction: row !important;

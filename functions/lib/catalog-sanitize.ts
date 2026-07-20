@@ -86,6 +86,8 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     stems: stems.length ? stems : undefined,
     tags: clipStringList(o.tags),
     moods: clipStringList(o.moods),
+    filterMoods: clipStringList(o.filterMoods),
+    filterTags: clipStringList(o.filterTags),
     description: clipText(o.description, 2000),
     notes: clipText(o.notes, 2000),
     year: Number.isFinite(Number(o.year)) ? Number(o.year) : new Date().getFullYear(),

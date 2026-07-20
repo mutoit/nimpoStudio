@@ -21,6 +21,10 @@ export type LibraryItem = {
   stems?: LibraryStem[];
   tags: string[];
   moods: string[];
+  /** Moods que aparecen como filtro en la biblioteca pública */
+  filterMoods?: string[];
+  /** Tags que aparecen como filtro en la biblioteca pública */
+  filterTags?: string[];
   description?: string;
   /** Texto extra del panel (comentarios del estudio). */
   notes?: string;

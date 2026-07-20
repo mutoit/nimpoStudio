@@ -61,7 +61,8 @@ function loginHtml(nextPath: string): string {
   <div class="card">
     <h1>Panel privado</h1>
     <p>Solo el estudio. Introduce la contraseña de admin (secreto del servidor).</p>
-    <form id="f">
+    <form id="f" method="POST" action="/admin/session" autocomplete="on">
+      <input type="hidden" name="next" value=${JSON.stringify(safeNext)} />
       <label for="p">Contraseña</label>
       <input id="p" name="password" type="password" autocomplete="current-password" required autofocus />
       <button type="submit" id="b">Entrar</button>
@@ -70,34 +71,14 @@ function loginHtml(nextPath: string): string {
     <p style="margin-top:1rem"><a href="/es/">← Volver al sitio</a></p>
   </div>
   <script>
+    // Fallback fetch si el form nativo falla; preferimos POST form + 303 (cookie más fiable).
     const next = ${JSON.stringify(safeNext)};
-    document.getElementById('f').addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const b = document.getElementById('b');
-      const e = document.getElementById('e');
-      b.disabled = true; e.textContent = '';
-      try {
-        const res = await fetch('/admin/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ password: document.getElementById('p').value }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          e.textContent = data.error === 'not_configured'
-            ? 'Admin no configurado (falta secreto en Pages).'
-            : data.error === 'rate_limited'
-              ? 'Demasiados intentos. Espera unos minutos.'
-              : 'Contraseña incorrecta';
-          b.disabled = false;
-          return;
-        }
-        location.href = next;
-      } catch {
-        e.textContent = 'Error de red';
-        b.disabled = false;
-      }
+    const params = new URLSearchParams(location.search);
+    if (params.get('e') === '1') {
+      document.getElementById('e').textContent = 'Contraseña incorrecta';
+    }
+    document.getElementById('f').addEventListener('submit', function () {
+      document.getElementById('b').disabled = true;
     });
   </script>
 </body>
@@ -156,6 +137,8 @@ export async function onRequest(context: {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
+        // Evitar que el CDN cachee el HTML de login como si fuera la página
+        "Vary": "Cookie",
       },
     });
   }

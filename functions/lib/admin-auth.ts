@@ -2,7 +2,7 @@
  * Auth del panel /admin/* —
  * - ADMIN_LIBRARY_SECRET = contraseña de login
  * - ADMIN_SESSION_SECRET = clave HMAC de cookie (si falta, se deriva del password)
- * Cookie httpOnly, Path=/admin, SameSite=Strict.
+ * Cookie httpOnly, Path=/admin, SameSite=Lax, Domain=.nimpo3dstudio.com en prod.
  */
 
 const COOKIE = "nimpo_admin_session";
@@ -132,19 +132,46 @@ export function parseCookies(header: string | null): Record<string, string> {
   return out;
 }
 
-export function sessionCookieHeader(token: string): string {
-  return [
+/** Domain compartido apex/www; host-only en localhost / pages.dev. */
+export function cookieDomainForRequest(request?: Request | null): string | null {
+  if (!request) return ".nimpo3dstudio.com";
+  try {
+    const host = new URL(request.url).hostname;
+    if (host === "nimpo3dstudio.com" || host.endsWith(".nimpo3dstudio.com")) {
+      return ".nimpo3dstudio.com";
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function sessionCookieHeader(token: string, request?: Request | null): string {
+  const parts = [
     `${COOKIE}=${encodeURIComponent(token)}`,
     `Path=${COOKIE_PATH}`,
     "HttpOnly",
     "Secure",
-    "SameSite=Strict",
+    "SameSite=Lax",
     `Max-Age=${MAX_AGE_SEC}`,
-  ].join("; ");
+  ];
+  const domain = cookieDomainForRequest(request);
+  if (domain) parts.push(`Domain=${domain}`);
+  return parts.join("; ");
 }
 
-export function clearSessionCookieHeader(): string {
-  return `${COOKIE}=; Path=${COOKIE_PATH}; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+export function clearSessionCookieHeader(request?: Request | null): string {
+  const parts = [
+    `${COOKIE}=`,
+    `Path=${COOKIE_PATH}`,
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    "Max-Age=0",
+  ];
+  const domain = cookieDomainForRequest(request);
+  if (domain) parts.push(`Domain=${domain}`);
+  return parts.join("; ");
 }
 
 export function getSessionFromRequest(request: Request): string | undefined {

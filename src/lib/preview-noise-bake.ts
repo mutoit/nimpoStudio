@@ -50,10 +50,17 @@ function encodeWav(buffer: AudioBuffer): Blob {
 
 /**
  * @param noise01 0 = sin ruido, 0.12 típico, 1 = solo ruido
+ * @param music01 volumen de la música en la mezcla final (default 1)
  */
-export async function bakePreviewNoise(file: File, noise01: number): Promise<File> {
-  const level = Math.max(0, Math.min(1, noise01));
-  if (level < 0.005) return file;
+export async function bakePreviewNoise(
+  file: File,
+  noise01: number,
+  music01 = 1,
+): Promise<File> {
+  const nLevel = Math.max(0, Math.min(1, noise01));
+  const mLevel = Math.max(0, Math.min(1, music01));
+  // Sin cambio de mezcla → archivo original
+  if (nLevel < 0.005 && mLevel > 0.995) return file;
 
   const AC =
     window.AudioContext ||
@@ -71,24 +78,24 @@ export async function bakePreviewNoise(file: File, noise01: number): Promise<Fil
     const src = offline.createBufferSource();
     src.buffer = decoded;
     const musicGain = offline.createGain();
-    musicGain.gain.value = 1;
+    musicGain.gain.value = mLevel;
     src.connect(musicGain);
     musicGain.connect(offline.destination);
 
-    // Ruido blanco en buffer del mismo length
-    const noiseBuf = offline.createBuffer(1, decoded.length, decoded.sampleRate);
-    const data = noiseBuf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const noiseSrc = offline.createBufferSource();
-    noiseSrc.buffer = noiseBuf;
-    const noiseGain = offline.createGain();
-    // Escala percibida: ruido a full es muy fuerte
-    noiseGain.gain.value = level * 0.22;
-    noiseSrc.connect(noiseGain);
-    noiseGain.connect(offline.destination);
+    if (nLevel >= 0.005) {
+      const noiseBuf = offline.createBuffer(1, decoded.length, decoded.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const noiseSrc = offline.createBufferSource();
+      noiseSrc.buffer = noiseBuf;
+      const noiseGain = offline.createGain();
+      noiseGain.gain.value = nLevel * 0.22;
+      noiseSrc.connect(noiseGain);
+      noiseGain.connect(offline.destination);
+      noiseSrc.start(0);
+    }
 
     src.start(0);
-    noiseSrc.start(0);
     const mixed = await offline.startRendering();
     const blob = encodeWav(mixed);
     const base = file.name.replace(/\.[^.]+$/, "") || "preview";

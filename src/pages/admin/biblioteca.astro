@@ -111,11 +111,29 @@ import Layout from "../../components/Layout.astro";
             <div class="stems-list" data-stems-list></div>
           </div>
 
-          <label class="noise-block">
-            <span class="noise-block__head">
-              Ruido en preview (incrustado al subir)
-              <em data-noise-pct>12%</em>
-            </span>
+        </div>
+
+        <!-- Mezcla audible (vídeo o stems) → se incrusta al publicar stems -->
+        <div class="mix-preview" data-mix-preview>
+          <p class="mix-preview__title">Escuchar mezcla (audio + ruido)</p>
+          <p class="hint">
+            Ajusta volúmenes y dale a play. En <strong>stems</strong> esa mezcla se graba en los
+            archivos al publicar. En vídeo solo es referencia (el vídeo se sube tal cual).
+          </p>
+          <label class="mix-slider">
+            <span>Volumen audio <em data-music-pct>100%</em></span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value="100"
+              step="1"
+              data-music-level
+              aria-label="Volumen de tu audio"
+            />
+          </label>
+          <label class="mix-slider">
+            <span>Volumen ruido <em data-noise-pct>12%</em></span>
             <input
               type="range"
               min="0"
@@ -123,14 +141,14 @@ import Layout from "../../components/Layout.astro";
               value="12"
               step="1"
               data-noise-level
-              aria-label="Porcentaje de ruido en stems de preview"
+              aria-label="Volumen de ruido de preview"
             />
-            <p class="hint">
-              Solo tú lo eliges. Se mezcla <strong>en el archivo</strong> que oye el visitante
-              (no hay slider en la web pública). 0 = limpio · 12 ≈ protección suave · 25+ fuerte.
-              Re-sube si cambias el valor.
-            </p>
           </label>
+          <div class="mix-actions">
+            <button type="button" class="btn btn--gold" data-mix-play>▶ Escuchar</button>
+            <button type="button" class="btn btn--sm" data-mix-stop>Stop</button>
+          </div>
+          <p class="mix-msg" data-mix-msg hidden></p>
         </div>
 
         <fieldset class="chips-field">
@@ -220,6 +238,8 @@ import Layout from "../../components/Layout.astro";
         </button>
         <p class="status" data-status hidden></p>
       </form>
+      <!-- Toast fijo de éxito (más tiempo visible) -->
+      <div class="toast" data-toast hidden role="status"></div>
 
       <hr class="sep" />
 
@@ -293,8 +313,10 @@ import Layout from "../../components/Layout.astro";
 
 <script>
   import { bakePreviewNoise } from "../../lib/preview-noise-bake";
+  import { AdminMixPreview } from "../../lib/admin-mix-preview";
 
   type StemRow = { label: string; file: File | null };
+  const mixPreview = new AdminMixPreview();
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
@@ -403,12 +425,29 @@ import Layout from "../../components/Layout.astro";
   bindPreview("[data-stems-video]", "[data-stems-video-preview]", "video");
   bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
 
+  let toastTimer = 0;
+  const showToast = (msg: string, ms = 14000) => {
+    const toast = document.querySelector("[data-toast]");
+    if (!(toast instanceof HTMLElement)) return;
+    toast.hidden = false;
+    toast.textContent = msg;
+    toast.classList.add("is-on");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.classList.remove("is-on");
+      toast.hidden = true;
+    }, ms);
+  };
+
   const setStatus = (msg: string, ok = true) => {
     const el = document.querySelector("[data-status]");
     if (!(el instanceof HTMLElement)) return;
     el.hidden = false;
     el.textContent = msg;
     el.classList.toggle("is-err", !ok);
+    if (ok && (msg.startsWith("✅") || msg.includes("Publicado") || msg.includes("Guardado"))) {
+      showToast(msg, 16000);
+    }
   };
 
   const stemsList = document.querySelector("[data-stems-list]");
@@ -511,11 +550,81 @@ import Layout from "../../components/Layout.astro";
   stemRows = [];
   renderStems();
 
-  // Slider ruido (solo admin)
+  // Mezcla preview: volúmenes audio / ruido
+  const musicRange = document.querySelector<HTMLInputElement>("[data-music-level]");
   const noiseRange = document.querySelector<HTMLInputElement>("[data-noise-level]");
+  const musicPct = document.querySelector("[data-music-pct]");
   const noisePct = document.querySelector("[data-noise-pct]");
-  noiseRange?.addEventListener("input", () => {
-    if (noisePct) noisePct.textContent = `${noiseRange.value}%`;
+  const mixMsg = document.querySelector("[data-mix-msg]");
+
+  const readMixGains = () => ({
+    music01: Number(musicRange?.value || 100) / 100,
+    noise01: Number(noiseRange?.value || 12) / 100,
+  });
+
+  const syncMixLabels = () => {
+    const { music01, noise01 } = readMixGains();
+    if (musicPct) musicPct.textContent = `${Math.round(music01 * 100)}%`;
+    if (noisePct) noisePct.textContent = `${Math.round(noise01 * 100)}%`;
+    mixPreview.setGains(music01, noise01);
+  };
+  musicRange?.addEventListener("input", syncMixLabels);
+  noiseRange?.addEventListener("input", syncMixLabels);
+  syncMixLabels();
+
+  const setMixMsg = (msg: string, err = false) => {
+    if (!(mixMsg instanceof HTMLElement)) return;
+    mixMsg.hidden = !msg;
+    mixMsg.textContent = msg;
+    mixMsg.classList.toggle("is-err", err);
+  };
+
+  document.querySelector("[data-mix-stop]")?.addEventListener("click", () => {
+    mixPreview.stop();
+    setMixMsg("Stop.");
+  });
+
+  document.querySelector("[data-mix-play]")?.addEventListener("click", async () => {
+    const { music01, noise01 } = readMixGains();
+    mixPreview.setGains(music01, noise01);
+    setMixMsg("Cargando…");
+    try {
+      if (channel === "stems") {
+        const files = stemRows.map((r) => r.file).filter((f): f is File => !!f);
+        if (!files.length) {
+          setMixMsg("Primero arrastra stems de audio.", true);
+          return;
+        }
+        await mixPreview.playStems(files);
+        setMixMsg(
+          `Reproduciendo ${files.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+        );
+      } else {
+        const vInput = document.querySelector<HTMLInputElement>("[data-video-file]");
+        const file = vInput?.files?.[0];
+        const previewBox = document.querySelector("[data-video-preview]");
+        let videoEl = previewBox?.querySelector("video") as HTMLVideoElement | null;
+        if (!videoEl && file) {
+          // Forzar preview si no hay
+          const url = URL.createObjectURL(file);
+          if (previewBox instanceof HTMLElement) {
+            previewBox.hidden = false;
+            previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">${file.name}</p>`;
+            videoEl = previewBox.querySelector("video");
+          }
+        }
+        if (!videoEl) {
+          setMixMsg("Elige un vídeo primero.", true);
+          return;
+        }
+        await mixPreview.playMediaElement(videoEl);
+        setMixMsg(
+          `Vídeo + ruido · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% (solo escucha; el mp4 no se re-mezcla al publicar)`,
+        );
+      }
+    } catch (e) {
+      setMixMsg(e instanceof Error ? e.message : "No se pudo reproducir", true);
+    }
   });
 
   // Moods / tags personalizados
@@ -870,7 +979,7 @@ import Layout from "../../components/Layout.astro";
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
-        const noise01 = Number(noiseRange?.value || 12) / 100;
+        const { music01, noise01 } = readMixGains();
         const withFile = stemRows.filter((r) => r.file);
         if (!withFile.length) {
           throw new Error(
@@ -879,17 +988,16 @@ import Layout from "../../components/Layout.astro";
               : "Añade al menos un stem con audio.",
           );
         }
+        mixPreview.stop();
         setStatus(
-          noise01 > 0.005
-            ? `Procesando ruido (${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`
-            : `Preparando ${withFile.length} stem(s)…`,
+          `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
         );
         let n = 0;
         for (const row of withFile) {
           if (!row.file) continue;
           let file = row.file;
           try {
-            file = await bakePreviewNoise(row.file, noise01);
+            file = await bakePreviewNoise(row.file, noise01, music01);
           } catch (err) {
             console.warn("[bake noise]", err);
           }
@@ -899,6 +1007,7 @@ import Layout from "../../components/Layout.astro";
         }
       }
 
+      mixPreview.stop();
       setStatus("Publicando… (subida + catálogo)");
       const res = await fetch("/admin/publish", {
         method: "POST",
@@ -924,7 +1033,11 @@ import Layout from "../../components/Layout.astro";
       }
 
       setStatus(
-        `✅ Publicado «${data.item?.title || title}». Recarga la biblioteca pública.`,
+        `✅ Publicado «${data.item?.title || title}». Ya está en /es/biblioteca/ (recarga la pública).`,
+      );
+      showToast(
+        `✅ Publicado «${data.item?.title || title}» · ${data.catalogCount ?? "?"} en catálogo`,
+        18000,
       );
       const out = document.querySelector("[data-out]");
       if (out instanceof HTMLElement) {
@@ -1164,30 +1277,88 @@ import Layout from "../../components/Layout.astro";
     line-height: 1.4;
     color: var(--color-muted);
   }
-  .noise-block {
+  .mix-preview {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    margin-top: 0.85rem;
-    padding: 0.85rem;
-    border-radius: 10px;
-    border: 1px solid rgb(201 169 98 / 0.28);
-    background: rgb(201 169 98 / 0.06);
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.25rem;
+    padding: 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.07);
   }
-  .noise-block__head {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    font-weight: 600;
+  .mix-preview__title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
     color: var(--color-fg);
   }
-  .noise-block__head em {
+  .mix-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .mix-slider span {
+    display: flex;
+    justify-content: space-between;
+  }
+  .mix-slider em {
     font-style: normal;
     color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
   }
-  .noise-block input[type="range"] {
+  .mix-slider input[type="range"] {
     width: 100%;
     accent-color: #c9a962;
+  }
+  .mix-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .mix-msg {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--color-muted);
+  }
+  .mix-msg.is-err {
+    color: #f0a0a0;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%) translateY(120%);
+    z-index: 200;
+    max-width: min(28rem, 92vw);
+    padding: 0.9rem 1.2rem;
+    border-radius: 12px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: #1a1810;
+    color: #e8c97a;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+    transition: transform 0.25s ease;
+    pointer-events: none;
+  }
+  .toast.is-on {
+    transform: translateX(-50%) translateY(0);
+  }
+  .status {
+    margin: 0.5rem 0 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    background: rgb(201 169 98 / 0.1);
+    color: var(--color-accent);
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+  .status.is-err {
+    background: rgb(240 80 80 / 0.12);
+    color: #f0a0a0;
   }
   .add-chip {
     display: flex;

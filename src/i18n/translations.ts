@@ -56,6 +56,9 @@ export const translations = {
     libHasStems: "Con stems",
     libSidebarTitle: "Filtros",
     libUnavailable: "No disponible",
+    libPreviewProtect:
+      "Preview protegido: oyes ruido (y/o calidad reducida) a propósito para proteger la obra. No es el master. Tras licencia y pago entregamos audio limpio (y stems si los contratas).",
+    libPreviewProtectShort: "Hay ruido a propósito · preview protegido · no es el master",
 
     // Language
     language: "Idioma",
@@ -140,7 +143,7 @@ export const translations = {
     musicLicenseCraft:
       "Hecho a mano · MIDI original · sin IA · samples/instrumentos del estudio",
     musicLicensePreviewNote:
-      "Los previews pueden llevar ruido o baja calidad a propósito. El master (y stems si los contratas) solo tras licencia y pago.",
+      "El audio de la web lleva ruido y/o baja calidad a propósito: protege la obra. No otorga derechos de uso. El master limpio (y stems si los contratas) solo tras licencia y pago.",
     musicLicenseChoose: "1. Elige la licencia",
     musicLicenseSend: "2. Envía la solicitud",
     musicLicenseTierPersonal: "Personal / no comercial",
@@ -316,6 +319,9 @@ export const translations = {
     libHasStems: "With stems",
     libSidebarTitle: "Filters",
     libUnavailable: "Unavailable",
+    libPreviewProtect:
+      "Protected preview: you hear noise (and/or reduced quality) on purpose to protect the work. This is not the master. After license and payment we deliver clean audio (and stems if purchased).",
+    libPreviewProtectShort: "Noise on purpose · protected preview · not the master",
 
     language: "Language",
     languageLabel: "Change language",
@@ -391,7 +397,7 @@ export const translations = {
     musicLicenseCraft:
       "Handmade · original MIDI · no AI · studio-licensed samples/instruments",
     musicLicensePreviewNote:
-      "Previews may be noisy or low quality on purpose. Master (and stems if purchased) only after license and payment.",
+      "Web audio includes noise and/or lower quality on purpose to protect the work. It grants no usage rights. Clean master (and stems if purchased) only after license and payment.",
     musicLicenseChoose: "1. Choose a license",
     musicLicenseSend: "2. Send the request",
     musicLicenseTierPersonal: "Personal / non-commercial",
@@ -558,6 +564,9 @@ export const translations = {
     libHasStems: "Avec stems",
     libSidebarTitle: "Filtres",
     libUnavailable: "Indisponible",
+    libPreviewProtect:
+      "Extrait protégé : vous entendez du bruit (et/ou une qualité réduite) exprès pour protéger l'œuvre. Ce n'est pas le master. Après licence et paiement, audio propre (et stems si prévus).",
+    libPreviewProtectShort: "Bruit volontaire · extrait protégé · pas le master",
 
     language: "Langue",
     languageLabel: "Changer de langue",
@@ -633,7 +642,7 @@ export const translations = {
     musicLicenseCraft:
       "Fait main · MIDI original · sans IA · samples/instruments du studio",
     musicLicensePreviewNote:
-      "Les extraits peuvent être bruités ou basse qualité exprès. Master (et stems si achetés) seulement après licence et paiement.",
+      "L'audio du site inclut du bruit et/ou une qualité réduite exprès pour protéger l'œuvre. Aucun droit d'usage. Master propre (et stems si prévus) seulement après licence et paiement.",
     musicLicenseChoose: "1. Choisissez la licence",
     musicLicenseSend: "2. Envoyez la demande",
     musicLicenseTierPersonal: "Personnel / non commercial",

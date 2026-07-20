@@ -117,6 +117,7 @@ const payload = {
               <span class="lb__time" data-lb-time>0:00 / --:--</span>
             </div>
           </div>
+          <p class="lb__protect" role="note">{t("libPreviewProtect")}</p>
 
           <p class="lb__label">{t("libDescription")}</p>
           <p class="lb__text" data-lb-desc></p>
@@ -135,6 +136,7 @@ const payload = {
         <div class="lb__modal-right" data-lb-lic-wrap hidden>
           <h3 class="lb__form-title">{t("quoteFormTitle")}</h3>
           <p class="lb__form-lead">{t("quoteFormLead")}</p>
+          <p class="lb__protect lb__protect--lic" role="note">{t("musicLicensePreviewNote")}</p>
 
           <form class="lb__form" data-lb-form>
             <input type="hidden" name="workSlug" />
@@ -433,6 +435,19 @@ const payload = {
     pointer-events: none;
   }
 
+  .lb__protect {
+    margin: 0.55rem 0 0.85rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgb(201 169 98 / 0.3);
+    background: rgb(201 169 98 / 0.08);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #d4c4a0;
+  }
+  .lb__protect--lic {
+    margin: 0 0 1rem;
+  }
   .lb__transport {
     display: flex;
     flex-direction: column;

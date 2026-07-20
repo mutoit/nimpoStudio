@@ -116,9 +116,13 @@ import Layout from "../../components/Layout.astro";
         <!-- Mezcla audible (vídeo o stems) → se incrusta al publicar stems -->
         <div class="mix-preview" data-mix-preview>
           <p class="mix-preview__title">Escuchar mezcla (audio + ruido)</p>
+          <p class="mix-protect" role="note">
+            El ruido se pone <strong>a propósito para proteger el audio</strong> en la web. El
+            visitante oirá esa mezcla (no el master limpio). En <strong>stems</strong> se incrusta
+            al publicar; en vídeo es solo referencia de escucha.
+          </p>
           <p class="hint">
-            Ajusta volúmenes y dale a play. En <strong>stems</strong> esa mezcla se graba en los
-            archivos al publicar. En vídeo solo es referencia (el vídeo se sube tal cual).
+            Ajusta volúmenes y dale a play hasta que el balance te convenza, luego publica.
           </p>
           <label class="mix-slider">
             <span>Volumen audio <em data-music-pct>100%</em></span>
@@ -1292,6 +1296,16 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--color-fg);
+  }
+  .mix-protect {
+    margin: 0;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.1);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #e0d0a8;
   }
   .mix-slider {
     display: flex;

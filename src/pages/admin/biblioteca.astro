@@ -17,12 +17,17 @@ import Layout from "../../components/Layout.astro";
     </header>
 
     <p class="lead">
-      Elige canal, adjunta archivos y pulsa <strong>Publicar en la web</strong>.
-      Se sube a R2 y el catálogo se actualiza solo — <strong>sin copiar JSON a mano</strong>.
-      Abre <a href="/es/biblioteca/" target="_blank" rel="noopener">/es/biblioteca/</a> y recarga.
+      Publica, edita o borra desde aquí. Miniaturas a la derecha. Biblioteca pública:
+      <a href="/es/biblioteca/" target="_blank" rel="noopener">/es/biblioteca/</a>
     </p>
 
+    <div class="admin-layout">
     <div class="workspace" data-workspace>
+      <div class="edit-bar" data-edit-bar hidden>
+        <span data-edit-label>Editando…</span>
+        <button type="button" class="btn btn--sm" data-edit-cancel>Cancelar</button>
+      </div>
+
       <div class="channels">
         <button type="button" class="chip is-active" data-channel="video">
           Canal vídeo
@@ -205,6 +210,11 @@ import Layout from "../../components/Layout.astro";
           <input name="year" type="number" value="2026" />
         </label>
 
+        <p class="hint" data-edit-hint hidden>
+          En edición: si no subes archivos nuevos, solo se actualizan título/moods/texto
+          (el audio/vídeo se mantiene). Si subes stems nuevos, se re-suben con el ruido del
+          slider.
+        </p>
         <button type="submit" class="btn btn--gold" data-publish>
           Publicar en la web
         </button>
@@ -258,6 +268,18 @@ import Layout from "../../components/Layout.astro";
       </section>
 
       <pre class="out" data-out hidden></pre>
+    </div>
+
+    <aside class="pub-rail" data-pub-rail>
+      <div class="pub-rail__head">
+        <h2 class="subhead">Publicaciones</h2>
+        <button type="button" class="btn btn--sm" data-pub-refresh>Actualizar</button>
+      </div>
+      <p class="lead lead--sm">Miniaturas del catálogo vivo. Editar o borrar sin tocar JSON.</p>
+      <div class="pub-grid" data-pub-grid>
+        <p class="pub-empty">Cargando…</p>
+      </div>
+    </aside>
     </div>
   </div>
 </Layout>
@@ -329,6 +351,10 @@ import Layout from "../../components/Layout.astro";
 
   let channel: "video" | "stems" = "video";
   let stemRows: StemRow[] = [];
+  /** null = alta nueva; string = editando slug */
+  let editingSlug: string | null = null;
+  let editingItem: Record<string, unknown> | null = null;
+  let publications: Record<string, unknown>[] = [];
 
   const slugify = (s: string) =>
     s
@@ -340,17 +366,7 @@ import Layout from "../../components/Layout.astro";
 
   document.querySelectorAll("[data-channel]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      channel = ((btn as HTMLElement).dataset.channel as "video" | "stems") || "video";
-      document.querySelectorAll("[data-channel]").forEach((b) => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      const vf = document.querySelector("[data-video-fields]");
-      const sf = document.querySelector("[data-stems-fields]");
-      if (vf instanceof HTMLElement) vf.hidden = channel !== "video";
-      if (sf instanceof HTMLElement) sf.hidden = channel !== "stems";
-      const videoInput = document.querySelector("[data-video-file]");
-      if (videoInput instanceof HTMLInputElement) {
-        videoInput.required = channel === "video";
-      }
+      setChannel(((btn as HTMLElement).dataset.channel as "video" | "stems") || "video");
     });
   });
 
@@ -539,6 +555,196 @@ import Layout from "../../components/Layout.astro";
   addCustomChip("[data-mood-pick]", "[data-mood-custom]", "moodPick");
   addCustomChip("[data-tag-pick]", "[data-tag-custom]", "tagPick");
 
+  const setChannel = (ch: "video" | "stems") => {
+    channel = ch;
+    document.querySelectorAll("[data-channel]").forEach((b) => {
+      b.classList.toggle("is-active", (b as HTMLElement).dataset.channel === ch);
+    });
+    const vf = document.querySelector("[data-video-fields]");
+    const sf = document.querySelector("[data-stems-fields]");
+    if (vf instanceof HTMLElement) vf.hidden = ch !== "video";
+    if (sf instanceof HTMLElement) sf.hidden = ch !== "stems";
+    const videoInput = document.querySelector("[data-video-file]");
+    if (videoInput instanceof HTMLInputElement) {
+      videoInput.required = ch === "video" && !editingSlug;
+    }
+  };
+
+  const setEditMode = (item: Record<string, unknown> | null) => {
+    editingItem = item;
+    editingSlug = item ? String(item.slug || "") : null;
+    const bar = document.querySelector("[data-edit-bar]");
+    const label = document.querySelector("[data-edit-label]");
+    const hint = document.querySelector("[data-edit-hint]");
+    const pubBtn = document.querySelector("[data-publish]");
+    const slugInput = document.querySelector<HTMLInputElement>("[data-slug]");
+    if (bar instanceof HTMLElement) bar.hidden = !item;
+    if (hint instanceof HTMLElement) hint.hidden = !item;
+    if (label) label.textContent = item ? `Editando «${item.title || item.slug}»` : "";
+    if (pubBtn) pubBtn.textContent = item ? "Guardar cambios" : "Publicar en la web";
+    if (slugInput) {
+      slugInput.readOnly = !!item;
+      slugInput.style.opacity = item ? "0.7" : "1";
+    }
+    if (!item) {
+      const form = document.querySelector("[data-admin-form]");
+      if (form instanceof HTMLFormElement) form.reset();
+      stemRows = [];
+      renderStems();
+      setChannel("video");
+      return;
+    }
+
+    const form = document.querySelector("[data-admin-form]");
+    if (!(form instanceof HTMLFormElement)) return;
+    const titleEl = form.querySelector("[data-title]") as HTMLInputElement | null;
+    if (titleEl) titleEl.value = String(item.title || "");
+    if (slugInput) slugInput.value = String(item.slug || "");
+    const aspect = form.querySelector("[name=aspect]") as HTMLSelectElement | null;
+    if (aspect) aspect.value = String(item.aspect || "1:1");
+    const desc = form.querySelector("[name=description]") as HTMLTextAreaElement | null;
+    if (desc) desc.value = String(item.description || "");
+    const notes = form.querySelector("[name=notes]") as HTMLTextAreaElement | null;
+    if (notes) notes.value = String(item.notes || "");
+    const year = form.querySelector("[name=year]") as HTMLInputElement | null;
+    if (year) year.value = String(item.year || new Date().getFullYear());
+    const lic = form.querySelector("[name=licenseEnabled]") as HTMLInputElement | null;
+    if (lic) lic.checked = item.licenseEnabled !== false;
+    const prov = form.querySelector("[name=provisional]") as HTMLInputElement | null;
+    if (prov) prov.checked = Boolean(item.provisional);
+
+    const kind = item.kind === "stems" || (Array.isArray(item.stems) && item.stems.length)
+      ? "stems"
+      : "video";
+    setChannel(kind);
+
+    // Marcar moods/tags (y crear chips si faltan)
+    const ensureChip = (pickSel: string, name: "moodPick" | "tagPick", value: string) => {
+      const pick = document.querySelector(pickSel);
+      if (!(pick instanceof HTMLElement)) return;
+      let box = pick.querySelector(`input[value="${CSS.escape(value)}"]`);
+      if (!box) {
+        const label = document.createElement("label");
+        label.className = "pick-item";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.name = name;
+        cb.value = value;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(" " + value));
+        pick.appendChild(label);
+        box = cb;
+      }
+      if (box instanceof HTMLInputElement) box.checked = true;
+    };
+    document.querySelectorAll("[name=moodPick]").forEach((el) => {
+      if (el instanceof HTMLInputElement) el.checked = false;
+    });
+    document.querySelectorAll("[name=tagPick]").forEach((el) => {
+      if (el instanceof HTMLInputElement) el.checked = false;
+    });
+    for (const m of (item.moods as string[]) || []) ensureChip("[data-mood-pick]", "moodPick", m);
+    for (const t of (item.tags as string[]) || []) ensureChip("[data-tag-pick]", "tagPick", t);
+
+    stemRows = [];
+    renderStems();
+    setStatus(
+      `Editando «${item.title}». Cambia texto y Guarda, o sube stems nuevos (+ ruido) para reemplazar audio.`,
+    );
+  };
+
+  document.querySelector("[data-edit-cancel]")?.addEventListener("click", () => {
+    setEditMode(null);
+    setStatus("Edición cancelada.");
+  });
+
+  const renderPubs = () => {
+    const grid = document.querySelector("[data-pub-grid]");
+    if (!(grid instanceof HTMLElement)) return;
+    if (!publications.length) {
+      grid.innerHTML = `<p class="pub-empty">No hay publicaciones en el catálogo vivo.</p>`;
+      return;
+    }
+    grid.innerHTML = publications
+      .map((item) => {
+        const slug = String(item.slug || "");
+        const title = String(item.title || slug);
+        const cover = String(item.cover || "");
+        const video = String(item.video || "");
+        const kind = String(item.kind || "");
+        const thumb = cover
+          ? `<img src="${cover.replace(/"/g, "")}" alt="" loading="lazy" />`
+          : video
+            ? `<video src="${video.replace(/"/g, "")}" muted playsinline preload="metadata"></video>`
+            : `<div class="pub-ph">${kind === "stems" ? "STEMS" : "·"}</div>`;
+        return `<article class="pub-card" data-pub-slug="${slug.replace(/"/g, "")}">
+          <div class="pub-thumb">${thumb}</div>
+          <div class="pub-meta">
+            <strong title="${title.replace(/"/g, "")}">${title.slice(0, 42)}${title.length > 42 ? "…" : ""}</strong>
+            <span>${kind}${item.provisional ? " · demo" : ""}</span>
+          </div>
+          <div class="pub-actions">
+            <button type="button" class="btn btn--sm" data-pub-edit="${slug.replace(/"/g, "")}">Editar</button>
+            <button type="button" class="btn btn--sm btn--danger" data-pub-del="${slug.replace(/"/g, "")}">Borrar</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+
+    grid.querySelectorAll("[data-pub-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const slug = (btn as HTMLElement).dataset.pubEdit || "";
+        const item = publications.find((p) => p.slug === slug);
+        if (item) {
+          setEditMode(item);
+          document.querySelector("[data-admin-form]")?.scrollIntoView({ behavior: "smooth" });
+        }
+      });
+    });
+    grid.querySelectorAll("[data-pub-del]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const slug = (btn as HTMLElement).dataset.pubDel || "";
+        if (!slug) return;
+        if (!confirm(`¿Borrar «${slug}» del catálogo y sus archivos en R2? No se puede deshacer.`)) {
+          return;
+        }
+        try {
+          const res = await fetch(`/admin/items?slug=${encodeURIComponent(slug)}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || data.message || "Error");
+          setStatus(`✅ ${data.message || "Borrado"}`);
+          if (editingSlug === slug) setEditMode(null);
+          await loadPubs();
+        } catch (e) {
+          setStatus(e instanceof Error ? e.message : "Error al borrar", false);
+        }
+      });
+    });
+  };
+
+  const loadPubs = async () => {
+    const grid = document.querySelector("[data-pub-grid]");
+    try {
+      const res = await fetch("/admin/items", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo cargar");
+      publications = Array.isArray(data.items) ? data.items : [];
+      renderPubs();
+    } catch (e) {
+      if (grid instanceof HTMLElement) {
+        grid.innerHTML = `<p class="pub-empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  document.querySelector("[data-pub-refresh]")?.addEventListener("click", () => {
+    void loadPubs();
+  });
+  void loadPubs();
+
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -548,9 +754,54 @@ import Layout from "../../components/Layout.astro";
     try {
       const fd = new FormData(form);
       const title = String(fd.get("title") || "").trim();
-      const slug = String(fd.get("slug") || "").trim() || slugify(title);
+      const slug =
+        editingSlug ||
+        String(fd.get("slug") || "").trim() ||
+        slugify(title);
       const moods = fd.getAll("moodPick").map(String);
       const tags = fd.getAll("tagPick").map(String);
+
+      const hasVideoFile =
+        channel === "video"
+          ? !!(form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0]
+          : !!(form.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
+      const hasCoverFile =
+        channel === "video"
+          ? !!(form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0]
+          : !!(form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+      const hasStemFiles = stemRows.some((r) => r.file);
+      const metaOnly =
+        !!editingSlug &&
+        !hasVideoFile &&
+        !hasCoverFile &&
+        !hasStemFiles;
+
+      if (metaOnly) {
+        setStatus("Guardando metadatos…");
+        const res = await fetch("/admin/items", {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug,
+            title,
+            aspect: String(fd.get("aspect") || "1:1"),
+            description: String(fd.get("description") || ""),
+            notes: String(fd.get("notes") || ""),
+            moods,
+            tags,
+            year: Number(fd.get("year") || 2026),
+            provisional: fd.get("provisional") === "on",
+            licenseEnabled: fd.get("licenseEnabled") === "on",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || data.error || "Error");
+        setStatus(`✅ ${data.message}`);
+        setEditMode(null);
+        await loadPubs();
+        return;
+      }
 
       const body = new FormData();
       body.set("title", title);
@@ -567,8 +818,13 @@ import Layout from "../../components/Layout.astro";
 
       if (channel === "video") {
         const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
-        if (!v) throw new Error("Elige un vídeo.");
-        body.set("video", v, v.name);
+        if (!v && !editingSlug) throw new Error("Elige un vídeo.");
+        if (!v && editingSlug) {
+          throw new Error(
+            "Para reemplazar media sube un vídeo. Para solo texto usa Guardar sin archivos (metadatos).",
+          );
+        }
+        if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
       } else {
@@ -577,14 +833,20 @@ import Layout from "../../components/Layout.astro";
         const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
         const noise01 = Number(noiseRange?.value || 12) / 100;
-        let n = 0;
         const withFile = stemRows.filter((r) => r.file);
-        if (!withFile.length) throw new Error("Añade al menos un stem con audio.");
+        if (!withFile.length) {
+          throw new Error(
+            editingSlug
+              ? "Sube stems nuevos (con ruido) o guarda solo metadatos sin archivos."
+              : "Añade al menos un stem con audio.",
+          );
+        }
         setStatus(
           noise01 > 0.005
             ? `Procesando ruido (${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`
             : `Preparando ${withFile.length} stem(s)…`,
         );
+        let n = 0;
         for (const row of withFile) {
           if (!row.file) continue;
           let file = row.file;
@@ -592,7 +854,6 @@ import Layout from "../../components/Layout.astro";
             file = await bakePreviewNoise(row.file, noise01);
           } catch (err) {
             console.warn("[bake noise]", err);
-            // Si falla el bake, sube original
           }
           body.set(`stem_${n}_file`, file, file.name);
           body.set(`stem_${n}_label`, row.label || row.file.name);
@@ -625,7 +886,7 @@ import Layout from "../../components/Layout.astro";
       }
 
       setStatus(
-        `✅ Publicado «${data.item?.title || title}». Ya está en la biblioteca. Abre /es/biblioteca/ y recarga.`,
+        `✅ Publicado «${data.item?.title || title}». Recarga la biblioteca pública.`,
       );
       const out = document.querySelector("[data-out]");
       if (out instanceof HTMLElement) {
@@ -641,6 +902,7 @@ import Layout from "../../components/Layout.astro";
           2,
         );
       }
+      setEditMode(null);
       form.reset();
       stemRows = [];
       renderStems();
@@ -650,6 +912,7 @@ import Layout from "../../components/Layout.astro";
           p.innerHTML = "";
         }
       });
+      await loadPubs();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error al publicar", false);
     } finally {
@@ -660,8 +923,109 @@ import Layout from "../../components/Layout.astro";
 
 <style>
   .admin {
-    max-width: 42rem;
+    max-width: 72rem;
     padding-block: 2rem 4rem;
+  }
+  .admin-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (min-width: 960px) {
+    .admin-layout {
+      grid-template-columns: minmax(0, 1fr) 17rem;
+    }
+  }
+  .edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.1);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .pub-rail {
+    position: sticky;
+    top: 5rem;
+    padding: 0.85rem;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    max-height: calc(100dvh - 6rem);
+    overflow: auto;
+  }
+  .pub-rail__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+  .pub-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .pub-card {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0c0c10;
+  }
+  .pub-thumb {
+    aspect-ratio: 1;
+    background: #08080a;
+    display: grid;
+    place-items: center;
+  }
+  .pub-thumb img,
+  .pub-thumb video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .pub-ph {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--color-muted);
+  }
+  .pub-meta {
+    padding: 0.4rem 0.5rem 0.15rem;
+  }
+  .pub-meta strong {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .pub-meta span {
+    font-size: 0.68rem;
+    color: var(--color-muted);
+  }
+  .pub-actions {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem 0.55rem;
+  }
+  .pub-actions .btn {
+    flex: 1;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.35rem;
+  }
+  .pub-empty {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .pub-empty.is-err {
+    color: #f0a0a0;
   }
   .head {
     display: flex;

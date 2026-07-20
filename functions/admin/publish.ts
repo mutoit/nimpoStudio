@@ -11,7 +11,11 @@ import {
   type AdminEnv,
 } from "../lib/admin-auth";
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
-import { upsertCatalogItem, type CatalogBucket } from "../lib/library-catalog";
+import {
+  deleteMediaPrefix,
+  upsertCatalogItem,
+  type CatalogBucket,
+} from "../lib/library-catalog";
 import {
   MAX_FILE_BYTES,
   MAX_STEMS,
@@ -34,6 +38,8 @@ type Env = AdminEnv & {
       value: ArrayBuffer | string,
       opts?: { httpMetadata?: { contentType?: string } },
     ) => Promise<unknown>;
+    list?: CatalogBucket["list"];
+    delete?: CatalogBucket["delete"];
   };
   LIBRARY_PUBLIC_BASE?: string;
   RATE_LIMIT_KV?: RateLimitKv;
@@ -98,6 +104,13 @@ export async function onRequest(context: {
   const aspect = safeAspect(String(form.get("aspect") || "1:1"));
   // Same-origin: el front hace fetch (Web Audio) sin CORS de r2.dev
   const publicBase = "/api/media";
+
+  // Re-publicar mismo slug: limpia media antigua para no dejar basura
+  try {
+    await deleteMediaPrefix(env.LIBRARY_BUCKET, slug);
+  } catch (e) {
+    console.warn("[admin/publish] delete prefix", e);
+  }
 
   const parseList = (raw: FormDataEntryValue | null) => {
     if (!raw) return [] as string[];

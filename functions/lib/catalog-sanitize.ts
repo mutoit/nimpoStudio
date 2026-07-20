@@ -97,10 +97,13 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
   };
 }
 
-export function sanitizeCatalogItems(items: unknown[]): Record<string, unknown>[] {
+export function sanitizeCatalogItems(
+  items: unknown[],
+  opts?: { includeOffCatalog?: boolean },
+): Record<string, unknown>[] {
   if (!Array.isArray(items)) return [];
   return items
     .map(sanitizeCatalogItem)
     .filter((x): x is Record<string, unknown> => x != null)
-    .filter((x) => x.availability !== "off_catalog");
+    .filter((x) => opts?.includeOffCatalog || x.availability !== "off_catalog");
 }

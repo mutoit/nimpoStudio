@@ -15,12 +15,12 @@
     "provisional": false,
     "licenseEnabled": true,
     "stems": [
-      { "id": "bosque", "label": "Ambiente & Bosque", "src": "/previews/music/DP BOSQUE.wav" },
-      { "id": "flauta", "label": "Flauta & Melodía", "src": "/previews/music/DP FLAUTA.wav" },
-      { "id": "bass", "label": "Bajo", "src": "/previews/music/DP BASS.wav" },
-      { "id": "cuerdas", "label": "Cuerdas & Strings", "src": "/previews/music/DP CUERDAS STRINGS.wav" },
-      { "id": "fantasma", "label": "Texturas Fantasma", "src": "/previews/music/DP FANTASMA.wav" },
-      { "id": "syntes", "label": "Synths", "src": "/previews/music/DP SYNTES.wav" }
+      { "id": "bosque", "label": "Ambiente & Bosque", "src": "/previews/music/DP BOSQUE.mp3" },
+      { "id": "flauta", "label": "Flauta & Melodía", "src": "/previews/music/DP FLAUTA.mp3" },
+      { "id": "bass", "label": "Bajo", "src": "/previews/music/DP BASS.mp3" },
+      { "id": "cuerdas", "label": "Cuerdas & Strings", "src": "/previews/music/DP CUERDAS STRINGS.mp3" },
+      { "id": "fantasma", "label": "Texturas Fantasma", "src": "/previews/music/DP FANTASMA.mp3" },
+      { "id": "syntes", "label": "Synths", "src": "/previews/music/DP SYNTES.mp3" }
     ]
   },
   {
@@ -70,9 +70,9 @@
     "provisional": true,
     "licenseEnabled": true,
     "stems": [
-      { "id": "pads", "label": "Pads / Ambiente", "src": "/previews/music/DP BOSQUE.wav" },
-      { "id": "melody", "label": "Melodía", "src": "/previews/music/DP FLAUTA.wav" },
-      { "id": "perc", "label": "Bajo / cuerpo", "src": "/previews/music/DP BASS.wav" }
+      { "id": "pads", "label": "Pads / Ambiente", "src": "/previews/music/DP BOSQUE.mp3" },
+      { "id": "melody", "label": "Melodía", "src": "/previews/music/DP FLAUTA.mp3" },
+      { "id": "perc", "label": "Bajo / cuerpo", "src": "/previews/music/DP BASS.mp3" }
     ]
   }
 ]

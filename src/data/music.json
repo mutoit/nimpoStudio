@@ -42,38 +42,38 @@
         "slug": "deep-in-the-forest",
         "title": "Deep in the forest",
         "duration": "5:48",
-        "previewAudio": "/previews/music/DP BOSQUE.wav",
+        "previewAudio": "/previews/music/DP BOSQUE.mp3",
         "description": "Versión completa con stems disponibles.",
         "stems": [
           {
             "id": "bosque",
             "label": "Ambiente & Bosque",
-            "src": "/previews/music/DP BOSQUE.wav"
+            "src": "/previews/music/DP BOSQUE.mp3"
           },
           {
             "id": "flauta",
             "label": "Flauta & Melodía",
-            "src": "/previews/music/DP FLAUTA.wav"
+            "src": "/previews/music/DP FLAUTA.mp3"
           },
           {
             "id": "bass",
             "label": "Bajo",
-            "src": "/previews/music/DP BASS.wav"
+            "src": "/previews/music/DP BASS.mp3"
           },
           {
             "id": "cuerdas",
             "label": "Cuerdas & Strings",
-            "src": "/previews/music/DP CUERDAS STRINGS.wav"
+            "src": "/previews/music/DP CUERDAS STRINGS.mp3"
           },
           {
             "id": "fantasma",
             "label": "Texturas Fantasma",
-            "src": "/previews/music/DP FANTASMA.wav"
+            "src": "/previews/music/DP FANTASMA.mp3"
           },
           {
             "id": "syntes",
             "label": "Synths",
-            "src": "/previews/music/DP SYNTES.wav"
+            "src": "/previews/music/DP SYNTES.mp3"
           }
         ]
       }

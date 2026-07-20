@@ -127,7 +127,7 @@ async function main() {
   const afterSeek2 = await page.locator("[data-lb-time]").textContent();
   ok(
     "seek keeps playing forward",
-    sec(afterSeek2) >= seekSec,
+    sec(afterSeek2) > seekSec,
     `${afterSeek} -> ${afterSeek2}`,
   );
 

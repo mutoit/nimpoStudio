@@ -270,6 +270,7 @@ const payload = {
     isLicenseUsageCode,
     type LicenseUsageCode,
   } from "../lib/license-quote";
+  import { StemTransport } from "../lib/stem-transport";
 
   type Stem = { id: string; label: string; src: string };
   type Item = {
@@ -318,16 +319,15 @@ const payload = {
       let typeFilter = "all";
       let moodFilter: string | null = null;
       let active: Item | null = null;
-      /** Capas cargadas (no se recrean al mute); src crudo del JSON */
-      let stemLayers: { src: string; audio: HTMLAudioElement }[] = [];
-      let stemItemId: string | null = null;
+      /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
+      const stemsTx = new StemTransport();
       let gridVideo: HTMLVideoElement | null = null;
       let playingId: string | null = null;
+      let transportPlaying = false;
       let progressRaf = 0;
-      /** true mientras el usuario arrastra el seek (evita que el RAF pise el thumb) */
       let seeking = false;
-      /** segundos objetivo del último seek (hasta que el media alcance o se suelte) */
       let seekTargetSec: number | null = null;
+      let loadingStems = false;
 
       const fmtTime = (sec: number) => {
         if (!Number.isFinite(sec) || sec < 0) return "0:00";
@@ -336,63 +336,45 @@ const payload = {
         return `${m}:${s.toString().padStart(2, "0")}`;
       };
 
-      const mediaSrc = (src: string) => {
-        try {
-          return encodeURI(src);
-        } catch {
-          return src;
-        }
-      };
-
-      const clockEl = (): HTMLMediaElement | null => {
-        if (stemLayers.length) {
-          // Preferir capa con volume>0 en play; si no, la que más tiempo lleve
-          const live = stemLayers.find((l) => !l.audio.paused && l.audio.volume > 0);
-          if (live) return live.audio;
-          const any = stemLayers.find((l) => !l.audio.paused);
-          if (any) return any.audio;
-          return stemLayers.reduce((a, b) =>
-            a.audio.currentTime >= b.audio.currentTime ? a : b,
-          ).audio;
-        }
-        if (gridVideo && !gridVideo.paused) return gridVideo;
-        const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
-        if (modalVid && !modalVid.paused) return modalVid;
-        return gridVideo || modalVid || null;
-      };
-
       const mediaDuration = (): number => {
-        const el = clockEl();
-        if (el && Number.isFinite(el.duration) && el.duration > 0) return el.duration;
-        for (const l of stemLayers) {
-          if (Number.isFinite(l.audio.duration) && l.audio.duration > 0) return l.audio.duration;
+        if (stemsTx.duration > 0) return stemsTx.duration;
+        if (gridVideo && Number.isFinite(gridVideo.duration) && gridVideo.duration > 0) {
+          return gridVideo.duration;
+        }
+        const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+        if (modalVid && Number.isFinite(modalVid.duration) && modalVid.duration > 0) {
+          return modalVid.duration;
         }
         return 0;
       };
 
+      const mediaCurrent = (): number => {
+        if (seekTargetSec != null && seeking) return seekTargetSec;
+        if (stemsTx.loadedItemId) return stemsTx.currentTime;
+        if (gridVideo) return gridVideo.currentTime;
+        const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+        if (modalVid) return modalVid.currentTime;
+        return 0;
+      };
+
       const updateProgressUI = () => {
-        const el = clockEl();
         const seek = root.querySelector<HTMLInputElement>("[data-lb-seek]");
         const timeEl = root.querySelector("[data-lb-time]");
         const dur = mediaDuration();
-        // Si hay seek en curso, mostrar el objetivo (no el currentTime viejo del media)
-        let cur = el ? el.currentTime : 0;
-        if (seekTargetSec != null && (seeking || Math.abs(cur - seekTargetSec) > 0.35)) {
-          cur = seekTargetSec;
-        } else if (seekTargetSec != null && Math.abs(cur - seekTargetSec) <= 0.35) {
-          seekTargetSec = null;
-        }
+        const cur = mediaCurrent();
         if (seek && !seeking) {
           seek.value = dur > 0 ? String(Math.round((cur / dur) * 1000)) : "0";
         }
         if (timeEl) {
           timeEl.textContent = `${fmtTime(cur)} / ${dur > 0 ? fmtTime(dur) : "--:--"}`;
         }
-        // Barra mini en miniatura activa
         root.querySelectorAll("[data-thumb-progress]").forEach((bar) => {
           if (!(bar instanceof HTMLElement)) return;
           const id = bar.dataset.thumbProgress || "";
-          if (id === playingId && dur > 0) {
+          const match =
+            id === playingId ||
+            (playingId?.startsWith("modal-") && playingId === "modal-" + id);
+          if (match && transportPlaying && dur > 0) {
             bar.hidden = false;
             bar.style.setProperty("--p", `${Math.min(100, (cur / dur) * 100)}%`);
           } else {
@@ -411,8 +393,7 @@ const payload = {
         stopProgressLoop();
         const tick = () => {
           updateProgressUI();
-          const el = clockEl();
-          if (el && !el.paused && !el.ended) {
+          if (transportPlaying || stemsTx.isPlaying || (gridVideo && !gridVideo.paused)) {
             progressRaf = requestAnimationFrame(tick);
           } else {
             progressRaf = 0;
@@ -433,35 +414,24 @@ const payload = {
 
       const markPlayingButtons = (id: string) => {
         resetPlayButtons();
-        const thumb = root.querySelector(`[data-thumb-play="${id}"]`);
+        const thumbId = id.startsWith("modal-") ? id.slice(6) : id;
+        const thumb = root.querySelector(`[data-thumb-play="${thumbId}"]`);
         if (thumb) {
           thumb.textContent = L.stop;
           thumb.setAttribute("aria-pressed", "true");
         }
-        if (active && (id === active.id || id === "modal-" + active.id)) {
+        if (active && (id === active.id || id === "modal-" + active.id || thumbId === active.id)) {
           const prev = root.querySelector("[data-lb-preview-play]");
           if (prev) prev.textContent = L.stop;
         }
-      };
-
-      const disposeStemLayers = () => {
-        stemLayers.forEach((l) => {
-          l.audio.pause();
-          l.audio.removeAttribute("src");
-          l.audio.load();
-        });
-        stemLayers = [];
-        stemItemId = null;
       };
 
       const stopAll = () => {
         stopProgressLoop();
         seeking = false;
         seekTargetSec = null;
-        stemLayers.forEach((l) => {
-          l.audio.pause();
-          l.audio.currentTime = 0;
-        });
+        transportPlaying = false;
+        stemsTx.stop();
         if (gridVideo) {
           gridVideo.pause();
           gridVideo.currentTime = 0;
@@ -477,22 +447,6 @@ const payload = {
         updateProgressUI();
       };
 
-      /** Carga capas una vez por ítem; no recrea al mute. */
-      const ensureStemLayers = (item: Item) => {
-        if (!item.stems?.length) return false;
-        if (stemItemId === item.id && stemLayers.length === item.stems.length) return true;
-        disposeStemLayers();
-        stemLayers = item.stems.map((s) => {
-          const audio = new Audio();
-          audio.preload = "auto";
-          audio.loop = true;
-          audio.src = mediaSrc(s.src);
-          return { src: s.src, audio };
-        });
-        stemItemId = item.id;
-        return true;
-      };
-
       const normSrc = (s: string) => {
         try {
           return decodeURIComponent(s).replace(/\\/g, "/");
@@ -501,21 +455,14 @@ const payload = {
         }
       };
 
-      /**
-       * Capas siempre cargadas; off = volume 0 (siguen en el mismo reloj).
-       * Nunca pause/seek al cambiar checkboxes → no reinicia.
-       */
-      const applyStemMix = () => {
+      const applyStemMixFromUi = () => {
         const modalOpen =
           overlay instanceof HTMLElement &&
           !overlay.hidden &&
           !!active &&
-          stemItemId === active.id;
+          stemsTx.loadedItemId === active.id;
         if (!modalOpen) {
-          stemLayers.forEach((l) => {
-            l.audio.volume = 1;
-            l.audio.muted = false;
-          });
+          stemsTx.applyMix(null);
           return;
         }
         const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]");
@@ -525,45 +472,37 @@ const payload = {
             .map((c) => normSrc(c.dataset.stemSrc || ""))
             .filter(Boolean),
         );
-        const anyChecked = on.size > 0;
-        stemLayers.forEach((l) => {
-          const enabled = !anyChecked || on.has(normSrc(l.src));
-          l.audio.volume = enabled ? 1 : 0;
-          l.audio.muted = !enabled;
-        });
+        stemsTx.applyMix(on.size ? on : null);
       };
 
-      const clampTime = (audio: HTMLMediaElement, t: number) => {
-        const dur = audio.duration;
-        if (Number.isFinite(dur) && dur > 0) {
-          return Math.min(Math.max(0, t), Math.max(0, dur - 0.05));
-        }
-        return Math.max(0, t);
-      };
-
-      /** Espera a que un media acepte el seek (o timeout). */
-      const waitSeeked = (audio: HTMLMediaElement, target: number, ms = 600) =>
-        new Promise<void>((resolve) => {
-          if (Math.abs(audio.currentTime - target) < 0.4) {
-            resolve();
-            return;
+      const playStems = async (item: Item, playId: string) => {
+        if (!item.stems?.length || loadingStems) return;
+        loadingStems = true;
+        try {
+          await stemsTx.resumeCtx();
+          if (gridVideo) {
+            gridVideo.pause();
+            gridVideo = null;
           }
-          let done = false;
-          const finish = () => {
-            if (done) return;
-            done = true;
-            audio.removeEventListener("seeked", finish);
-            resolve();
-          };
-          audio.addEventListener("seeked", finish);
-          window.setTimeout(finish, ms);
-        });
+          await stemsTx.load(item.id, item.stems);
+          applyStemMixFromUi();
+          stemsTx.play();
+          playingId = playId;
+          transportPlaying = true;
+          markPlayingButtons(playId);
+          startProgressLoop();
+          updateProgressUI();
+        } catch (e) {
+          console.warn("[lb] stems load/play fail", e);
+        } finally {
+          loadingStems = false;
+        }
+      };
 
-      /**
-       * Seek robusto multi-capa:
-       * pause → currentTime en todas → seeked → reanudar si sonaba.
-       * Durante el drag solo se mueve la UI; el commit es al soltar.
-       */
+      const onStemMixChange = () => {
+        applyStemMixFromUi();
+      };
+
       const seekToRatio = async (ratio: number): Promise<boolean> => {
         const dur = mediaDuration();
         if (!(dur > 0)) return false;
@@ -571,134 +510,44 @@ const payload = {
         seekTargetSec = t;
         seeking = true;
 
-        const wasPlaying =
-          !!playingId &&
-          (stemLayers.some((l) => !l.audio.paused) ||
-            !!(gridVideo && !gridVideo.paused) ||
-            !!(root.querySelector<HTMLVideoElement>("[data-modal-vid]") &&
-              !root.querySelector<HTMLVideoElement>("[data-modal-vid]")!.paused));
-
-        if (stemLayers.length) {
-          // 1) Pausar todas (seek estable en WAV grandes)
-          stemLayers.forEach((l) => l.audio.pause());
-
-          // 2) Aplicar currentTime
-          await Promise.all(
-            stemLayers.map(
-              (l) =>
-                new Promise<void>((resolve) => {
-                  const apply = () => {
-                    try {
-                      l.audio.currentTime = clampTime(l.audio, t);
-                    } catch {
-                      /* ignore */
-                    }
-                    resolve();
-                  };
-                  if (l.audio.readyState >= 1) apply();
-                  else {
-                    l.audio.addEventListener("loadedmetadata", apply, { once: true });
-                    window.setTimeout(apply, 400);
-                  }
-                }),
-            ),
-          );
-
-          // 3) Esperar seeked
-          await Promise.all(
-            stemLayers.map((l) => waitSeeked(l.audio, clampTime(l.audio, t))),
-          );
-
-          // 4) Reanudar
-          if (wasPlaying) {
-            await Promise.all(
-              stemLayers.map((l) => l.audio.play().catch(() => {})),
-            );
+        if (stemsTx.loadedItemId) {
+          stemsTx.seek(t);
+          if (transportPlaying || stemsTx.isPlaying) {
+            transportPlaying = true;
             startProgressLoop();
           }
         } else {
           const el =
-            gridVideo ||
-            root.querySelector<HTMLVideoElement>("[data-modal-vid]") ||
-            clockEl();
+            gridVideo || root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (!el) {
             seeking = false;
             return false;
           }
-          const playingVid = !el.paused;
-          el.pause();
+          const resume = transportPlaying || !el.paused;
           try {
-            el.currentTime = clampTime(el, t);
+            el.currentTime = t;
           } catch {
             seeking = false;
             return false;
           }
-          await waitSeeked(el, clampTime(el, t));
-          if (playingVid || wasPlaying) {
+          if (resume) {
             await el.play().catch(() => {});
+            transportPlaying = true;
             startProgressLoop();
           }
         }
 
         updateProgressUI();
-        // Mantener seekTarget un momento para que el RAF no vuelva atrás
         window.setTimeout(() => {
           seeking = false;
-          const el = clockEl();
-          if (el && Math.abs(el.currentTime - t) < 0.75) seekTargetSec = null;
+          seekTargetSec = null;
           updateProgressUI();
-        }, 250);
+        }, 120);
         return true;
       };
 
-      const playStems = async (item: Item, playId: string) => {
-        if (!ensureStemLayers(item)) return;
-        applyStemMix();
-        // Todas las capas suenan (las off a volume 0) para no desincronizar
-        const plays = stemLayers.map((l) =>
-          l.audio.play().catch((err) => {
-            console.warn("[lb] stem play fail", l.src, err);
-          }),
-        );
-        await Promise.all(plays);
-        if (!stemLayers.some((l) => !l.audio.paused)) {
-          for (const l of stemLayers) {
-            try {
-              await l.audio.play();
-            } catch (e) {
-              console.warn("[lb] stem retry fail", l.src, e);
-            }
-          }
-        }
-        playingId = playId;
-        markPlayingButtons(playId.startsWith("modal-") ? item.id : playId);
-        if (playId.startsWith("modal-") || active?.id === item.id) {
-          const prev = root.querySelector("[data-lb-preview-play]");
-          if (prev) prev.textContent = L.stop;
-        }
-        startProgressLoop();
-        updateProgressUI();
-      };
-
-      /** Solo volume on/off — no pause, no seek, no reinicio. */
-      const onStemMixChange = () => {
-        if (!stemLayers.length || !active?.stems?.length) return;
-        applyStemMix();
-        const isThis =
-          playingId === "modal-" + active.id ||
-          playingId === active.id ||
-          stemItemId === active.id;
-        if (!isThis || !playingId) return;
-        // Mantener todas reproduciendo (silenciadas si volume 0)
-        stemLayers.forEach((l) => {
-          if (l.audio.paused) {
-            l.audio.play().catch(() => {});
-          }
-        });
-        startProgressLoop();
-      };
-
       const playVideoThumb = async (item: Item, v: HTMLVideoElement) => {
+        stemsTx.pause();
         v.muted = false;
         gridVideo = v;
         try {
@@ -713,6 +562,7 @@ const payload = {
           }
         }
         playingId = item.id;
+        transportPlaying = true;
         markPlayingButtons(item.id);
         startProgressLoop();
       };
@@ -874,23 +724,21 @@ const payload = {
             const item = items.find((x) => x.id === id);
             if (!item) return;
 
-            if (playingId === id) {
-              stopAll();
+            if (playingId === id || (playingId === "modal-" + id && transportPlaying)) {
+              // soft stop: deja posición en stemsTx
+              stemsTx.pause();
+              if (gridVideo) gridVideo.pause();
+              playingId = null;
+              transportPlaying = false;
+              resetPlayButtons();
+              stopProgressLoop();
+              updateProgressUI();
               return;
             }
-            // Cambiar de ítem: para todo y arranca de nuevo
-            const keepStems = stemItemId === item.id && !!item.stems?.length;
-            if (!keepStems) {
-              stopAll();
-            } else {
-              // Mismo ítem re-play tras stop parcial
-              if (gridVideo) {
-                gridVideo.pause();
-                gridVideo = null;
-              }
-              stemLayers.forEach((l) => l.audio.pause());
+            if (gridVideo) {
+              gridVideo.pause();
+              gridVideo = null;
             }
-
             // Preferir stems (audio real); vídeo solo si no hay stems
             if (item.stems?.length) {
               void playStems(item, id);
@@ -1005,26 +853,22 @@ const payload = {
       root.querySelector("[data-lb-preview-play]")?.addEventListener("click", () => {
         if (!active) return;
         const modalPlayId = "modal-" + active.id;
-        if (playingId === modalPlayId || playingId === active.id) {
-          // Pausa sin perder posición (stopAll resetea a 0)
-          stemLayers.forEach((l) => l.audio.pause());
+        if (playingId === modalPlayId || playingId === active.id || transportPlaying) {
+          stemsTx.pause();
           const mv = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (mv) mv.pause();
           if (gridVideo) gridVideo.pause();
           playingId = null;
+          transportPlaying = false;
           resetPlayButtons();
           stopProgressLoop();
           updateProgressUI();
           return;
         }
         if (active.stems?.length) {
-          // No dispose si ya cargado el mismo ítem
-          if (stemItemId !== active.id) {
-            if (gridVideo) {
-              gridVideo.pause();
-              gridVideo = null;
-            }
-            disposeStemLayers();
+          if (gridVideo) {
+            gridVideo.pause();
+            gridVideo = null;
           }
           void playStems(active, modalPlayId);
         } else {
@@ -1033,6 +877,7 @@ const payload = {
             v.play()
               .then(() => {
                 playingId = modalPlayId;
+                transportPlaying = true;
                 markPlayingButtons(active!.id);
                 startProgressLoop();
               })

@@ -1,5 +1,5 @@
 ---
-import { getAnalyticsConfig, hasGa4, hasMetaPixel } from "../lib/analytics";
+import { getAnalyticsConfig, hasGa4, hasMetaPixel, hasClarity } from "../lib/analytics";
 import type { Locale } from "../i18n/translations";
 import { useTranslations, localizePath } from "../lib/locale";
 
@@ -11,7 +11,7 @@ const { lang = "es" } = Astro.props;
 const t = useTranslations(lang);
 
 const config = getAnalyticsConfig();
-const needsConsent = hasGa4(config) || hasMetaPixel(config);
+const needsConsent = hasGa4(config) || hasMetaPixel(config) || hasClarity(config);
 const privacyHref = localizePath("/privacidad", lang);
 ---
 

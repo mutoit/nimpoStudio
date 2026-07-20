@@ -35,6 +35,9 @@ if (!release) {
 }
 
 const musicHref = localizePath("/musica", lang);
+
+const firstTrack = release?.tracks?.[0];
+const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
 ---
 
 <Layout
@@ -52,13 +55,25 @@ const musicHref = localizePath("/musica", lang);
 
     <article class="release">
       <div class="release__visual">
-        <img
-          src={release.cover}
-          alt={`Portada de ${release.name}`}
-          width={480}
-          height={480}
-          class="release__cover"
-        />
+        {release.video ? (
+          <video
+            src={release.video}
+            poster={release.cover}
+            class="release__cover release__video"
+            autoplay
+            loop
+            muted
+            playsinline
+          ></video>
+        ) : (
+          <img
+            src={release.cover}
+            alt={`Portada de ${release.name}`}
+            width={480}
+            height={480}
+            class="release__cover"
+          />
+        )}
         <dl class="release__meta">
           <div>
             <dt>{t("musicFormat")}</dt>
@@ -103,14 +118,14 @@ const musicHref = localizePath("/musica", lang);
     </article>
 
     {
-      release.tracks[0]?.stems && release.tracks[0].stems.length > 0 && (
+      hasStems && (
         <div class="stems-section">
           <h2 class="stems-title">Reproductor por capas</h2>
           <p class="stems-desc">Silencia o aísla cada capa individualmente. Todo sincronizado.</p>
           <StemPlayer 
-            title={release.tracks[0].title}
-            stems={release.tracks[0].stems}
-            duration={240} 
+            title={firstTrack.title}
+            stems={firstTrack.stems}
+            releaseSlug={release.slug}
           />
           <small class="stems-note">* Demo usando archivos de preview. Reemplaza con tus stems reales (un archivo por capa).</small>
         </div>
@@ -174,15 +189,33 @@ const musicHref = localizePath("/musica", lang);
     object-fit: cover;
   }
 
+  /* Portrait 9:16 video cover (portada en loop) */
+  .release__video {
+    aspect-ratio: 9 / 16;
+    max-width: 280px;
+    width: 100%;
+    margin: 0;
+    display: block;
+    object-fit: cover;
+    box-shadow: var(--glow);
+  }
+
   .release__meta {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
     margin: 1rem 0 0;
-    padding: 1rem;
+    padding: 0.6rem 0.5rem;
     border-radius: var(--radius);
     border: 1px solid var(--color-border);
     background: var(--color-surface);
+    font-size: 0.8rem;
+  }
+
+  .release__meta > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 52px;
   }
 
   .release__meta dt {

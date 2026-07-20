@@ -8,15 +8,19 @@ interface Stem {
 type Props = {
   title: string;
   stems: Stem[];
-  /** Optional: duration in seconds if known */
+  /** Optional: duration in seconds if known (used for initial display; overridden by actual audio buffer duration) */
   duration?: number;
+  /** Optional video to display and sync with the stems playback (replaces static image feel) */
+  visualVideo?: string;
+  /** For richer analytics */
+  releaseSlug?: string;
 };
 
-const { title, stems, duration } = Astro.props;
+const { title, stems, duration, visualVideo, releaseSlug } = Astro.props;
 const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
 ---
 
-<div class="stem-player" id={playerId} data-stems={JSON.stringify(stems)} data-duration={duration || 0}>
+<div class="stem-player" id={playerId} data-stems={JSON.stringify(stems)} data-duration="0" data-title={title} data-release={releaseSlug || ""}>
   <div class="player-header">
     <div class="player-title">
       <h3>{title}</h3>
@@ -33,7 +37,7 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
         <input type="range" class="seek" min="0" max="100" step="0.1" value="0" />
         <div class="time">
           <span class="current">0:00</span>
-          <span class="total">{duration ? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}` : '--:--'}</span>
+          <span class="total">--:--</span>
         </div>
       </div>
 
@@ -41,18 +45,26 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     </div>
   </div>
 
+  {visualVideo && (
+    <div class="player-visual">
+      <video
+        class="visual-video"
+        src={visualVideo}
+        loop
+        muted
+        playsinline
+        preload="metadata"
+      ></video>
+    </div>
+  )}
+
   <div class="layers">
     {stems.map((stem, index) => (
       <div class="layer" data-stem-id={stem.id}>
         <div class="layer-label">
           <span class="layer-name">{stem.label}</span>
           <div class="layer-visual" aria-hidden="true">
-            <div class="bars">
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-            </div>
+            <canvas class="waveform" width="100" height="18"></canvas>
           </div>
         </div>
 
@@ -211,25 +223,10 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     position: relative;
   }
 
-  .bars {
-    display: flex;
-    align-items: flex-end;
+  .waveform {
+    width: 100%;
     height: 100%;
-    gap: 2px;
-    padding: 2px;
-  }
-
-  .bar {
-    flex: 1;
-    background: var(--color-accent);
-    height: 20%;
-    transition: height 0.08s ease;
-    opacity: 0.6;
-  }
-
-  .layer.playing .bar {
-    opacity: 1;
-    animation: layer-pulse 1.2s infinite ease-in-out;
+    display: block;
   }
 
   .layer-controls {
@@ -279,6 +276,23 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     opacity: 0.7;
   }
 
+  .player-visual {
+    margin: 0.75rem 0 1rem;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: #111;
+    aspect-ratio: 16 / 9;
+    max-height: 320px;
+  }
+
+  .visual-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
   @keyframes layer-pulse {
     0%, 100% { height: 25%; }
     50% { height: 85%; }
@@ -304,6 +318,27 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
   const seek = container.querySelector('.seek');
   const currentTimeEl = container.querySelector('.current');
   const masterMuteBtn = container.querySelector('.master-mute');
+  const visualVideoEl = container.querySelector('.visual-video');
+
+  const totalEl = container.querySelector('.total');
+
+  // Get real duration from the audio file metadata (fast probe, before full decode)
+  // This gives the actual track length directly from the file header (the real one)
+  if (stems.length > 0) {
+    const firstSrc = stems[0].src;
+    const probe = new Audio();
+    probe.preload = 'metadata';
+    probe.src = firstSrc;
+    probe.addEventListener('loadedmetadata', () => {
+      if (probe.duration && isFinite(probe.duration) && probe.duration > 0) {
+        trackDuration = probe.duration;
+        container.dataset.duration = trackDuration;
+        if (totalEl) totalEl.textContent = formatTime(trackDuration);
+      }
+    });
+    // Fallback if metadata fails: will be set from buffer on play
+    probe.addEventListener('error', () => {});
+  }
 
   let audioContext;
   let tracks = {};
@@ -312,6 +347,93 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
   let pauseTime = 0;
   let animationFrame;
   let masterGain;
+  let trackDuration = 0;
+
+  function formatTime(sec) {
+    if (!sec || sec <= 0) return '--:--';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function generateWaveform(buffer, points = 80) {
+    const data = buffer.getChannelData(0);
+    const len = data.length;
+    const step = Math.max(1, Math.floor(len / points));
+    const wave = [];
+    for (let i = 0; i < points; i++) {
+      let min = 1, max = -1;
+      const start = i * step;
+      for (let j = 0; j < step && (start + j) < len; j++) {
+        const v = data[start + j];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      wave.push({ min, max });
+    }
+    return wave;
+  }
+
+  function drawWaveform(canvas, waveData, progress = 0) {
+    if (!canvas || !waveData) return;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const center = h / 2;
+    const scale = center * 0.85;
+    const stepX = w / waveData.length;
+
+    // background line
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, center);
+    ctx.lineTo(w, center);
+    ctx.stroke();
+
+    // waveform
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < waveData.length; i++) {
+      const x = i * stepX + 0.5;
+      const { min, max } = waveData[i];
+      const y1 = center - max * scale;
+      const y2 = center - min * scale;
+      ctx.beginPath();
+      ctx.moveTo(x, y1);
+      ctx.lineTo(x, y2);
+      ctx.stroke();
+    }
+
+    // played portion
+    if (progress > 0) {
+      const progX = Math.min(w, progress * w);
+      ctx.fillStyle = 'rgba(201, 169, 98, 0.35)';
+      ctx.fillRect(0, 0, progX, h);
+
+      // accent line
+      ctx.strokeStyle = '#c9a962';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(progX, 0);
+      ctx.lineTo(progX, h);
+      ctx.stroke();
+    }
+  }
+
+  function updateAllWaveforms(progress) {
+    Object.entries(tracks).forEach(([id, t]) => {
+      const layerEl = container.querySelector(`[data-stem-id="${id}"]`);
+      if (!layerEl || !t.waveform) return;
+      const canvas = layerEl.querySelector('.waveform');
+      if (canvas) {
+        drawWaveform(canvas, t.waveform, progress);
+      }
+    });
+  }
 
   // Initialize AudioContext on first user gesture
   function getAudioContext() {
@@ -340,11 +462,14 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     gain.connect(analyser);
     analyser.connect(masterGain);
 
+    const waveform = generateWaveform(audioBuffer);
+
     return {
       source,
       gain,
       analyser,
       buffer: audioBuffer,
+      waveform,
       volume: 1,
       muted: false,
       solo: false
@@ -362,6 +487,22 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
         console.warn('Could not load stem', stem.src, e);
       }
     }
+
+    // Refine with actual decoded buffer duration (most accurate for these files)
+    let bufferDur = 0;
+    Object.values(tracks).forEach(t => {
+      if (t.buffer && t.buffer.duration > bufferDur) {
+        bufferDur = t.buffer.duration;
+      }
+    });
+    if (bufferDur > 0) {
+      trackDuration = bufferDur;
+      container.dataset.duration = trackDuration;
+      if (totalEl) totalEl.textContent = formatTime(trackDuration);
+    }
+
+    // draw initial waveforms (progress 0)
+    updateAllWaveforms(0);
   }
 
   function startAll(offset = 0) {
@@ -396,6 +537,27 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
         try { t.source.stop(); } catch (e) {}
       }
     });
+  }
+
+  function playVisual(offset = 0) {
+    if (!visualVideoEl) return;
+    try {
+      visualVideoEl.currentTime = offset;
+      const playPromise = visualVideoEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {});
+      }
+    } catch (e) {}
+  }
+
+  function pauseVisual() {
+    if (!visualVideoEl) return;
+    try { visualVideoEl.pause(); } catch (e) {}
+  }
+
+  function seekVisual(time) {
+    if (!visualVideoEl) return;
+    try { visualVideoEl.currentTime = time; } catch (e) {}
   }
 
   function updateVolumes() {
@@ -434,16 +596,20 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     if (!isPlaying) return;
 
     const elapsed = (audioContext.currentTime - startTime) + pauseTime;
-    const totalDur = parseFloat(container.dataset.duration) || 240;
-    const pct = Math.min(100, (elapsed / totalDur) * 100);
-
-    seek.value = pct;
+    const totalDur = trackDuration || parseFloat(container.dataset.duration) || 0;
+    if (totalDur > 0) {
+      const pct = Math.min(100, (elapsed / totalDur) * 100);
+      seek.value = pct;
+    }
 
     const mins = Math.floor(elapsed / 60);
     const secs = Math.floor(elapsed % 60);
     currentTimeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
 
     updateVisuals();
+
+    const progress = totalDur > 0 ? Math.min(1, elapsed / totalDur) : 0;
+    updateAllWaveforms(progress);
 
     animationFrame = requestAnimationFrame(updateTime);
   }
@@ -458,6 +624,7 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
 
     if (isPlaying) {
       stopAll();
+      pauseVisual();
       pauseTime = (audioContext.currentTime - startTime) + pauseTime;
       isPlaying = false;
       cancelAnimationFrame(animationFrame);
@@ -467,27 +634,60 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     } else {
       const offset = pauseTime;
       startAll(offset);
+      playVisual(offset);
       startTime = audioContext.currentTime;
       isPlaying = true;
       playBtn.querySelector('.play-icon').hidden = true;
       playBtn.querySelector('.pause-icon').hidden = false;
       container.querySelectorAll('.layer').forEach(l => l.classList.add('playing'));
       updateTime();
+
+      // Track stem player usage (always goes to first-party collector)
+      const playerTitle = container.dataset.title || "unknown";
+      const release = container.dataset.release || undefined;
+      window.nimpoTrack?.({
+        name: "music_stem_play",
+        payload: { title: playerTitle, stemsCount: stems.length, release },
+      });
     }
   }
 
   // Event listeners
   playBtn.addEventListener('click', togglePlay);
 
-  seek.addEventListener('input', () => {
-    if (!isPlaying || !audioContext) return;
-    const pct = parseFloat(seek.value);
-    const newTime = (pct / 100) * (duration || 240);
+  // Click on visual video also toggles playback
+  if (visualVideoEl) {
+    visualVideoEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      togglePlay();
+    });
+    // Visual hint
+    visualVideoEl.style.cursor = 'pointer';
+  }
 
-    stopAll();
+  seek.addEventListener('input', () => {
+    if (!audioContext) return;
+    const pct = parseFloat(seek.value);
+    const totalDur = trackDuration || parseFloat(container.dataset.duration) || 0;
+    const newTime = (pct / 100) * totalDur;
+
     pauseTime = newTime;
-    startTime = audioContext.currentTime;
-    startAll(newTime);
+
+    if (isPlaying) {
+      stopAll();
+      pauseVisual();
+      startTime = audioContext.currentTime;
+      startAll(newTime);
+      seekVisual(newTime);
+      playVisual(newTime);
+    } else {
+      // Update current time display while paused
+      currentTimeEl.textContent = formatTime(newTime);
+    }
+
+    const totalDurForWave = trackDuration || parseFloat(container.dataset.duration) || 0;
+    const progress = totalDurForWave > 0 ? Math.min(1, newTime / totalDurForWave) : 0;
+    updateAllWaveforms(progress);
   });
 
   masterMuteBtn.addEventListener('click', () => {
@@ -499,21 +699,34 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
   // Per-layer controls
   container.querySelectorAll('.layer').forEach(layerEl => {
     const id = layerEl.dataset.stemId;
+    const layerName = layerEl.querySelector('.layer-name')?.textContent?.trim() || id;
     const muteBtn = layerEl.querySelector('.mute-btn');
     const soloBtn = layerEl.querySelector('.solo-btn');
     const volSlider = layerEl.querySelector('.volume');
+
+    const playerTitle = container.dataset.title || "unknown";
 
     muteBtn.addEventListener('click', () => {
       if (!tracks[id]) return;
       tracks[id].muted = !tracks[id].muted;
       muteBtn.classList.toggle('active', tracks[id].muted);
       updateVolumes();
+
+      window.nimpoTrack?.({
+        name: "music_stem_interaction",
+        payload: {
+          title: playerTitle,
+          action: tracks[id].muted ? "mute" : "unmute",
+          layer: layerName,
+          release: container.dataset.release || undefined,
+        },
+      });
     });
 
     soloBtn.addEventListener('click', () => {
       if (!tracks[id]) return;
       const currentlySolo = tracks[id].solo;
-      
+
       // clear all solos
       Object.values(tracks).forEach(t => t.solo = false);
       container.querySelectorAll('.solo-btn').forEach(b => b.classList.remove('active'));
@@ -522,6 +735,16 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
       if (tracks[id].solo) soloBtn.classList.add('active');
 
       updateVolumes();
+
+      window.nimpoTrack?.({
+        name: "music_stem_interaction",
+        payload: {
+          title: playerTitle,
+          action: tracks[id].solo ? "solo" : "unsolo",
+          layer: layerName,
+          release: container.dataset.release || undefined,
+        },
+      });
     });
 
     volSlider.addEventListener('input', (e) => {

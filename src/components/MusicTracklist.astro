@@ -76,6 +76,7 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
     if (!audio || !titleEl) return;
 
     let activeButton: HTMLButtonElement | null = null;
+    let currentTrack: { slug: string; track: string; release?: string } = { slug: "", track: "" };
 
     const setActiveButton = (button: HTMLButtonElement | null) => {
       buttons.forEach((btn) => {
@@ -106,15 +107,17 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
         player.hidden = false;
         setActiveButton(button);
 
+        currentTrack = {
+          slug: button.dataset.trackSlug ?? "",
+          track: title,
+          release: button.dataset.releaseSlug,
+        };
+
         try {
           await audio.play();
           window.nimpoTrack?.({
             name: "music_preview_play",
-            payload: {
-              slug: button.dataset.trackSlug ?? "",
-              track: title,
-              release: button.dataset.releaseSlug,
-            },
+            payload: currentTrack,
           });
         } catch {
           /* archivo aún no subido o política del navegador */
@@ -122,11 +125,44 @@ const listId = `tracklist-${releaseName.replace(/\s+/g, "-").toLowerCase()}`;
       });
     });
 
+    // Additional listeners for richer data (always collected in first-party)
+    audio.addEventListener("play", () => {
+      if (currentTrack.track) {
+        window.nimpoTrack?.({ name: "music_preview_play", payload: currentTrack });
+      }
+    });
+
+    audio.addEventListener("ended", () => {
+      setActiveButton(null);
+      if (currentTrack.track) {
+        window.nimpoTrack?.({
+          name: "music_preview_complete",
+          payload: currentTrack,
+        });
+      }
+    });
+
     audio.addEventListener("pause", () => {
       if (audio.ended) setActiveButton(null);
     });
 
-    audio.addEventListener("ended", () => setActiveButton(null));
+    // Lightweight progress milestones (25/50/75%) for deeper insights
+    const firedProgress = new Set<number>();
+    audio.addEventListener("timeupdate", () => {
+      if (!audio.duration || audio.duration <= 0) return;
+      const pct = Math.floor((audio.currentTime / audio.duration) * 100);
+      const milestone = Math.floor(pct / 25) * 25;
+      if (milestone >= 25 && milestone <= 75 && !firedProgress.has(milestone)) {
+        firedProgress.add(milestone);
+        if (currentTrack.track) {
+          // Send as extra data on the collector (GA/Clarity will receive via track())
+          window.nimpoTrack?.({
+            name: "music_preview_play" as any,
+            payload: { ...currentTrack, progress: milestone },
+          });
+        }
+      }
+    });
   });
 </script>
 

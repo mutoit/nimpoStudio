@@ -1,4 +1,4 @@
-export { getAnalyticsConfig, hasCfAnalytics, hasGa4, hasMetaPixel } from "./config";
+export { getAnalyticsConfig, hasCfAnalytics, hasGa4, hasMetaPixel, hasClarity } from "./config";
 export type { AnalyticsConfig } from "./config";
 export { readConsent, writeConsent, hasAnalyticsConsent } from "./consent";
 export type { ConsentLevel } from "./consent";

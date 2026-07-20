@@ -26,6 +26,8 @@ export type MusicRelease = {
   shortDescription: string;
   description: string;
   cover: string;
+  /** Optional video for the release visual (mp4/webm). Used in music detail page and can sync with StemPlayer. */
+  video?: string;
   tags: string[];
   featured?: boolean;
   tracks: MusicTrack[];

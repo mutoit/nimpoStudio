@@ -1,5 +1,35 @@
 [
   {
+    "slug": "deep-in-the-forest",
+    "name": "Deep in the forest",
+    "type": "single",
+    "status": "published",
+    "year": 2026,
+    "shortDescription": "Composición inmersiva con capas orgánicas y atmósfera selvática.",
+    "description": "Un viaje a través de texturas densas, sonidos de bosque procesados y una estructura que se abre y se cierra como la luz entre los árboles. Ideal para visuales y escucha profunda.",
+    "cover": "/images/music/deep-in-the-forest.jpg",
+    "video": "/previews/music/dp.mp4",
+    "tags": ["ambient", "cinematic", "forest", "immersive"],
+    "featured": true,
+    "tracks": [
+      {
+        "slug": "deep-in-the-forest",
+        "title": "Deep in the forest",
+        "duration": "5:48",
+        "previewAudio": "/previews/music/DP BOSQUE.wav",
+        "description": "Versión completa con stems disponibles.",
+        "stems": [
+          { "id": "bosque", "label": "Ambiente & Bosque", "src": "/previews/music/DP BOSQUE.wav" },
+          { "id": "flauta", "label": "Flauta & Melodía", "src": "/previews/music/DP FLAUTA.wav" },
+          { "id": "bass", "label": "Bajo", "src": "/previews/music/DP BASS.wav" },
+          { "id": "cuerdas", "label": "Cuerdas & Strings", "src": "/previews/music/DP CUERDAS STRINGS.wav" },
+          { "id": "fantasma", "label": "Texturas Fantasma", "src": "/previews/music/DP FANTASMA.wav" },
+          { "id": "syntes", "label": "Synths", "src": "/previews/music/DP SYNTES.wav" }
+        ]
+      }
+    ]
+  },
+  {
     "slug": "nocturna-ep",
     "name": "Nocturna",
     "type": "ep",

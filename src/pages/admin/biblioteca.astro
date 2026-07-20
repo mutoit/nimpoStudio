@@ -55,6 +55,7 @@ import Layout from "../../components/Layout.astro";
         </label>
 
         <div data-video-fields>
+          <div class="media-status" data-status-video hidden role="status"></div>
           <label class="file-label">
             Vídeo (mp4 / webm) *
             <input type="file" accept="video/mp4,video/webm,video/*" data-video-file required />
@@ -72,6 +73,7 @@ import Layout from "../../components/Layout.astro";
         </div>
 
         <div data-stems-fields hidden>
+          <div class="media-status" data-status-stems-visual hidden role="status"></div>
           <label class="file-label">
             Vídeo de fondo / visual (opcional)
             <input type="file" accept="video/mp4,video/webm,video/*" data-stems-video />
@@ -91,6 +93,7 @@ import Layout from "../../components/Layout.astro";
               <span>Capas (stems) *</span>
               <button type="button" class="btn btn--sm" data-add-stem>+ Fila vacía</button>
             </div>
+            <div class="media-status" data-status-stems hidden role="status"></div>
             <div
               class="dropzone"
               data-stems-drop
@@ -251,14 +254,6 @@ import Layout from "../../components/Layout.astro";
           <input name="year" type="number" value="2026" />
         </label>
 
-        <div class="kept-media" data-kept-media hidden>
-          <p class="kept-media__title">Media ya en servidor (se conserva al guardar)</p>
-          <ul class="kept-media__list" data-kept-list></ul>
-          <p class="hint">
-            No hace falta re-subir para cambiar tags/moods. Solo sube archivos si quieres
-            <strong>reemplazar</strong> vídeo o stems.
-          </p>
-        </div>
         <p class="hint" data-edit-hint hidden>
           Guardar fusiona cambios: la media que no toques se mantiene. Puedes guardar varias
           veces seguidas.
@@ -767,33 +762,103 @@ import Layout from "../../components/Layout.astro";
     }
   };
 
-  const paintKeptMedia = (item: Record<string, unknown> | null) => {
-    const box = document.querySelector("[data-kept-media]");
-    const list = document.querySelector("[data-kept-list]");
-    if (!(box instanceof HTMLElement) || !(list instanceof HTMLElement)) return;
-    if (!item) {
-      box.hidden = true;
-      list.innerHTML = "";
+  const setMediaBanner = (
+    sel: string,
+    ok: boolean,
+    html: string,
+    show: boolean,
+  ) => {
+    const el = document.querySelector(sel);
+    if (!(el instanceof HTMLElement)) return;
+    if (!show) {
+      el.hidden = true;
+      el.textContent = "";
+      el.classList.remove("is-ok", "is-bad");
       return;
     }
-    const lines: string[] = [];
-    if (item.video) lines.push(`Vídeo: ${String(item.video).split("/").pop()}`);
-    if (item.cover) lines.push(`Cover: ${String(item.cover).split("/").pop()}`);
+    el.hidden = false;
+    el.classList.toggle("is-ok", ok);
+    el.classList.toggle("is-bad", !ok);
+    el.innerHTML = html;
+  };
+
+  /** Avisos verdes/rojos junto a cada zona de archivos al editar. */
+  const paintMediaStatus = (item: Record<string, unknown> | null) => {
+    if (!item) {
+      setMediaBanner("[data-status-video]", true, "", false);
+      setMediaBanner("[data-status-stems]", true, "", false);
+      setMediaBanner("[data-status-stems-visual]", true, "", false);
+      return;
+    }
+
+    const videoUrl = item.video ? String(item.video) : "";
+    const coverUrl = item.cover ? String(item.cover) : "";
     const stems = Array.isArray(item.stems) ? item.stems : [];
-    if (stems.length) {
-      lines.push(
-        `Stems (${stems.length}): ${stems
-          .map((s: { label?: string }) => s.label || "?")
-          .join(", ")}`,
+    const videoName = videoUrl ? decodeURIComponent(videoUrl.split("/").pop() || videoUrl) : "";
+    const coverName = coverUrl ? decodeURIComponent(coverUrl.split("/").pop() || coverUrl) : "";
+    const stemNames = stems
+      .map((s: { label?: string; src?: string }) =>
+        String(s.label || (s.src || "").split("/").pop() || "?"),
+      )
+      .filter(Boolean);
+
+    // Canal vídeo
+    if (videoUrl) {
+      setMediaBanner(
+        "[data-status-video]",
+        true,
+        `<strong>✓ Vídeo en servidor</strong><br/><span>${videoName}</span>` +
+          (coverName
+            ? `<br/><span>Cover: ${coverName}</span>`
+            : "") +
+          `<br/><span class="media-status__note">No hace falta re-subir para guardar tags. Solo elige archivo si quieres reemplazarlo.</span>`,
+        true,
+      );
+    } else {
+      setMediaBanner(
+        "[data-status-video]",
+        false,
+        `<strong>✗ No hay vídeo en servidor</strong><br/><span>Elige un archivo mp4/webm o la ficha no tendrá vídeo.</span>`,
+        true,
       );
     }
-    if (!lines.length) {
-      box.hidden = true;
-      list.innerHTML = "";
-      return;
+
+    // Canal stems — visual
+    if (videoUrl || coverName) {
+      setMediaBanner(
+        "[data-status-stems-visual]",
+        true,
+        `<strong>✓ Visual en servidor</strong><br/><span>${
+          videoName ? `Vídeo: ${videoName}` : ""
+        }${videoName && coverName ? " · " : ""}${coverName ? `Cover: ${coverName}` : ""}</span>`,
+        true,
+      );
+    } else {
+      setMediaBanner(
+        "[data-status-stems-visual]",
+        false,
+        `<strong>Sin vídeo/cover en servidor</strong><br/><span>Opcional: puedes subir visual ahora o dejarlo vacío.</span>`,
+        true,
+      );
     }
-    box.hidden = false;
-    list.innerHTML = lines.map((l) => `<li>${l.replace(/</g, "&lt;")}</li>`).join("");
+
+    // Canal stems — audio
+    if (stemNames.length) {
+      setMediaBanner(
+        "[data-status-stems]",
+        true,
+        `<strong>✓ ${stemNames.length} stem(s) en servidor</strong><br/><span>${stemNames.join(" · ")}</span>` +
+          `<br/><span class="media-status__note">Se conservan al guardar. Solo arrastra archivos nuevos si quieres reemplazarlos (con ruido).</span>`,
+        true,
+      );
+    } else {
+      setMediaBanner(
+        "[data-status-stems]",
+        false,
+        `<strong>✗ No hay stems en servidor</strong><br/><span>Arrastra al menos un audio o no se podrá publicar esta ficha stems.</span>`,
+        true,
+      );
+    }
   };
 
   const setEditMode = (item: Record<string, unknown> | null) => {
@@ -812,7 +877,6 @@ import Layout from "../../components/Layout.astro";
       slugInput.readOnly = !!item;
       slugInput.style.opacity = item ? "0.7" : "1";
     }
-    paintKeptMedia(item);
     // En edición el vídeo no es obligatorio en el input
     const videoInput = document.querySelector("[data-video-file]");
     if (videoInput instanceof HTMLInputElement) {
@@ -823,6 +887,7 @@ import Layout from "../../components/Layout.astro";
       if (form instanceof HTMLFormElement) form.reset();
       stemRows = [];
       renderStems();
+      paintMediaStatus(null);
       setChannel("video");
       return;
     }
@@ -891,8 +956,9 @@ import Layout from "../../components/Layout.astro";
 
     stemRows = [];
     renderStems();
+    paintMediaStatus(item);
     setStatus(
-      `Editando «${item.title}». Cambia tags/texto y Guarda — la media se conserva. Solo re-sube archivos si quieres reemplazarlos.`,
+      `Editando «${item.title}». Mira los avisos verdes/rojos junto a los archivos. Guarda tags sin re-subir.`,
     );
   };
 
@@ -1448,25 +1514,35 @@ import Layout from "../../components/Layout.astro";
     line-height: 1.45;
     color: #e0d0a8;
   }
-  .kept-media {
-    margin: 0.75rem 0;
-    padding: 0.75rem 0.85rem;
+  .media-status {
+    margin: 0 0 0.65rem;
+    padding: 0.75rem 0.9rem;
     border-radius: 10px;
-    border: 1px dashed rgb(201 169 98 / 0.4);
-    background: rgb(201 169 98 / 0.06);
-  }
-  .kept-media__title {
-    margin: 0 0 0.4rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--color-accent);
-  }
-  .kept-media__list {
-    margin: 0 0 0.5rem;
-    padding-left: 1.1rem;
-    font-size: 0.78rem;
-    color: var(--color-muted);
+    font-size: 0.95rem;
     line-height: 1.45;
+    font-weight: 600;
+  }
+  .media-status.is-ok {
+    border: 2px solid #2ecc71;
+    background: rgb(46 204 113 / 0.18);
+    color: #9ff0bc;
+    box-shadow: 0 0 20px rgb(46 204 113 / 0.25);
+  }
+  .media-status.is-bad {
+    border: 2px solid #e74c3c;
+    background: rgb(231 76 60 / 0.18);
+    color: #ffb4ac;
+    box-shadow: 0 0 20px rgb(231 76 60 / 0.22);
+  }
+  .media-status strong {
+    font-size: 1.05rem;
+  }
+  .media-status__note {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    opacity: 0.9;
   }
   .mix-slider {
     display: flex;

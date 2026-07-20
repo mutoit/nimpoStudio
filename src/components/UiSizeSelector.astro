@@ -1,0 +1,117 @@
+---
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
+type Props = { lang?: Locale };
+const { lang = "es" } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<div class="ui-size" data-ui-size-switcher>
+  <span class="ui-size__label" id="ui-size-label">{t("uiSizeLabel")}</span>
+  <div class="ui-size__btns" role="group" aria-labelledby="ui-size-label">
+    <button type="button" class="ui-size__btn" data-ui-size="s" aria-pressed="false" title="S">
+      S
+    </button>
+    <button type="button" class="ui-size__btn" data-ui-size="m" aria-pressed="false" title="M">
+      M
+    </button>
+    <button type="button" class="ui-size__btn" data-ui-size="l" aria-pressed="false" title="L">
+      L
+    </button>
+  </div>
+</div>
+
+<script>
+  const KEY = "nimpo-ui-size";
+  const allowed = new Set(["s", "m", "l"]);
+
+  function applySize(size: string) {
+    const s = allowed.has(size) ? size : "m";
+    document.documentElement.dataset.uiSize = s;
+    try {
+      localStorage.setItem(KEY, s);
+    } catch {
+      /* private mode */
+    }
+    document.querySelectorAll("[data-ui-size]").forEach((btn) => {
+      if (!(btn instanceof HTMLElement)) return;
+      const on = btn.dataset.uiSize === s;
+      btn.classList.toggle("is-on", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function init() {
+    let size = "m";
+    try {
+      const saved = localStorage.getItem(KEY);
+      if (saved && allowed.has(saved)) size = saved;
+    } catch {
+      /* */
+    }
+    applySize(size);
+    document.querySelectorAll("[data-ui-size]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const s = (btn as HTMLElement).dataset.uiSize || "m";
+        applySize(s);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("astro:page-load", init);
+</script>
+
+<style>
+  .ui-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .ui-size__label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .ui-size__btns {
+    display: inline-flex;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+
+  .ui-size__btn {
+    margin: 0;
+    padding: 0.22rem 0.45rem;
+    border: none;
+    border-right: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+
+  .ui-size__btn:last-child {
+    border-right: none;
+  }
+
+  .ui-size__btn:hover {
+    color: var(--color-fg);
+    background: var(--color-surface-hover);
+  }
+
+  .ui-size__btn.is-on {
+    color: #0a0a0c;
+    background: var(--color-accent);
+  }
+</style>

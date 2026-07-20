@@ -59,6 +59,21 @@ const ogLocale = localeMap[currentLang] ?? "es_ES";
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="generator" content={Astro.generator} />
+    {/* Evita flash de tamaño: aplica S/M/L antes del paint */}
+    <script is:inline>
+      (function () {
+        try {
+          var s = localStorage.getItem("nimpo-ui-size");
+          if (s === "s" || s === "m" || s === "l") {
+            document.documentElement.setAttribute("data-ui-size", s);
+          } else {
+            document.documentElement.setAttribute("data-ui-size", "m");
+          }
+        } catch (e) {
+          document.documentElement.setAttribute("data-ui-size", "m");
+        }
+      })();
+    </script>
     <AnalyticsHead />
     <StructuredData lang={currentLang} />
   </head>

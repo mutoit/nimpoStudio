@@ -64,6 +64,10 @@ export const translations = {
     // Language
     language: "Idioma",
     languageLabel: "Cambiar idioma",
+    uiSizeLabel: "Tamaño",
+    uiSizeS: "Pequeño",
+    uiSizeM: "Medio",
+    uiSizeL: "Grande",
 
     // Home
     homeLibrary: "Ver biblioteca",
@@ -327,6 +331,10 @@ export const translations = {
 
     language: "Language",
     languageLabel: "Change language",
+    uiSizeLabel: "Size",
+    uiSizeS: "Small",
+    uiSizeM: "Medium",
+    uiSizeL: "Large",
 
     homeLibrary: "Browse library",
     homeListen: "Listen to music",
@@ -573,6 +581,10 @@ export const translations = {
 
     language: "Langue",
     languageLabel: "Changer de langue",
+    uiSizeLabel: "Taille",
+    uiSizeS: "Petit",
+    uiSizeM: "Moyen",
+    uiSizeL: "Grand",
 
     homeLibrary: "Voir la bibliothèque",
     homeListen: "Écouter la musique",

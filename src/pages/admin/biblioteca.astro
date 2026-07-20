@@ -1,9 +1,9 @@
 ---
 /**
  * Panel de subida (solo estudio).
- * Protección real: functions/_middleware.ts + cookie firmada (ADMIN_LIBRARY_SECRET).
- * Opcional extra: Cloudflare Access delante de /admin/*.
- * No aparece en el menú público.
+ * Auth: cookie + ADMIN_LIBRARY_SECRET (middleware).
+ * Archivos: selectores reales → descarga empaquetada a public/library/
+ *           o POST /admin/upload si R2 (LIBRARY_BUCKET) está configurado.
  */
 import Layout from "../../components/Layout.astro";
 ---
@@ -19,9 +19,10 @@ import Layout from "../../components/Layout.astro";
     </header>
 
     <p class="lead">
-      Solo accesible con contraseña de servidor (y opcionalmente Cloudflare Access). Elige canal,
-      rellena metadatos y genera el bloque JSON. Copia archivos a
-      <code>public/library/</code> y pega el ítem en <code>src/data/library.json</code>.
+      Elige canal, adjunta archivos reales (vídeo, miniatura, stems), metadatos y exporta.
+      Por defecto se <strong>descargan</strong> los archivos con el nombre correcto para
+      copiarlos a <code>public/library/</code> y se genera el JSON de
+      <code>library.json</code>. Si activas R2 + binding, el botón intentará subir al servidor.
     </p>
 
     <div class="workspace" data-workspace>
@@ -35,13 +36,14 @@ import Layout from "../../components/Layout.astro";
       <form class="form" data-admin-form>
         <label>
           Título *
-          <input name="title" required />
+          <input name="title" required data-title />
         </label>
         <label>
           Slug (url)
-          <input name="slug" placeholder="auto-desde-titulo" />
+          <input name="slug" placeholder="auto-desde-titulo" data-slug />
         </label>
 
+        <!-- —— VÍDEO —— -->
         <div data-video-fields>
           <label>
             Aspecto
@@ -51,29 +53,34 @@ import Layout from "../../components/Layout.astro";
               <option value="16:9">16:9</option>
             </select>
           </label>
-          <label>
-            Nombre archivo vídeo (en public/library/)
-            <input name="videoFile" placeholder="mi-clip.mp4" />
+          <label class="file-label">
+            Vídeo (mp4 / webm) *
+            <input type="file" name="video" accept="video/mp4,video/webm,video/*" data-video-file />
           </label>
-          <label>
-            Cover / miniatura (opcional)
-            <input name="coverFile" placeholder="mi-clip.jpg" />
+          <div class="preview" data-video-preview hidden></div>
+          <label class="file-label">
+            Miniatura / cover (jpg, png, webp)
+            <input type="file" name="cover" accept="image/*" data-cover-file />
           </label>
+          <div class="preview preview--img" data-cover-preview hidden></div>
         </div>
 
+        <!-- —— STEMS —— -->
         <div data-stems-fields hidden>
-          <label>
-            Cover
-            <input name="stemsCover" placeholder="umbral.jpg" />
+          <label class="file-label">
+            Cover / miniatura
+            <input type="file" name="stemsCover" accept="image/*" data-stems-cover />
           </label>
-          <label>
-            Stems (una línea: id | etiqueta | archivo.mp3)
-            <textarea
-              name="stemsLines"
-              rows="5"
-              placeholder="pads | Pads & Ambiente | umbral-pads.mp3
-bass | Bajo | umbral-bass.mp3"></textarea>
-          </label>
+          <div class="preview preview--img" data-stems-cover-preview hidden></div>
+
+          <div class="stems-box">
+            <div class="stems-head">
+              <span>Capas (stems)</span>
+              <button type="button" class="btn btn--sm" data-add-stem>+ Añadir stem</button>
+            </div>
+            <div class="stems-list" data-stems-list></div>
+            <p class="hint">Cada fila: etiqueta + archivo de audio (mp3/wav). Orden = orden en el mixer.</p>
+          </div>
         </div>
 
         <fieldset class="chips-field">
@@ -131,11 +138,11 @@ bass | Bajo | umbral-bass.mp3"></textarea>
           <textarea name="description" rows="2"></textarea>
         </label>
         <label>
-          Notas / comentarios (panel lateral público)
-          <textarea name="notes" rows="2" placeholder="Lo que verá el cliente en el panel"></textarea>
+          Notas (panel lateral público)
+          <textarea name="notes" rows="2" placeholder="Lo que verá el cliente"></textarea>
         </label>
         <label class="check">
-          <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada (formulario)
+          <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada
         </label>
         <label class="check">
           <input type="checkbox" name="provisional" checked /> Provisional / demo
@@ -145,22 +152,59 @@ bass | Bajo | umbral-bass.mp3"></textarea>
           <input name="year" type="number" value="2026" />
         </label>
 
-        <button type="submit" class="btn btn--gold">Generar JSON + instrucciones</button>
+        <div class="actions">
+          <button type="submit" class="btn btn--gold" data-export>
+            Preparar archivos + JSON
+          </button>
+          <button type="button" class="btn" data-try-r2 hidden>
+            Subir a R2 (si está activo)
+          </button>
+        </div>
+        <p class="status" data-status hidden></p>
       </form>
 
       <pre class="out" data-out hidden></pre>
-      <button type="button" class="btn" data-copy hidden>Copiar JSON</button>
+      <button type="button" class="btn" data-copy hidden>Copiar solo JSON del ítem</button>
     </div>
   </div>
 </Layout>
 
 <script>
+  type StemRow = { id: string; label: string; file: File | null };
+
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
     location.href = "/admin/biblioteca/";
   });
 
   let channel: "video" | "stems" = "video";
+  let stemRows: StemRow[] = [];
+
+  const slugify = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+  const extOf = (f: File, fallback: string) => {
+    const p = f.name.split(".").pop()?.toLowerCase();
+    return p && /^[a-z0-9]+$/.test(p) ? p : fallback;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // —— canal ——
   document.querySelectorAll("[data-channel]").forEach((btn) => {
     btn.addEventListener("click", () => {
       channel = ((btn as HTMLElement).dataset.channel as "video" | "stems") || "video";
@@ -173,17 +217,98 @@ bass | Bajo | umbral-bass.mp3"></textarea>
     });
   });
 
-  const slugify = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+  // —— previews ——
+  const bindFilePreview = (
+    inputSel: string,
+    previewSel: string,
+    kind: "video" | "img",
+  ) => {
+    const input = document.querySelector(inputSel);
+    const box = document.querySelector(previewSel);
+    if (!(input instanceof HTMLInputElement) || !(box instanceof HTMLElement)) return;
+    input.addEventListener("change", () => {
+      const f = input.files?.[0];
+      if (!f) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+      }
+      const url = URL.createObjectURL(f);
+      box.hidden = false;
+      if (kind === "video") {
+        box.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">${f.name} · ${(f.size / 1e6).toFixed(1)} MB</p>`;
+      } else {
+        box.innerHTML = `<img src="${url}" alt="" /><p class="fname">${f.name}</p>`;
+      }
+    });
+  };
+  bindFilePreview("[data-video-file]", "[data-video-preview]", "video");
+  bindFilePreview("[data-cover-file]", "[data-cover-preview]", "img");
+  bindFilePreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
 
-  document.querySelector("[data-admin-form]")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
+  // —— stems rows ——
+  const stemsList = document.querySelector("[data-stems-list]");
+  const renderStems = () => {
+    if (!stemsList) return;
+    stemsList.innerHTML = stemRows
+      .map(
+        (row, i) => `
+      <div class="stem-row" data-stem-i="${i}">
+        <input type="text" class="stem-label" placeholder="Etiqueta (ej. Pads)" value="${row.label.replace(/"/g, "&quot;")}" data-stem-label />
+        <input type="file" accept="audio/*,.mp3,.wav,.ogg" data-stem-file />
+        <span class="stem-fname">${row.file ? row.file.name : "Sin archivo"}</span>
+        <button type="button" class="btn btn--sm btn--danger" data-stem-remove title="Quitar">×</button>
+      </div>`,
+      )
+      .join("");
+
+    stemsList.querySelectorAll(".stem-row").forEach((el) => {
+      const i = Number((el as HTMLElement).dataset.stemI);
+      el.querySelector("[data-stem-label]")?.addEventListener("input", (ev) => {
+        const t = (ev.target as HTMLInputElement).value;
+        if (stemRows[i]) stemRows[i]!.label = t;
+      });
+      el.querySelector("[data-stem-file]")?.addEventListener("change", (ev) => {
+        const f = (ev.target as HTMLInputElement).files?.[0] || null;
+        if (stemRows[i]) {
+          stemRows[i]!.file = f;
+          if (f && !stemRows[i]!.label) {
+            stemRows[i]!.label = f.name.replace(/\.[^.]+$/, "");
+          }
+          renderStems();
+        }
+      });
+      el.querySelector("[data-stem-remove]")?.addEventListener("click", () => {
+        stemRows.splice(i, 1);
+        renderStems();
+      });
+    });
+  };
+
+  document.querySelector("[data-add-stem]")?.addEventListener("click", () => {
+    stemRows.push({
+      id: `stem-${stemRows.length + 1}`,
+      label: "",
+      file: null,
+    });
+    renderStems();
+  });
+  // start with 2 empty rows
+  stemRows = [
+    { id: "stem-1", label: "", file: null },
+    { id: "stem-2", label: "", file: null },
+  ];
+  renderStems();
+
+  const setStatus = (msg: string, ok = true) => {
+    const el = document.querySelector("[data-status]");
+    if (!(el instanceof HTMLElement)) return;
+    el.hidden = false;
+    el.textContent = msg;
+    el.classList.toggle("is-err", !ok);
+  };
+
+  const buildItem = (form: HTMLFormElement) => {
     const fd = new FormData(form);
     const title = String(fd.get("title") || "").trim();
     const slug = String(fd.get("slug") || "").trim() || slugify(title);
@@ -205,57 +330,158 @@ bass | Bajo | umbral-bass.mp3"></textarea>
       licenseEnabled: fd.get("licenseEnabled") === "on",
     };
 
+    const filesToSave: { file: File; name: string }[] = [];
+
     if (channel === "video") {
-      const vf = String(fd.get("videoFile") || "").trim();
-      const cf = String(fd.get("coverFile") || "").trim();
-      item.video = vf ? `/library/${vf}` : null;
-      item.cover = cf ? `/library/${cf}` : null;
+      const videoInput = form.querySelector("[data-video-file]") as HTMLInputElement;
+      const coverInput = form.querySelector("[data-cover-file]") as HTMLInputElement;
+      const vf = videoInput?.files?.[0] || null;
+      const cf = coverInput?.files?.[0] || null;
+      if (!vf) throw new Error("Elige un archivo de vídeo.");
+      const vName = `${slug}.${extOf(vf, "mp4")}`;
+      item.video = `/library/${vName}`;
+      filesToSave.push({ file: vf, name: vName });
+      if (cf) {
+        const cName = `${slug}-cover.${extOf(cf, "jpg")}`;
+        item.cover = `/library/${cName}`;
+        filesToSave.push({ file: cf, name: cName });
+      } else {
+        item.cover = null;
+      }
     } else {
-      const sc = String(fd.get("stemsCover") || "").trim();
-      item.cover = sc ? `/library/${sc}` : null;
+      const coverInput = form.querySelector("[data-stems-cover]") as HTMLInputElement;
+      const cf = coverInput?.files?.[0] || null;
+      const ready = stemRows.filter((r) => r.file);
+      if (!ready.length) throw new Error("Añade al menos un stem con archivo de audio.");
+      if (cf) {
+        const cName = `${slug}-cover.${extOf(cf, "jpg")}`;
+        item.cover = `/library/${cName}`;
+        filesToSave.push({ file: cf, name: cName });
+      } else {
+        item.cover = null;
+      }
       item.video = null;
-      const lines = String(fd.get("stemsLines") || "")
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
-      item.stems = lines.map((line) => {
-        const [id, label, file] = line.split("|").map((x) => x.trim());
+      item.stems = ready.map((r, i) => {
+        const f = r.file!;
+        const id = slugify(r.label || r.id || `stem-${i + 1}`) || `stem-${i + 1}`;
+        const fname = `${slug}-${id}.${extOf(f, "mp3")}`;
+        filesToSave.push({ file: f, name: fname });
         return {
-          id: id || "stem",
-          label: label || id || "Stem",
-          src: file ? `/library/${file}` : "",
+          id,
+          label: r.label || id,
+          src: `/library/${fname}`,
         };
       });
     }
 
+    return { item, filesToSave, slug };
+  };
+
+  document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
     const out = document.querySelector("[data-out]");
     const copy = document.querySelector("[data-copy]");
-    const json = JSON.stringify(item, null, 2);
-    const instructions = [
-      "1) Copia los archivos a public/library/ (o public/previews/music/ si reutilizas previews).",
-      "2) Pega este objeto (con coma) dentro del array de src/data/library.json",
-      "3) npm run build && npm run deploy (o push a main)",
-      "",
-      json,
-    ].join("\n");
-    if (out instanceof HTMLElement) {
-      out.hidden = false;
-      out.textContent = instructions;
+    try {
+      const { item, filesToSave, slug } = buildItem(form);
+      setStatus(`Descargando ${filesToSave.length} archivo(s) + JSON…`);
+
+      for (const { file, name } of filesToSave) {
+        downloadBlob(file, name);
+        await sleep(350);
+      }
+      const json = JSON.stringify(item, null, 2);
+      downloadBlob(new Blob([json], { type: "application/json" }), `${slug}.library-item.json`);
+
+      const instructions = [
+        `✅ Listo: se han descargado ${filesToSave.length} media + ${slug}.library-item.json`,
+        "",
+        "1) Mueve los archivos de media a: public/library/",
+        "2) Abre src/data/library.json y pega el objeto (con coma si hace falta):",
+        "",
+        json,
+        "",
+        "3) npm run build && npm run deploy (o push a main)",
+        "",
+        "Si activas R2 en Cloudflare (binding LIBRARY_BUCKET), podrás subir sin copiar a mano.",
+      ].join("\n");
+
+      if (out instanceof HTMLElement) {
+        out.hidden = false;
+        out.textContent = instructions;
+      }
+      if (copy instanceof HTMLElement) copy.hidden = false;
+      setStatus("Descargas lanzadas. Revisa la carpeta de descargas del navegador.");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error", false);
     }
-    if (copy instanceof HTMLElement) copy.hidden = false;
   });
+
+  // Intento R2 (opcional)
+  document.querySelector("[data-try-r2]")?.addEventListener("click", async () => {
+    const form = document.querySelector("[data-admin-form]");
+    if (!(form instanceof HTMLFormElement)) return;
+    try {
+      const { item, filesToSave, slug } = buildItem(form);
+      const fd = new FormData();
+      fd.set("slug", slug);
+      fd.set("kind", String(item.kind));
+      for (const { file, name } of filesToSave) {
+        fd.append(name, file, name);
+      }
+      setStatus("Subiendo a R2…");
+      const res = await fetch("/admin/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(
+          data.message || data.error || "R2 no disponible — usa «Preparar archivos + JSON»",
+          false,
+        );
+        return;
+      }
+      setStatus(`Subido a R2: ${data.uploaded?.length || 0} archivos`);
+      const out = document.querySelector("[data-out]");
+      if (out instanceof HTMLElement) {
+        out.hidden = false;
+        out.textContent = JSON.stringify({ item, upload: data }, null, 2);
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error R2", false);
+    }
+  });
+
+  // Mostrar botón R2 solo si el endpoint responde (no 404)
+  fetch("/admin/upload", { method: "OPTIONS", credentials: "same-origin" })
+    .then(() => {
+      const b = document.querySelector("[data-try-r2]");
+      if (b instanceof HTMLElement) b.hidden = false;
+    })
+    .catch(() => {
+      const b = document.querySelector("[data-try-r2]");
+      if (b instanceof HTMLElement) b.hidden = false; // mostrar igual: dará mensaje claro
+    });
+  // siempre visible con mensaje claro
+  const r2btn = document.querySelector("[data-try-r2]");
+  if (r2btn instanceof HTMLElement) r2btn.hidden = false;
 
   document.querySelector("[data-copy]")?.addEventListener("click", async () => {
     const out = document.querySelector("[data-out]");
     const t = out?.textContent || "";
-    const m = t.match(/\{[\s\S]*\}\s*$/);
-    if (m) await navigator.clipboard.writeText(m[0]);
+    const m = t.match(/\{[\s\S]*?\n\}(?=\n\n3\)|\n*$)/) || t.match(/\{[\s\S]*\}\s*$/);
+    if (m) {
+      await navigator.clipboard.writeText(m[0]);
+      setStatus("JSON copiado al portapapeles.");
+    }
   });
 </script>
 
 <style>
   .admin {
-    max-width: 40rem;
+    max-width: 42rem;
     padding-block: 2rem 4rem;
   }
   .head {
@@ -331,10 +557,89 @@ bass | Bajo | umbral-bass.mp3"></textarea>
     color: var(--color-fg);
     font: inherit;
   }
+  .form input[type="file"] {
+    padding: 0.45rem;
+    font-size: 0.8rem;
+  }
   .form .check {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+  }
+  .file-label {
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 1px dashed rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.04);
+  }
+  .preview {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: #0c0c10;
+  }
+  .preview video {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    background: #000;
+  }
+  .preview img {
+    display: block;
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+  }
+  .preview .fname {
+    margin: 0;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .stems-box {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 0.85rem;
+    background: var(--color-surface);
+  }
+  .stems-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .stems-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .stem-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  @media (max-width: 640px) {
+    .stem-row {
+      grid-template-columns: 1fr;
+    }
+  }
+  .stem-fname {
+    font-size: 0.7rem;
+    color: var(--color-muted);
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hint {
+    margin: 0.65rem 0 0;
+    font-size: 0.72rem;
+    color: var(--color-muted);
   }
   .chips-field {
     border: 1px solid var(--color-border);
@@ -361,6 +666,11 @@ bass | Bajo | umbral-bass.mp3"></textarea>
     font-size: 0.75rem !important;
     cursor: pointer;
   }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
   .btn {
     display: inline-flex;
     justify-content: center;
@@ -373,6 +683,14 @@ bass | Bajo | umbral-bass.mp3"></textarea>
     font-weight: 600;
     cursor: pointer;
   }
+  .btn--sm {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+  .btn--danger {
+    color: #f0a0a0;
+    border-color: rgb(240 160 160 / 0.35);
+  }
   .btn--gold {
     background: var(--color-accent-light);
     border-color: rgb(201 169 98 / 0.4);
@@ -382,6 +700,14 @@ bass | Bajo | umbral-bass.mp3"></textarea>
     font-size: 0.8rem;
     font-weight: 500;
     opacity: 0.85;
+  }
+  .status {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-accent);
+  }
+  .status.is-err {
+    color: #f0a0a0;
   }
   .out {
     margin-top: 1.25rem;

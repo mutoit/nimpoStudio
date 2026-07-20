@@ -2,3 +2,9 @@
 name = "nimpo-studio"
 compatibility_date = "2024-07-01"
 pages_build_output_dir = "./dist"
+
+# Opcional: tras activar R2 en el dashboard y crear el bucket:
+# [[r2_buckets]]
+# binding = "LIBRARY_BUCKET"
+# bucket_name = "nimpo-library"
+# preview_bucket_name = "nimpo-library"

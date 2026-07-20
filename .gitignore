@@ -22,3 +22,8 @@ Thumbs.db
 *.swp
 .admin-secret.local
 .dev.vars
+
+.cursor/
+wrangler.toml.bak
+*.bak
+

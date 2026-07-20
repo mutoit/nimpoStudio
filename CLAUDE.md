@@ -97,4 +97,4 @@ Formato: `feat:`, `fix:`, `chore:`, `docs:` — mensajes en español o inglés, 
 
 ## Tests
 
-No ejecutar suites por inicia
+No ejecutar suites por iniciativa propia. Solo `npm run build` como verificación mínima antes de push.

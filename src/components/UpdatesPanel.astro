@@ -17,40 +17,129 @@ const formatDate = (iso: string) => {
   const [year, month, day] = iso.split("-");
   return `${day}/${month}/${year}`;
 };
+
+const payload = {
+  lang,
+  labels: {
+    empty: t("updatesEmpty"),
+    tags: tagLabels as Record<string, string>,
+  },
+  seed: updates,
+};
 ---
 
-<div class="updates-panel">
+<div
+  class="updates-panel"
+  data-updates-root
+  data-updates-payload={JSON.stringify(payload)}
+>
   <header class="updates-panel__head">
     <p class="updates-panel__eyebrow">{t("updatesFeed")}</p>
     <h2 class="updates-panel__title">{t("updatesTitle")}</h2>
     <p class="updates-panel__desc">{t("updatesDesc")}</p>
   </header>
 
-  {
-    updates.length === 0 ? (
-      <p class="updates-panel__empty">{t("updatesEmpty")}</p>
-    ) : (
-      <ul class="updates-panel__list">
-        {updates.map((item) => (
-          <li class="updates-panel__item">
-            <div class="updates-panel__meta">
-              <span class:list={["updates-panel__tag", `updates-panel__tag--${item.tag}`]}>
-                {tagLabels[item.tag]}
-              </span>
-              <time class="updates-panel__date" datetime={item.date}>
-                {formatDate(item.date)}
-              </time>
-            </div>
-            <p class="updates-panel__item-title">{item.title}</p>
-            <p class="updates-panel__summary">{item.summary}</p>
-          </li>
-        ))}
-      </ul>
-    )
-  }
+  <div data-updates-body>
+    {
+      updates.length === 0 ? (
+        <p class="updates-panel__empty">{t("updatesEmpty")}</p>
+      ) : (
+        <ul class="updates-panel__list">
+          {updates.map((item) => (
+            <li class="updates-panel__item">
+              <div class="updates-panel__meta">
+                <span class:list={["updates-panel__tag", `updates-panel__tag--${item.tag}`]}>
+                  {tagLabels[item.tag]}
+                </span>
+                <time class="updates-panel__date" datetime={item.date}>
+                  {formatDate(item.date)}
+                </time>
+              </div>
+              <p class="updates-panel__item-title">{item.title}</p>
+              <p class="updates-panel__summary">{item.summary}</p>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
 </div>
 
-<style>
+<script>
+  function escapeHtml(s: string) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatDate(iso: string) {
+    const [y, m, d] = String(iso).split("-");
+    if (!y || !m || !d) return iso;
+    return `${d}/${m}/${y}`;
+  }
+
+  function safeTag(tag: string) {
+    if (tag === "nuevo" || tag === "mejora" || tag === "fix" || tag === "proximo") return tag;
+    return "nuevo";
+  }
+
+  async function hydrateUpdates() {
+    document.querySelectorAll("[data-updates-root]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
+      root.dataset.bound = "1";
+
+      let payload: {
+        labels: { empty: string; tags: Record<string, string> };
+      } = { labels: { empty: "", tags: {} } };
+      try {
+        payload = JSON.parse(root.dataset.updatesPayload || "{}");
+      } catch {
+        /* seed only */
+      }
+
+      const body = root.querySelector("[data-updates-body]");
+      if (!body) return;
+
+      void (async () => {
+        try {
+          const res = await fetch("/api/updates", { credentials: "same-origin" });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (!data?.ok || !Array.isArray(data.items) || !data.items.length) return;
+
+          const tags = payload.labels?.tags || {};
+          const items = data.items.slice(0, 6);
+          body.innerHTML = `<ul class="updates-panel__list">${items
+            .map((item: { date?: string; title?: string; tag?: string; summary?: string }) => {
+              const tag = safeTag(String(item.tag || "nuevo"));
+              const title = escapeHtml(String(item.title || "").slice(0, 160));
+              const summary = escapeHtml(String(item.summary || "").slice(0, 500));
+              const date = String(item.date || "").slice(0, 10);
+              const tagLabel = escapeHtml(tags[tag] || tag);
+              return `<li class="updates-panel__item">
+                <div class="updates-panel__meta">
+                  <span class="updates-panel__tag updates-panel__tag--${tag}">${tagLabel}</span>
+                  <time class="updates-panel__date" datetime="${escapeHtml(date)}">${escapeHtml(formatDate(date))}</time>
+                </div>
+                <p class="updates-panel__item-title">${title}</p>
+                <p class="updates-panel__summary">${summary}</p>
+              </li>`;
+            })
+            .join("")}</ul>`;
+        } catch {
+          /* keep build seed */
+        }
+      })();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", hydrateUpdates);
+  document.addEventListener("astro:page-load", hydrateUpdates);
+</script>
+
+<style is:global>
   .updates-panel {
     padding: 1.25rem 1.15rem;
     border-radius: var(--radius-lg);

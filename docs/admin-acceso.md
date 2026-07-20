@@ -63,6 +63,19 @@ Sin KV el límite es por isolate (sigue mejor que nada; WAF/Access refuerzan).
 1. Login en `/admin/biblioteca/`
 2. Canal vídeo o stems + archivos + tags/moods
 3. **Publicar en la web** → `POST /admin/publish`
+
+### Feed Novedades (home)
+
+En la **misma página** admin, bloque **Feed · Novedades**:
+
+1. Título + descripción (+ etiqueta y fecha)
+2. **Publicar en el feed** → `POST /admin/feed` → R2 `catalog/updates.json`
+3. Home lee `GET /api/updates` y actualiza el panel al recargar
+
+Seed opcional:
+```powershell
+npx wrangler r2 object put nimpo-library/catalog/updates.json --file=src/data/updates.json --remote
+```
    - Solo ext allowlist: vídeo `mp4/webm/mov`, audio `mp3/wav/m4a/ogg/aac`, imagen `jpg/png/webp`
    - Máx **100 MB** / archivo, **250 MB** total, **24 stems**
    - Content-Type canónico (no se fía del cliente)

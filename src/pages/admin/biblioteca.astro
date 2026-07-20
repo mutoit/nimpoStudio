@@ -151,6 +151,52 @@ import Layout from "../../components/Layout.astro";
         <p class="status" data-status hidden></p>
       </form>
 
+      <hr class="sep" />
+
+      <section class="feed-block" data-feed-block>
+        <h2 class="subhead">Feed · Novedades (home)</h2>
+        <p class="lead lead--sm">
+          Aparece en el panel lateral de la home (como en la captura). Título + descripción.
+          Se guarda en R2 y se ve al recargar, sin redeploy.
+        </p>
+        <form class="form" data-feed-form>
+          <label>
+            Título del aviso *
+            <input name="feedTitle" required maxlength="160" placeholder="Web en construcción" data-feed-title />
+          </label>
+          <label>
+            Descripción *
+            <textarea
+              name="feedSummary"
+              required
+              maxlength="500"
+              rows="3"
+              placeholder="Estamos construyendo la web…"
+              data-feed-summary
+            ></textarea>
+          </label>
+          <div class="feed-row">
+            <label>
+              Etiqueta
+              <select name="feedTag" data-feed-tag>
+                <option value="nuevo">Nuevo</option>
+                <option value="mejora">Mejora</option>
+                <option value="fix">Fix</option>
+                <option value="proximo" selected>Próximo</option>
+              </select>
+            </label>
+            <label>
+              Fecha
+              <input name="feedDate" type="date" data-feed-date />
+            </label>
+          </div>
+          <button type="submit" class="btn btn--gold" data-feed-publish>
+            Publicar en el feed
+          </button>
+          <p class="status" data-feed-status hidden></p>
+        </form>
+      </section>
+
       <pre class="out" data-out hidden></pre>
     </div>
   </div>
@@ -162,6 +208,61 @@ import Layout from "../../components/Layout.astro";
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
     location.href = "/admin/biblioteca/";
+  });
+
+  // Fecha por defecto = hoy
+  const feedDate = document.querySelector<HTMLInputElement>("[data-feed-date]");
+  if (feedDate && !feedDate.value) {
+    feedDate.value = new Date().toISOString().slice(0, 10);
+  }
+
+  document.querySelector("[data-feed-form]")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const btn = form.querySelector("[data-feed-publish]");
+    const status = document.querySelector("[data-feed-status]");
+    if (btn instanceof HTMLButtonElement) btn.disabled = true;
+    if (status instanceof HTMLElement) {
+      status.hidden = false;
+      status.textContent = "Publicando feed…";
+      status.classList.remove("is-err");
+    }
+    try {
+      const title = String(
+        (form.querySelector("[data-feed-title]") as HTMLInputElement)?.value || "",
+      ).trim();
+      const summary = String(
+        (form.querySelector("[data-feed-summary]") as HTMLTextAreaElement)?.value || "",
+      ).trim();
+      const tag = String(
+        (form.querySelector("[data-feed-tag]") as HTMLSelectElement)?.value || "proximo",
+      );
+      const date = String(
+        (form.querySelector("[data-feed-date]") as HTMLInputElement)?.value || "",
+      );
+      const res = await fetch("/admin/feed", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, summary, tag, date }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || `Error ${res.status}`);
+      }
+      if (status instanceof HTMLElement) {
+        status.textContent = `✅ Feed: «${data.item?.title || title}». Abre la home y recarga.`;
+      }
+      form.reset();
+      if (feedDate) feedDate.value = new Date().toISOString().slice(0, 10);
+    } catch (err) {
+      if (status instanceof HTMLElement) {
+        status.textContent = err instanceof Error ? err.message : "Error feed";
+        status.classList.add("is-err");
+      }
+    } finally {
+      if (btn instanceof HTMLButtonElement) btn.disabled = false;
+    }
   });
 
   let channel: "video" | "stems" = "video";
@@ -399,8 +500,33 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.95rem;
     line-height: 1.55;
   }
+  .lead--sm {
+    margin: 0.35rem 0 1rem;
+    font-size: 0.88rem;
+  }
   .lead a {
     color: var(--color-accent);
+  }
+  .sep {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 2.25rem 0 1.5rem;
+  }
+  .subhead {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+  .feed-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  @media (max-width: 520px) {
+    .feed-row {
+      grid-template-columns: 1fr;
+    }
   }
   .channels {
     display: flex;

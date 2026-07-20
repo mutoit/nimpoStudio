@@ -12,6 +12,8 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `POST /admin/publish` | `admin/publish.ts` | Subida + catálogo (allowlist + cuotas) |
 | `POST /admin/upload` | `admin/upload.ts` | **410 Gone** — usar publish |
 | `GET /api/library` | `api/library.ts` | Catálogo R2 sanitizado |
+| `GET /api/updates` | `api/updates.ts` | Feed Novedades R2 |
+| `POST /admin/feed` | `admin/feed.ts` | Publicar entrada del feed |
 | `POST /api/track` | `api/track.ts` | Analíticas first-party |
 | `POST /api/quote` | `api/quote.ts` | Presupuesto licencia → email estudio |
 | `GET /api/quote` | `api/quote.ts` | Health mínimo |

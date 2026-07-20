@@ -14,6 +14,6 @@ export default defineConfig({
     },
   },
   redirects: {
-    "/": "/es",
+    "/": "/es/",
   },
 });

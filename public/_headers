@@ -1,5 +1,29 @@
-/*
+# HTML siempre fresco (evita HTML viejo pidiendo CSS ya borrado del deploy)
+/
   Cache-Control: public, max-age=0, must-revalidate
 
-/catalogo/*
+/es/*
   Cache-Control: public, max-age=0, must-revalidate
+
+/en/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/fr/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/admin/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Assets hasheados: cache largo (el hash cambia en cada build)
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+
+/favicon.*
+  Cache-Control: public, max-age=86400
+
+/images/*
+  Cache-Control: public, max-age=86400
+
+/previews/*
+  Cache-Control: public, max-age=86400

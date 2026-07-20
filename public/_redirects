@@ -1,2 +1,2 @@
-# Redirect root to Spanish version (for Cloudflare Pages compatibility)
-/    /es    301
+# Solo la raíz exacta → español (NO usar /* o se rompen assets)
+/ /es/ 301

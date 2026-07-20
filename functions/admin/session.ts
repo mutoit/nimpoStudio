@@ -8,10 +8,12 @@ import {
   clearSessionCookieHeader,
   createSessionToken,
   getSessionFromRequest,
+  secretsEqual,
   sessionCookieHeader,
   verifySessionToken,
   type AdminEnv,
 } from "../lib/admin-auth";
+import { clientIp, checkRateLimit } from "../lib/rate-limit";
 
 function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
@@ -64,6 +66,16 @@ export async function onRequest(context: {
     );
   }
 
+  const ip = clientIp(request);
+  const rl = checkRateLimit(`admin-login:${ip}`, { limit: 10, windowSec: 15 * 60 });
+  if (!rl.ok) {
+    return json(
+      { ok: false, error: "rate_limited" },
+      429,
+      { "Retry-After": String(rl.retryAfterSec ?? 60) },
+    );
+  }
+
   let body: { password?: string };
   try {
     body = (await request.json()) as { password?: string };
@@ -72,7 +84,7 @@ export async function onRequest(context: {
   }
 
   const password = String(body.password || "");
-  if (!password || password !== secret) {
+  if (!password || !(await secretsEqual(password, secret))) {
     return json({ ok: false, error: "invalid_password" }, 401);
   }
 

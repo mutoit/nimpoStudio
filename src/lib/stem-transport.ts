@@ -1,7 +1,6 @@
 /**
  * Reproductor multi-stem con Web Audio (buffers en memoria).
- * Necesario porque Cloudflare Pages no sirve Range/partial content:
- * HTMLAudioElement.seekable queda en 0 y el scrub no funciona.
+ * Pages no sirve Range/partial content → HTMLAudioElement no scrubea.
  *
  * P⇒Q: load(stems) ⇒ play/pause/seek/mute con currentTime coherente.
  */
@@ -24,17 +23,22 @@ function mediaSrc(src: string) {
   }
 }
 
+function normSrc(s: string) {
+  try {
+    return decodeURIComponent(s).replace(/\\/g, "/");
+  } catch {
+    return s.replace(/\\/g, "/");
+  }
+}
+
 export class StemTransport {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private layers: Layer[] = [];
   private itemId: string | null = null;
   private playing = false;
-  /** audioCtx.currentTime al arrancar el tramo actual */
   private startCtx = 0;
-  /** offset en el buffer al arrancar el tramo */
   private startOffset = 0;
-  /** posición al pausar */
   private pauseAt = 0;
   duration = 0;
 
@@ -50,7 +54,6 @@ export class StemTransport {
     if (!this.ctx || !this.playing) return this.pauseAt;
     const t = this.startOffset + (this.ctx.currentTime - this.startCtx);
     if (this.duration > 0) {
-      // loop
       const mod = t % this.duration;
       return mod < 0 ? 0 : mod;
     }
@@ -89,20 +92,21 @@ export class StemTransport {
       this.master.connect(ctx.destination);
     }
 
-    const loaded: Layer[] = [];
-    for (const s of stems) {
-      const url = mediaSrc(s.src);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`stem fetch ${res.status} ${url}`);
-      const raw = await res.arrayBuffer();
-      const buffer = await ctx.decodeAudioData(raw.slice(0));
-      const gain = ctx.createGain();
-      gain.gain.value = 1;
-      gain.connect(this.master);
-      loaded.push({ src: s.src, buffer, gain, source: null, on: true });
-      if (buffer.duration > this.duration) this.duration = buffer.duration;
-    }
+    const loaded = await Promise.all(
+      stems.map(async (s) => {
+        const url = mediaSrc(s.src);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`stem fetch ${res.status} ${url}`);
+        const raw = await res.arrayBuffer();
+        const buffer = await ctx.decodeAudioData(raw.slice(0));
+        const gain = ctx.createGain();
+        gain.gain.value = 1;
+        gain.connect(this.master!);
+        return { src: s.src, buffer, gain, source: null as AudioBufferSourceNode | null, on: true };
+      }),
+    );
     this.layers = loaded;
+    this.duration = loaded.reduce((m, l) => Math.max(m, l.buffer.duration), 0);
   }
 
   private stopSources() {
@@ -123,14 +127,11 @@ export class StemTransport {
     }
   }
 
-  /** Arranca (o reanuda) desde offset segundos. */
   play(offset?: number) {
     const ctx = this.ensureCtx();
     if (!this.layers.length) return;
     const off =
-      offset != null && Number.isFinite(offset)
-        ? Math.max(0, offset)
-        : this.pauseAt;
+      offset != null && Number.isFinite(offset) ? Math.max(0, offset) : this.pauseAt;
     const o = this.duration > 0 ? off % this.duration : off;
 
     this.stopSources();
@@ -163,7 +164,6 @@ export class StemTransport {
     this.startOffset = 0;
   }
 
-  /** Seek absoluto en segundos; mantiene play/pause. */
   seek(seconds: number) {
     const t =
       this.duration > 0
@@ -178,41 +178,25 @@ export class StemTransport {
     }
   }
 
-  /** Activa/desactiva capa por src (mute vía gain, sin reiniciar). */
   setLayerOn(src: string, on: boolean) {
-    const norm = (s: string) => {
-      try {
-        return decodeURIComponent(s);
-      } catch {
-        return s;
-      }
-    };
-    const n = norm(src);
+    const n = normSrc(src);
     for (const l of this.layers) {
-      if (norm(l.src) === n) {
+      if (normSrc(l.src) === n) {
         l.on = on;
-        l.gain.gain.value = on && this.playing ? 1 : on ? 1 : 0;
-        if (!this.playing) l.gain.gain.value = on ? 1 : 0;
+        l.gain.gain.value = on ? 1 : 0;
       }
     }
   }
 
   /** enabledSrcs null = todas on; Set vacío = todas off. */
   applyMix(enabledSrcs: Set<string> | null) {
-    const norm = (s: string) => {
-      try {
-        return decodeURIComponent(s);
-      } catch {
-        return s;
-      }
-    };
     for (const l of this.layers) {
       const on =
         enabledSrcs == null
           ? true
           : enabledSrcs.size === 0
             ? false
-            : enabledSrcs.has(norm(l.src));
+            : enabledSrcs.has(normSrc(l.src));
       l.on = on;
       l.gain.gain.value = on ? 1 : 0;
     }

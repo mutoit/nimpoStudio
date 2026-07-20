@@ -119,10 +119,8 @@ export async function onRequest(context: {
     return next();
   }
 
-  // Si Cloudflare Access ya autenticó, deja pasar (Access delante del sitio)
-  if (request.headers.get("CF-Access-Jwt-Assertion")) {
-    return next();
-  }
+  // No confiar en CF-Access-Jwt-Assertion sin verificar firma (spoofable).
+  // Access real va delante del edge; aquí solo cookie firmada.
 
   const secret = String(env.ADMIN_LIBRARY_SECRET || "").trim();
   if (!secret) {

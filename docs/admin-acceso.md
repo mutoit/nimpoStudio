@@ -4,63 +4,54 @@ URL (no está en el menú público):
 
 - https://www.nimpo3dstudio.com/admin/biblioteca/
 
-## Cómo entra solo tú (capa 1 — ya en código)
+## Cómo entra solo tú
 
-1. En **Cloudflare Dashboard** → **Workers & Pages** → proyecto **nimpo-studio**  
-2. **Settings** → **Environment variables**  
-3. Añade secreto de producción:
+1. Secreto en **Cloudflare Pages** → proyecto **nimpo-studio** → **Settings** → **Environment variables**  
+   - Name: `ADMIN_LIBRARY_SECRET` (tipo **Secret**)  
+   - Valor: contraseña larga solo tuya  
 
-   | Name | Type | Value |
-   |------|------|--------|
-   | `ADMIN_LIBRARY_SECRET` | **Secret** | una contraseña larga solo tuya |
+2. Abre `/admin/biblioteca/` → pantalla **Panel privado** → contraseña.
 
-4. Redeploy (o `npm run deploy`).
+3. Sesión: cookie **httpOnly**, `Path=/admin`, 14 días. Botón **Cerrar sesión**.
 
-5. Abre `/admin/biblioteca/` → pantalla de login del servidor → introduce esa contraseña.
+La contraseña **no** va en el JavaScript del navegador. El middleware (`functions/_middleware.ts`) bloquea todo `/admin/*` sin cookie válida.
 
-La sesión es una **cookie httpOnly** firmada (14 días). Botón **Cerrar sesión** en el panel.
+**Importante:** no se confía en cabeceras tipo `CF-Access-Jwt-Assertion` sin verificar firma (son spoofable).
 
-**Importante:** la contraseña **no** va en el JavaScript público. Sin el secreto en Pages, `/admin/*` no deja pasar.
-
-### CLI (alternativa)
+### CLI
 
 ```powershell
 cd nimpo-studio
-# te pedirá el valor (no lo pegues en git)
 npx wrangler pages secret put ADMIN_LIBRARY_SECRET --project-name=nimpo-studio
 npm run deploy
 ```
 
-## Capa 2 (recomendada) — Cloudflare Access
+Copia local del valor (gitignored): `.admin-secret.local` / `.dev.vars` (solo tu máquina).
 
-Añade login por **email** delante de toda la ruta `/admin/*`:
+## Rate limit
 
-1. [Zero Trust Dashboard](https://one.dash.cloudflare.com/) → **Access** → **Applications**  
-2. **Add an application** → **Self-hosted**  
-3. Public hostname:
-   - `www.nimpo3dstudio.com` path `admin*`
-   - y/o `nimpo3dstudio.com` path `admin*`  
-4. Policy: **Allow** → **Emails** → tu email (ej. el de la cuenta Cloudflare / Gmail del estudio)  
-5. Identity: **One-time PIN** (email) es suficiente (gratis en plan free de Zero Trust).
+- Login: **10 intentos / 15 min** por IP (en memoria del isolate).
+- Tras 429: espera o cambia de red.
 
-Resultado: al abrir `/admin/...` primero Cloudflare pide tu email + código; luego la contraseña del panel (doble candado).
+## Qué hace el panel (honestidad)
 
-Script de ayuda (requiere token API con permiso **Access: Edit**):
+- Genera **JSON** para `library.json` e instrucciones de copiar archivos a `public/`.
+- **No** sube masters a la nube ni aloja el catálogo privado.
+- Masters y WAV finales: fuera de la web pública.
 
-```powershell
-pwsh scripts/setup-access-admin.ps1 -Email "tu@email.com"
-```
+## Capa extra opcional — Cloudflare Access
 
-## Qué no hacer
+Zero Trust → Access → Application self-hosted en `www.nimpo3dstudio.com/admin*`  
+Policy: Allow → tu email (OTP).
 
-- No pongas el secreto en `PUBLIC_*` ni en el repo.  
-- No enlaces `/admin` desde el menú del sitio.  
-- No uses la clave antigua del front (`nimpo-admin-library`): ya no aplica.
+Requiere token API con **Access: Edit**. Script: `scripts/setup-access-admin.ps1 -Email "tu@email.com"`.
+
+Access va **delante** del edge; el login por cookie del sitio sigue siendo la defensa en código.
 
 ## Local
 
-`astro dev` **no** ejecuta el middleware de Pages: el HTML de admin se ve sin cookie.  
-Para probar auth de verdad: `npm run build` + `npx wrangler pages dev dist` con el secret en `.dev.vars`:
+`astro dev` no ejecuta middleware de Pages.  
+Probar auth: `npm run build` + `npx wrangler pages dev dist` con `.dev.vars`:
 
 ```
 ADMIN_LIBRARY_SECRET=dev-solo-local

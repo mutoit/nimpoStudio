@@ -32,6 +32,7 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 - URL: `/admin/biblioteca/` (sin enlace en menú).
 - Auth servidor: `functions/_middleware.ts` + secret Pages `ADMIN_LIBRARY_SECRET`.
 - Docs: `docs/admin-acceso.md`. Opcional: Cloudflare Access en `/admin*`.
+- **No** confiar en headers `CF-Access-Jwt-Assertion` sin verificar firma.
 
 ## Qué archivo tocar según la tarea
 

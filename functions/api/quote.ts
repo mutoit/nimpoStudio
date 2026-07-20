@@ -18,6 +18,7 @@ import {
   type LicenseTermCode,
   type LicenseUsageCode,
 } from "../lib/license-quote";
+import { checkRateLimit, clientIp } from "../lib/rate-limit";
 
 type QuoteBody = {
   name?: string;
@@ -41,16 +42,38 @@ type QuoteBody = {
   moreComposition?: boolean;
 };
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+const ALLOWED_ORIGINS = new Set([
+  "https://www.nimpo3dstudio.com",
+  "https://nimpo3dstudio.com",
+  "https://nimpo-studio.pages.dev",
+]);
+
+function corsOrigin(request: Request): string | null {
+  const origin = request.headers.get("Origin");
+  if (!origin) return null;
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  if (origin.endsWith(".nimpo-studio.pages.dev")) return origin;
+  if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+    return origin;
+  }
+  return null;
+}
+
+function json(data: unknown, status = 200, request?: Request, extra: Record<string, string> = {}) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+    ...extra,
+  };
+  if (request) {
+    const o = corsOrigin(request);
+    if (o) {
+      headers["Access-Control-Allow-Origin"] = o;
+      headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET";
+      headers["Access-Control-Allow-Headers"] = "Content-Type";
+      headers["Vary"] = "Origin";
+    }
+  }
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 function buildStudioText(
@@ -317,33 +340,48 @@ export async function onRequest(context: {
   const { request, env } = context;
 
   if (request.method === "OPTIONS") {
-    return json({ ok: true });
+    return json({ ok: true }, 200, request);
   }
 
   if (request.method === "GET") {
-    return json({
-      status: "ok",
-      message: "POST license quote payload here",
-      hasEmail: Boolean(
-        env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
-      ),
-      providers: {
-        mailWorker: Boolean(env.MAIL || env.MAIL_SECRET),
-        cloudflareApi: Boolean(env.CLOUDFLARE_API_TOKEN),
-        resend: Boolean(env.RESEND_API_KEY),
+    return json(
+      {
+        status: "ok",
+        message: "POST license quote payload here",
+        hasEmail: Boolean(
+          env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
+        ),
+        providers: {
+          mailWorker: Boolean(env.MAIL || env.MAIL_SECRET),
+          cloudflareApi: Boolean(env.CLOUDFLARE_API_TOKEN),
+          resend: Boolean(env.RESEND_API_KEY),
+        },
       },
-    });
+      200,
+      request,
+    );
   }
 
   if (request.method !== "POST") {
-    return json({ ok: false, error: "method_not_allowed" }, 405);
+    return json({ ok: false, error: "method_not_allowed" }, 405, request);
+  }
+
+  const ip = clientIp(request);
+  const rl = checkRateLimit(`quote:${ip}`, { limit: 20, windowSec: 3600 });
+  if (!rl.ok) {
+    return json(
+      { ok: false, error: "rate_limited" },
+      429,
+      request,
+      { "Retry-After": String(rl.retryAfterSec ?? 60) },
+    );
   }
 
   let body: QuoteBody;
   try {
     body = (await request.json()) as QuoteBody;
   } catch {
-    return json({ ok: false, error: "invalid_json" }, 400);
+    return json({ ok: false, error: "invalid_json" }, 400, request);
   }
 
   const name = String(body.name || "").trim();
@@ -356,13 +394,13 @@ export async function onRequest(context: {
   const termRaw = String(body.term || "2y").trim() as LicenseTermCode;
 
   if (!name || !email || !workName || !workSlug || !territory || !project) {
-    return json({ ok: false, error: "missing_fields" }, 400);
+    return json({ ok: false, error: "missing_fields" }, 400, request);
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return json({ ok: false, error: "invalid_email" }, 400);
+    return json({ ok: false, error: "invalid_email" }, 400, request);
   }
   if (!isLicenseUsageCode(usageRaw)) {
-    return json({ ok: false, error: "invalid_usage" }, 400);
+    return json({ ok: false, error: "invalid_usage" }, 400, request);
   }
 
   const usage = usageRaw as LicenseUsageCode;
@@ -432,26 +470,30 @@ export async function onRequest(context: {
     text: clientText,
   });
 
-  return json({
-    ok: true,
-    quote: {
-      mode: quote.mode,
-      currency: quote.currency,
-      total: quote.total,
-      fromAmount: quote.fromAmount,
-      lineItems: quote.lineItems,
-      summaryEs: quote.summaryEs,
-      scopeEs: quote.scopeEs,
+  return json(
+    {
+      ok: true,
+      quote: {
+        mode: quote.mode,
+        currency: quote.currency,
+        total: quote.total,
+        fromAmount: quote.fromAmount,
+        lineItems: quote.lineItems,
+        summaryEs: quote.summaryEs,
+        scopeEs: quote.scopeEs,
+      },
+      email: {
+        configured: Boolean(
+          env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
+        ),
+        studioSent: studioMail.ok,
+        clientSent: clientMail.ok,
+        studioError: studioMail.ok ? null : studioMail.error || null,
+        clientError: clientMail.ok ? null : clientMail.error || null,
+        via: studioMail.via || clientMail.via || null,
+      },
     },
-    email: {
-      configured: Boolean(
-        env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
-      ),
-      studioSent: studioMail.ok,
-      clientSent: clientMail.ok,
-      studioError: studioMail.ok ? null : studioMail.error || null,
-      clientError: clientMail.ok ? null : clientMail.error || null,
-      via: studioMail.via || clientMail.via || null,
-    },
-  });
+    200,
+    request,
+  );
 }

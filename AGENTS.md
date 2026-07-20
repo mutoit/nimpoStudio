@@ -28,6 +28,11 @@ No usar Vercel para este proyecto.
 
 Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual salvo que Pages Git falle.
 
+## Admin privado
+- URL: `/admin/biblioteca/` (sin enlace en menú).
+- Auth servidor: `functions/_middleware.ts` + secret Pages `ADMIN_LIBRARY_SECRET`.
+- Docs: `docs/admin-acceso.md`. Opcional: Cloudflare Access en `/admin*`.
+
 ## Qué archivo tocar según la tarea
 
 | Tarea | Archivo(s) |

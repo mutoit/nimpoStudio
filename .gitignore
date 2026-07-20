@@ -20,3 +20,5 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.admin-secret.local
+.dev.vars

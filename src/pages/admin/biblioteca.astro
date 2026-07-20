@@ -1,32 +1,34 @@
 ---
 /**
- * Panel de subida (solo tú). Protegido con ?key= o localStorage + ADMIN_LIBRARY_KEY.
- * No sube archivos al servidor: genera el JSON para pegar en src/data/library.json
- * y te dice dónde copiar los ficheros en public/library/.
+ * Panel de subida (solo estudio).
+ * Protección real: functions/_middleware.ts + cookie firmada (ADMIN_LIBRARY_SECRET).
+ * Opcional extra: Cloudflare Access delante de /admin/*.
+ * No aparece en el menú público.
  */
 import Layout from "../../components/Layout.astro";
 ---
 
-<Layout title="Admin biblioteca" description="Subida privada de biblioteca" lang="es">
+<Layout title="Admin biblioteca" description="Panel privado de biblioteca" lang="es">
   <div class="container admin">
-    <h1>Subida biblioteca</h1>
+    <header class="head">
+      <div>
+        <p class="eyebrow">Privado · no indexar</p>
+        <h1>Subida biblioteca</h1>
+      </div>
+      <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
+    </header>
+
     <p class="lead">
-      Solo visible/usable con clave. Elige canal, rellena metadatos y descarga el bloque JSON.
-      Copia archivos a <code>public/library/</code> y pega el ítem en <code>src/data/library.json</code>.
+      Solo accesible con contraseña de servidor (y opcionalmente Cloudflare Access). Elige canal,
+      rellena metadatos y genera el bloque JSON. Copia archivos a
+      <code>public/library/</code> y pega el ítem en <code>src/data/library.json</code>.
     </p>
 
-    <div class="gate" data-gate>
-      <label>
-        Clave admin
-        <input type="password" data-admin-key autocomplete="current-password" />
-      </label>
-      <button type="button" class="btn" data-unlock>Entrar</button>
-      <p class="err" data-gate-err hidden>Clave incorrecta</p>
-    </div>
-
-    <div class="workspace" data-workspace hidden>
+    <div class="workspace" data-workspace>
       <div class="channels">
-        <button type="button" class="chip is-active" data-channel="video">Canal vídeo (1:1 / 9:16)</button>
+        <button type="button" class="chip is-active" data-channel="video">
+          Canal vídeo (1:1 / 9:16)
+        </button>
         <button type="button" class="chip" data-channel="stems">Canal stems</button>
       </div>
 
@@ -54,7 +56,7 @@ import Layout from "../../components/Layout.astro";
             <input name="videoFile" placeholder="mi-clip.mp4" />
           </label>
           <label>
-            Cover (opcional)
+            Cover / miniatura (opcional)
             <input name="coverFile" placeholder="mi-clip.jpg" />
           </label>
         </div>
@@ -65,23 +67,65 @@ import Layout from "../../components/Layout.astro";
             <input name="stemsCover" placeholder="umbral.jpg" />
           </label>
           <label>
-            Stems (una línea: id | etiqueta | archivo.wav)
+            Stems (una línea: id | etiqueta | archivo.mp3)
             <textarea
               name="stemsLines"
               rows="5"
-              placeholder="pads | Pads & Ambiente | umbral-pads.wav
-bass | Bajo | umbral-bass.wav"></textarea>
+              placeholder="pads | Pads & Ambiente | umbral-pads.mp3
+bass | Bajo | umbral-bass.mp3"></textarea>
           </label>
         </div>
 
-        <label>
-          Moods (coma)
-          <input name="moods" placeholder="oscuro, orgánico" />
-        </label>
-        <label>
-          Tags (coma)
-          <input name="tags" placeholder="ambient, cinematic" />
-        </label>
+        <fieldset class="chips-field">
+          <legend>Moods (elige)</legend>
+          <div class="pick" data-mood-picks>
+            {
+              [
+                "oscuro",
+                "orgánico",
+                "inmersivo",
+                "nocturno",
+                "lento",
+                "energético",
+                "etérea",
+                "apertura",
+                "cinematic",
+                "minimal",
+              ].map((m) => (
+                <label class="pick-item">
+                  <input type="checkbox" name="moodPick" value={m} />
+                  {m}
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+
+        <fieldset class="chips-field">
+          <legend>Tags (elige)</legend>
+          <div class="pick" data-tag-picks>
+            {
+              [
+                "ambient",
+                "cinematic",
+                "forest",
+                "immersive",
+                "electronic",
+                "groove",
+                "pads",
+                "nocturno",
+                "strings",
+                "synth",
+              ].map((t) => (
+                <label class="pick-item">
+                  <input type="checkbox" name="tagPick" value={t} />
+                  {t}
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+
         <label>
           Descripción
           <textarea name="description" rows="2"></textarea>
@@ -111,37 +155,10 @@ bass | Bajo | umbral-bass.wav"></textarea>
 </Layout>
 
 <script>
-  const EXPECTED = "nimpo-admin-library"; // cambia en deploy si quieres; o define window
-
-  const gate = document.querySelector("[data-gate]");
-  const workspace = document.querySelector("[data-workspace]");
-  const keyInput = document.querySelector("[data-admin-key]");
-  const err = document.querySelector("[data-gate-err]");
-
-  const unlock = () => {
-    const v = keyInput instanceof HTMLInputElement ? keyInput.value.trim() : "";
-    const ok =
-      v === EXPECTED ||
-      v === localStorage.getItem("nimpo_admin_library_key") ||
-      (import.meta as any).env?.PUBLIC_ADMIN_LIBRARY_KEY === v;
-    // Also accept from meta if build-time public key set
-    const pub = (document.querySelector('meta[name="admin-library-key"]') as HTMLMetaElement | null)
-      ?.content;
-    if (v && (v === EXPECTED || (pub && v === pub))) {
-      localStorage.setItem("nimpo_admin_library_key", v);
-      gate?.setAttribute("hidden", "");
-      workspace?.removeAttribute("hidden");
-      err?.setAttribute("hidden", "");
-    } else {
-      err?.removeAttribute("hidden");
-    }
-  };
-
-  document.querySelector("[data-unlock]")?.addEventListener("click", unlock);
-  if (localStorage.getItem("nimpo_admin_library_key") === EXPECTED) {
-    gate?.setAttribute("hidden", "");
-    workspace?.removeAttribute("hidden");
-  }
+  document.querySelector("[data-logout]")?.addEventListener("click", async () => {
+    await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
+    location.href = "/admin/biblioteca/";
+  });
 
   let channel: "video" | "stems" = "video";
   document.querySelectorAll("[data-channel]").forEach((btn) => {
@@ -170,14 +187,8 @@ bass | Bajo | umbral-bass.wav"></textarea>
     const fd = new FormData(form);
     const title = String(fd.get("title") || "").trim();
     const slug = String(fd.get("slug") || "").trim() || slugify(title);
-    const moods = String(fd.get("moods") || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    const tags = String(fd.get("tags") || "")
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
+    const moods = fd.getAll("moodPick").map(String);
+    const tags = fd.getAll("tagPick").map(String);
 
     const item: Record<string, unknown> = {
       id: `lib-${slug}`,
@@ -187,40 +198,28 @@ bass | Bajo | umbral-bass.wav"></textarea>
       aspect: channel === "stems" ? "1:1" : String(fd.get("aspect") || "1:1"),
       tags,
       moods,
-      description: String(fd.get("description") || ""),
-      notes: String(fd.get("notes") || ""),
+      description: String(fd.get("description") || "").trim(),
+      notes: String(fd.get("notes") || "").trim(),
       year: Number(fd.get("year") || 2026),
       provisional: fd.get("provisional") === "on",
       licenseEnabled: fd.get("licenseEnabled") === "on",
     };
 
-    const files: string[] = [];
     if (channel === "video") {
       const vf = String(fd.get("videoFile") || "").trim();
       const cf = String(fd.get("coverFile") || "").trim();
-      if (vf) {
-        item.video = `/library/${vf}`;
-        files.push(`public/library/${vf}`);
-      }
-      if (cf) {
-        item.cover = `/library/${cf}`;
-        files.push(`public/library/${cf}`);
-      } else if (vf) {
-        item.cover = null;
-      }
+      item.video = vf ? `/library/${vf}` : null;
+      item.cover = cf ? `/library/${cf}` : null;
     } else {
-      const cf = String(fd.get("stemsCover") || "").trim();
-      if (cf) {
-        item.cover = `/library/${cf}`;
-        files.push(`public/library/${cf}`);
-      }
+      const sc = String(fd.get("stemsCover") || "").trim();
+      item.cover = sc ? `/library/${sc}` : null;
+      item.video = null;
       const lines = String(fd.get("stemsLines") || "")
         .split("\n")
         .map((l) => l.trim())
         .filter(Boolean);
       item.stems = lines.map((line) => {
         const [id, label, file] = line.split("|").map((x) => x.trim());
-        if (file) files.push(`public/library/${file}`);
         return {
           id: id || "stem",
           label: label || id || "Stem",
@@ -229,72 +228,144 @@ bass | Bajo | umbral-bass.wav"></textarea>
       });
     }
 
-    const json = JSON.stringify(item, null, 2);
     const out = document.querySelector("[data-out]");
     const copy = document.querySelector("[data-copy]");
+    const json = JSON.stringify(item, null, 2);
+    const instructions = [
+      "1) Copia los archivos a public/library/ (o public/previews/music/ si reutilizas previews).",
+      "2) Pega este objeto (con coma) dentro del array de src/data/library.json",
+      "3) npm run build && npm run deploy (o push a main)",
+      "",
+      json,
+    ].join("\n");
     if (out instanceof HTMLElement) {
       out.hidden = false;
-      out.textContent =
-        `// 1) Copia archivos a:\n${files.map((f) => "  " + f).join("\n") || "  (ninguno)"}\n\n` +
-        `// 2) Añade este objeto al array en src/data/library.json:\n` +
-        json;
+      out.textContent = instructions;
     }
-    if (copy instanceof HTMLElement) {
-      copy.hidden = false;
-      copy.onclick = () => navigator.clipboard.writeText(json);
-    }
+    if (copy instanceof HTMLElement) copy.hidden = false;
+  });
+
+  document.querySelector("[data-copy]")?.addEventListener("click", async () => {
+    const out = document.querySelector("[data-out]");
+    const t = out?.textContent || "";
+    const m = t.match(/\{[\s\S]*\}\s*$/);
+    if (m) await navigator.clipboard.writeText(m[0]);
   });
 </script>
 
 <style>
   .admin {
-    max-width: 36rem;
+    max-width: 40rem;
+    padding-block: 2rem 4rem;
   }
-
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  h1 {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 500;
+  }
   .lead {
+    margin: 1rem 0 1.5rem;
     color: var(--color-muted);
-    line-height: 1.6;
+    font-size: 0.95rem;
+    line-height: 1.55;
   }
-
-  .gate,
+  .lead code {
+    font-size: 0.85em;
+    color: var(--color-accent);
+  }
+  .channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .chip {
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .chip.is-active {
+    border-color: rgb(201 169 98 / 0.45);
+    color: var(--color-accent);
+    background: var(--color-accent-light);
+  }
   .form {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
+    gap: 0.85rem;
   }
-
-  label {
+  .form label,
+  .form fieldset {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.35rem;
     font-size: 0.8rem;
-    font-weight: 600;
     color: var(--color-muted);
   }
-
-  input,
-  select,
-  textarea {
-    font: inherit;
-    font-weight: 400;
-    color: var(--color-fg);
-    padding: 0.5rem 0.65rem;
-    border-radius: var(--radius);
+  .form input,
+  .form select,
+  .form textarea {
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
     border: 1px solid var(--color-border);
-    background: var(--color-surface);
+    background: var(--color-bg-elevated);
+    color: var(--color-fg);
+    font: inherit;
   }
-
-  .check {
+  .form .check {
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
   }
-
-  .btn {
-    align-self: flex-start;
-    padding: 0.55rem 1rem;
+  .chips-field {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin: 0;
+  }
+  .chips-field legend {
+    padding: 0 0.35rem;
+    font-size: 0.75rem;
+  }
+  .pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .pick-item {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.3rem !important;
+    padding: 0.25rem 0.5rem;
     border-radius: 999px;
+    border: 1px solid var(--color-border);
+    font-size: 0.75rem !important;
+    cursor: pointer;
+  }
+  .btn {
+    display: inline-flex;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-fg);
@@ -302,52 +373,24 @@ bass | Bajo | umbral-bass.wav"></textarea>
     font-weight: 600;
     cursor: pointer;
   }
-
   .btn--gold {
-    background: var(--color-accent);
-    color: #0a0a0c;
-    border-color: transparent;
-  }
-
-  .channels {
-    display: flex;
-    gap: 0.5rem;
-    margin: 1.5rem 0 0.5rem;
-  }
-
-  .chip {
-    padding: 0.4rem 0.75rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-muted);
-    font: inherit;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-
-  .chip.is-active {
+    background: var(--color-accent-light);
+    border-color: rgb(201 169 98 / 0.4);
     color: var(--color-accent);
-    border-color: rgb(201 169 98 / 0.45);
   }
-
+  .btn--ghost {
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.85;
+  }
   .out {
     margin-top: 1.25rem;
     padding: 1rem;
-    border-radius: var(--radius);
+    border-radius: 10px;
     border: 1px solid var(--color-border);
-    background: rgb(0 0 0 / 0.35);
+    background: #0c0c10;
     font-size: 0.75rem;
     overflow: auto;
     white-space: pre-wrap;
-  }
-
-  .err {
-    color: #e88;
-    font-size: 0.85rem;
-  }
-
-  code {
-    font-size: 0.85em;
   }
 </style>

@@ -226,16 +226,40 @@ export function bindLibraryBrowser() {
         stemsTx.applyMix(on.size ? on : null);
       };
 
+      const showStemError = (msg: string) => {
+        let el = root.querySelector("[data-lb-stem-err]");
+        if (!el) {
+          el = document.createElement("p");
+          el.setAttribute("data-lb-stem-err", "");
+          el.setAttribute("role", "alert");
+          (el as HTMLElement).style.cssText =
+            "margin:0.5rem 0;padding:0.5rem 0.75rem;border-radius:8px;background:rgb(240 80 80/0.12);color:#f0a0a0;font-size:0.8rem";
+          grid?.parentElement?.insertBefore(el, grid);
+        }
+        el.textContent = msg;
+        (el as HTMLElement).hidden = false;
+      };
+      const hideStemError = () => {
+        const el = root.querySelector("[data-lb-stem-err]");
+        if (el instanceof HTMLElement) el.hidden = true;
+      };
+
       const playStems = async (item: Item, playId: string) => {
         if (!item.stems?.length || loadingStems) return;
         loadingStems = true;
+        hideStemError();
         try {
           await stemsTx.resumeCtx();
           if (gridVideo) {
             gridVideo.pause();
             gridVideo = null;
           }
-          await stemsTx.load(item.id, item.stems);
+          // Re-mapear src por si el catálogo aún trae r2.dev
+          const stems = item.stems.map((s) => ({
+            ...s,
+            src: safeMediaUrl(s.src) || s.src,
+          }));
+          await stemsTx.load(item.id, stems);
           applyStemMixFromUi();
           stemsTx.play();
           playingId = playId;
@@ -243,8 +267,19 @@ export function bindLibraryBrowser() {
           markPlayingButtons(playId);
           startProgressLoop();
           updateProgressUI();
+          if (stemsTx.lastError) {
+            showStemError(stemsTx.lastError);
+          }
         } catch (e) {
+          const msg =
+            e instanceof Error ? e.message : "No se pudieron cargar los stems";
           console.warn("[lb] stems load/play fail", e);
+          showStemError(
+            `Audio: ${msg}. Prueba recarga forzada (Ctrl+F5). Si sigue, re-publica la obra.`,
+          );
+          playingId = null;
+          transportPlaying = false;
+          resetPlayButtons();
         } finally {
           loadingStems = false;
         }

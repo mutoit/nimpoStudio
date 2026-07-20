@@ -1,9 +1,8 @@
 /**
  * Reproductor multi-stem con Web Audio (buffers en memoria).
- * Pages no sirve Range/partial content → HTMLAudioElement no scrubea.
  * El ruido de preview se incrusta al publicar (admin), no aquí.
  *
- * P⇒Q: load(stems) ⇒ play/pause/seek/mute con currentTime coherente.
+ * P⇒Q: load(stems) ⇒ play/pause/seek/mute; carga resiliente (no falla todo por 1 stem).
  */
 
 export type StemDef = { src: string; label?: string };
@@ -16,11 +15,31 @@ type Layer = {
   on: boolean;
 };
 
-function mediaSrc(src: string) {
+/** r2.dev / library/… → /api/media/… (same-origin). */
+export function resolveStemUrl(src: string): string {
+  let u = String(src || "").trim();
+  if (!u) return "";
   try {
-    return encodeURI(src);
+    if (u.startsWith("library/")) return `/api/media/${u}`;
+    if (u.includes(".r2.dev")) {
+      const parsed = new URL(u, "https://nimpo3dstudio.com");
+      if (parsed.hostname.endsWith(".r2.dev")) {
+        const key = parsed.pathname.replace(/^\/+/, "");
+        if (key.startsWith("library/")) return `/api/media/${key}`;
+      }
+    }
   } catch {
-    return src;
+    /* keep */
+  }
+  // encode solo segmentos con espacios (no romper /)
+  try {
+    return u
+      .split("/")
+      .map((seg, i) => (i === 0 && seg === "" ? "" : encodeURIComponent(decodeURIComponent(seg))))
+      .join("/")
+      .replace(/%2F/gi, "/");
+  } catch {
+    return encodeURI(u);
   }
 }
 
@@ -42,6 +61,8 @@ export class StemTransport {
   private startOffset = 0;
   private pauseAt = 0;
   duration = 0;
+  /** Último error legible (UI). */
+  lastError: string | null = null;
 
   get isPlaying() {
     return this.playing;
@@ -79,13 +100,16 @@ export class StemTransport {
   }
 
   async load(itemId: string, stems: StemDef[]) {
-    if (this.itemId === itemId && this.layers.length === stems.length) return;
+    // Mismo ítem ya cargado con capas
+    if (this.itemId === itemId && this.layers.length > 0) return;
+
     this.stopSources();
     this.layers = [];
     this.itemId = itemId;
     this.pauseAt = 0;
     this.playing = false;
     this.duration = 0;
+    this.lastError = null;
 
     const ctx = this.ensureCtx();
     if (!this.master) {
@@ -93,25 +117,58 @@ export class StemTransport {
       this.master.connect(ctx.destination);
     }
 
-    const loaded = await Promise.all(
-      stems.map(async (s) => {
-        const url = mediaSrc(s.src);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`stem fetch ${res.status} ${url}`);
+    const list = stems.filter((s) => s?.src);
+    if (!list.length) {
+      this.lastError = "Sin stems con URL";
+      throw new Error(this.lastError);
+    }
+
+    // Carga en serie (evita saturar Functions con 9 fetch paralelos)
+    const loaded: Layer[] = [];
+    const errors: string[] = [];
+
+    for (const s of list) {
+      const url = resolveStemUrl(s.src);
+      try {
+        const res = await fetch(url, { credentials: "same-origin", cache: "force-cache" });
+        if (!res.ok) {
+          errors.push(`${res.status} ${url}`);
+          continue;
+        }
         const raw = await res.arrayBuffer();
+        if (raw.byteLength < 64) {
+          errors.push(`vacío ${url}`);
+          continue;
+        }
         const buffer = await ctx.decodeAudioData(raw.slice(0));
         const gain = ctx.createGain();
         gain.gain.value = 1;
         gain.connect(this.master!);
-        return {
+        loaded.push({
           src: s.src,
           buffer,
           gain,
-          source: null as AudioBufferSourceNode | null,
+          source: null,
           on: true,
-        };
-      }),
-    );
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`${msg} @ ${url}`);
+      }
+    }
+
+    if (!loaded.length) {
+      this.lastError =
+        errors.slice(0, 3).join(" · ") || "No se pudo cargar ningún stem";
+      this.itemId = null;
+      throw new Error(this.lastError);
+    }
+
+    if (errors.length) {
+      console.warn("[stems] partial load", errors);
+      this.lastError = `OK ${loaded.length}/${list.length}. Fallos: ${errors[0]}`;
+    }
+
     this.layers = loaded;
     this.duration = loaded.reduce((m, l) => Math.max(m, l.buffer.duration), 0);
   }
@@ -188,22 +245,22 @@ export class StemTransport {
   setLayerOn(src: string, on: boolean) {
     const n = normSrc(src);
     for (const l of this.layers) {
-      if (normSrc(l.src) === n) {
+      if (normSrc(l.src) === n || normSrc(resolveStemUrl(l.src)) === n) {
         l.on = on;
         l.gain.gain.value = on ? 1 : 0;
       }
     }
   }
 
-  /** enabledSrcs null = todas on; Set vacío = todas off. */
   applyMix(enabledSrcs: Set<string> | null) {
     for (const l of this.layers) {
+      const candidates = [normSrc(l.src), normSrc(resolveStemUrl(l.src))];
       const on =
         enabledSrcs == null
           ? true
           : enabledSrcs.size === 0
             ? false
-            : enabledSrcs.has(normSrc(l.src));
+            : candidates.some((c) => enabledSrcs.has(c));
       l.on = on;
       l.gain.gain.value = on ? 1 : 0;
     }

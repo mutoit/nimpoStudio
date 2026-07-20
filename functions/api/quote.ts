@@ -18,7 +18,8 @@ import {
   type LicenseTermCode,
   type LicenseUsageCode,
 } from "../lib/license-quote";
-import { checkRateLimit, clientIp } from "../lib/rate-limit";
+import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
+import { verifyTurnstile } from "../lib/turnstile";
 
 type QuoteBody = {
   name?: string;
@@ -40,7 +41,17 @@ type QuoteBody = {
   removeFromCatalog?: boolean;
   territoryExpand?: boolean;
   moreComposition?: boolean;
+  /** Token Cloudflare Turnstile (si TURNSTILE_SECRET_KEY está configurado). */
+  turnstileToken?: string;
 };
+
+/** Una línea, sin CR/LF (subjects / nombres). */
+function oneLine(s: string, max = 200): string {
+  return String(s || "")
+    .replace(/[\r\n\u0000]/g, " ")
+    .trim()
+    .slice(0, max);
+}
 
 const ALLOWED_ORIGINS = new Set([
   "https://www.nimpo3dstudio.com",
@@ -180,6 +191,10 @@ type Env = {
   MAIL_WORKER_URL?: string;
   /** Service binding al Worker nimpo-mail */
   MAIL?: { fetch: (input: RequestInfo, init?: RequestInit) => Promise<Response> };
+  TURNSTILE_SECRET_KEY?: string;
+  /** Si "1" | "true", también envía email al solicitante (off por defecto). */
+  SEND_CLIENT_QUOTE_EMAIL?: string;
+  RATE_LIMIT_KV?: RateLimitKv;
 };
 
 async function sendViaMailWorker(
@@ -344,18 +359,11 @@ export async function onRequest(context: {
   }
 
   if (request.method === "GET") {
+    // Mínimo en health — no filtrar proveedores (recon).
     return json(
       {
         status: "ok",
-        message: "POST license quote payload here",
-        hasEmail: Boolean(
-          env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
-        ),
-        providers: {
-          mailWorker: Boolean(env.MAIL || env.MAIL_SECRET),
-          cloudflareApi: Boolean(env.CLOUDFLARE_API_TOKEN),
-          resend: Boolean(env.RESEND_API_KEY),
-        },
+        turnstileRequired: Boolean(String(env.TURNSTILE_SECRET_KEY || "").trim()),
       },
       200,
       request,
@@ -367,7 +375,11 @@ export async function onRequest(context: {
   }
 
   const ip = clientIp(request);
-  const rl = checkRateLimit(`quote:${ip}`, { limit: 20, windowSec: 3600 });
+  const rl = await checkRateLimitAsync(
+    `quote:${ip}`,
+    { limit: 6, windowSec: 3600 },
+    env.RATE_LIMIT_KV,
+  );
   if (!rl.ok) {
     return json(
       { ok: false, error: "rate_limited" },
@@ -384,14 +396,22 @@ export async function onRequest(context: {
     return json({ ok: false, error: "invalid_json" }, 400, request);
   }
 
-  const name = String(body.name || "").trim();
-  const email = String(body.email || "").trim();
-  const workName = String(body.workName || "").trim();
-  const workSlug = String(body.workSlug || "").trim();
-  const territory = String(body.territory || "").trim();
-  const project = String(body.project || "").trim();
-  const usageRaw = String(body.usage || "").trim();
-  const termRaw = String(body.term || "2y").trim() as LicenseTermCode;
+  const ts = await verifyTurnstile(env, body.turnstileToken, ip);
+  if (!ts.ok) {
+    return json({ ok: false, error: ts.error || "turnstile_failed" }, 403, request);
+  }
+
+  const name = oneLine(String(body.name || ""), 120);
+  const email = oneLine(String(body.email || ""), 200).toLowerCase();
+  const workName = oneLine(String(body.workName || ""), 200);
+  const workSlug = oneLine(String(body.workSlug || ""), 120);
+  const territory = oneLine(String(body.territory || ""), 80);
+  const project = String(body.project || "")
+    .replace(/\u0000/g, "")
+    .trim()
+    .slice(0, 2000);
+  const usageRaw = oneLine(String(body.usage || ""), 40);
+  const termRaw = oneLine(String(body.term || "2y"), 20) as LicenseTermCode;
 
   if (!name || !email || !workName || !workSlug || !territory || !project) {
     return json({ ok: false, error: "missing_fields" }, 400, request);
@@ -411,7 +431,10 @@ export async function onRequest(context: {
     exclusive: Boolean(body.exclusive),
     buyout: Boolean(body.buyout),
     needSpecialReview: Boolean(body.needSpecialReview),
-    specialNotes: String(body.specialNotes || "").trim(),
+    specialNotes: String(body.specialNotes || "")
+      .replace(/\u0000/g, "")
+      .trim()
+      .slice(0, 2000),
     term: ["single", "project", "1y", "2y", "custom"].includes(termRaw) ? termRaw : "2y",
     termPlus1y: Boolean(body.termPlus1y),
     removeFromCatalog: Boolean(body.removeFromCatalog),
@@ -431,7 +454,6 @@ export async function onRequest(context: {
   };
 
   const studioText = buildStudioText(filled, quote);
-  const clientText = buildClientText({ name, workName }, quote);
 
   console.log(
     "[QUOTE]",
@@ -445,17 +467,14 @@ export async function onRequest(context: {
       time: new Date().toISOString(),
     }),
   );
-  console.log("[QUOTE_FULL]\n" + studioText);
 
   const toStudio = (env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com").trim();
-  const subjectStudio =
+  const subjectStudio = oneLine(
     quote.mode === "instant"
       ? `[Licencia ${quote.total}€] ${workName} — ${name}`
-      : `[Revisión licencia] ${workName} — ${name}`;
-  const subjectClient =
-    quote.mode === "instant"
-      ? `Tu presupuesto — ${workName} (${quote.total} €)`
-      : `Hemos recibido tu solicitud — ${workName}`;
+      : `[Revisión licencia] ${workName} — ${name}`,
+    180,
+  );
 
   const studioMail = await sendEmail(env, {
     to: [toStudio],
@@ -464,11 +483,29 @@ export async function onRequest(context: {
     replyTo: email,
   });
 
-  const clientMail = await sendEmail(env, {
-    to: [email],
-    subject: subjectClient,
-    text: clientText,
-  });
+  // No auto-mail al "cliente" (evita spam a terceros). Opt-in: SEND_CLIENT_QUOTE_EMAIL=1
+  const sendClient =
+    String(env.SEND_CLIENT_QUOTE_EMAIL || "").trim() === "1" ||
+    String(env.SEND_CLIENT_QUOTE_EMAIL || "").toLowerCase() === "true";
+
+  let clientMail: { ok: boolean; error?: string; via?: string } = {
+    ok: false,
+    error: "client_email_disabled",
+  };
+  if (sendClient) {
+    const clientText = buildClientText({ name, workName }, quote);
+    const subjectClient = oneLine(
+      quote.mode === "instant"
+        ? `Tu presupuesto — ${workName} (${quote.total} €)`
+        : `Hemos recibido tu solicitud — ${workName}`,
+      180,
+    );
+    clientMail = await sendEmail(env, {
+      to: [email],
+      subject: subjectClient,
+      text: clientText,
+    });
+  }
 
   return json(
     {
@@ -487,10 +524,15 @@ export async function onRequest(context: {
           env.MAIL || env.MAIL_SECRET || env.CLOUDFLARE_API_TOKEN || env.RESEND_API_KEY,
         ),
         studioSent: studioMail.ok,
-        clientSent: clientMail.ok,
+        clientSent: sendClient ? clientMail.ok : false,
+        clientEmailEnabled: sendClient,
         studioError: studioMail.ok ? null : studioMail.error || null,
-        clientError: clientMail.ok ? null : clientMail.error || null,
-        via: studioMail.via || clientMail.via || null,
+        clientError: sendClient
+          ? clientMail.ok
+            ? null
+            : clientMail.error || null
+          : "disabled",
+        via: studioMail.via || (sendClient ? clientMail.via : null) || null,
       },
     },
     200,

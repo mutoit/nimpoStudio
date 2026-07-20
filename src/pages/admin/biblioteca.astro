@@ -1,9 +1,7 @@
 ---
 /**
- * Panel de subida (solo estudio).
- * Auth: cookie + ADMIN_LIBRARY_SECRET (middleware).
- * Archivos: selectores reales → descarga empaquetada a public/library/
- *           o POST /admin/upload si R2 (LIBRARY_BUCKET) está configurado.
+ * Panel de publicación (solo estudio).
+ * Un clic: sube media a R2 + actualiza catálogo vivo → se ve en /es/biblioteca/
  */
 import Layout from "../../components/Layout.astro";
 ---
@@ -13,22 +11,21 @@ import Layout from "../../components/Layout.astro";
     <header class="head">
       <div>
         <p class="eyebrow">Privado · no indexar</p>
-        <h1>Subida biblioteca</h1>
+        <h1>Publicar en biblioteca</h1>
       </div>
       <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
     </header>
 
     <p class="lead">
-      Elige canal, adjunta archivos reales (vídeo, miniatura, stems), metadatos y exporta.
-      Por defecto se <strong>descargan</strong> los archivos con el nombre correcto para
-      copiarlos a <code>public/library/</code> y se genera el JSON de
-      <code>library.json</code>. Si activas R2 + binding, el botón intentará subir al servidor.
+      Elige canal, adjunta archivos y pulsa <strong>Publicar en la web</strong>.
+      Se sube a R2 y el catálogo se actualiza solo — <strong>sin copiar JSON a mano</strong>.
+      Abre <a href="/es/biblioteca/" target="_blank" rel="noopener">/es/biblioteca/</a> y recarga.
     </p>
 
     <div class="workspace" data-workspace>
       <div class="channels">
         <button type="button" class="chip is-active" data-channel="video">
-          Canal vídeo (1:1 / 9:16)
+          Canal vídeo
         </button>
         <button type="button" class="chip" data-channel="stems">Canal stems</button>
       </div>
@@ -39,11 +36,10 @@ import Layout from "../../components/Layout.astro";
           <input name="title" required data-title />
         </label>
         <label>
-          Slug (url)
+         Slug (url)
           <input name="slug" placeholder="auto-desde-titulo" data-slug />
         </label>
 
-        <!-- —— VÍDEO —— -->
         <div data-video-fields>
           <label>
             Aspecto
@@ -55,37 +51,34 @@ import Layout from "../../components/Layout.astro";
           </label>
           <label class="file-label">
             Vídeo (mp4 / webm) *
-            <input type="file" name="video" accept="video/mp4,video/webm,video/*" data-video-file />
+            <input type="file" accept="video/mp4,video/webm,video/*" data-video-file required />
           </label>
           <div class="preview" data-video-preview hidden></div>
           <label class="file-label">
-            Miniatura / cover (jpg, png, webp)
-            <input type="file" name="cover" accept="image/*" data-cover-file />
+            Miniatura / cover (opcional)
+            <input type="file" accept="image/*" data-cover-file />
           </label>
           <div class="preview preview--img" data-cover-preview hidden></div>
         </div>
 
-        <!-- —— STEMS —— -->
         <div data-stems-fields hidden>
           <label class="file-label">
             Cover / miniatura
-            <input type="file" name="stemsCover" accept="image/*" data-stems-cover />
+            <input type="file" accept="image/*" data-stems-cover />
           </label>
           <div class="preview preview--img" data-stems-cover-preview hidden></div>
-
           <div class="stems-box">
             <div class="stems-head">
               <span>Capas (stems)</span>
               <button type="button" class="btn btn--sm" data-add-stem>+ Añadir stem</button>
             </div>
             <div class="stems-list" data-stems-list></div>
-            <p class="hint">Cada fila: etiqueta + archivo de audio (mp3/wav). Orden = orden en el mixer.</p>
           </div>
         </div>
 
         <fieldset class="chips-field">
-          <legend>Moods (elige)</legend>
-          <div class="pick" data-mood-picks>
+          <legend>Moods</legend>
+          <div class="pick">
             {
               [
                 "oscuro",
@@ -109,8 +102,8 @@ import Layout from "../../components/Layout.astro";
         </fieldset>
 
         <fieldset class="chips-field">
-          <legend>Tags (elige)</legend>
-          <div class="pick" data-tag-picks>
+          <legend>Tags</legend>
+          <div class="pick">
             {
               [
                 "ambient",
@@ -138,39 +131,33 @@ import Layout from "../../components/Layout.astro";
           <textarea name="description" rows="2"></textarea>
         </label>
         <label>
-          Notas (panel lateral público)
-          <textarea name="notes" rows="2" placeholder="Lo que verá el cliente"></textarea>
+          Notas
+          <textarea name="notes" rows="2"></textarea>
         </label>
         <label class="check">
           <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada
         </label>
         <label class="check">
-          <input type="checkbox" name="provisional" checked /> Provisional / demo
+          <input type="checkbox" name="provisional" /> Provisional / demo
         </label>
         <label>
           Año
           <input name="year" type="number" value="2026" />
         </label>
 
-        <div class="actions">
-          <button type="submit" class="btn btn--gold" data-export>
-            Preparar archivos + JSON
-          </button>
-          <button type="button" class="btn" data-try-r2 hidden>
-            Subir a R2 (si está activo)
-          </button>
-        </div>
+        <button type="submit" class="btn btn--gold" data-publish>
+          Publicar en la web
+        </button>
         <p class="status" data-status hidden></p>
       </form>
 
       <pre class="out" data-out hidden></pre>
-      <button type="button" class="btn" data-copy hidden>Copiar solo JSON del ítem</button>
     </div>
   </div>
 </Layout>
 
 <script>
-  type StemRow = { id: string; label: string; file: File | null };
+  type StemRow = { label: string; file: File | null };
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
@@ -178,7 +165,10 @@ import Layout from "../../components/Layout.astro";
   });
 
   let channel: "video" | "stems" = "video";
-  let stemRows: StemRow[] = [];
+  let stemRows: StemRow[] = [
+    { label: "", file: null },
+    { label: "", file: null },
+  ];
 
   const slugify = (s: string) =>
     s
@@ -188,23 +178,6 @@ import Layout from "../../components/Layout.astro";
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
-  const extOf = (f: File, fallback: string) => {
-    const p = f.name.split(".").pop()?.toLowerCase();
-    return p && /^[a-z0-9]+$/.test(p) ? p : fallback;
-  };
-
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  };
-
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-  // —— canal ——
   document.querySelectorAll("[data-channel]").forEach((btn) => {
     btn.addEventListener("click", () => {
       channel = ((btn as HTMLElement).dataset.channel as "video" | "stems") || "video";
@@ -214,15 +187,14 @@ import Layout from "../../components/Layout.astro";
       const sf = document.querySelector("[data-stems-fields]");
       if (vf instanceof HTMLElement) vf.hidden = channel !== "video";
       if (sf instanceof HTMLElement) sf.hidden = channel !== "stems";
+      const videoInput = document.querySelector("[data-video-file]");
+      if (videoInput instanceof HTMLInputElement) {
+        videoInput.required = channel === "video";
+      }
     });
   });
 
-  // —— previews ——
-  const bindFilePreview = (
-    inputSel: string,
-    previewSel: string,
-    kind: "video" | "img",
-  ) => {
+  const bindPreview = (inputSel: string, previewSel: string, kind: "video" | "img") => {
     const input = document.querySelector(inputSel);
     const box = document.querySelector(previewSel);
     if (!(input instanceof HTMLInputElement) || !(box instanceof HTMLElement)) return;
@@ -235,18 +207,16 @@ import Layout from "../../components/Layout.astro";
       }
       const url = URL.createObjectURL(f);
       box.hidden = false;
-      if (kind === "video") {
-        box.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">${f.name} · ${(f.size / 1e6).toFixed(1)} MB</p>`;
-      } else {
-        box.innerHTML = `<img src="${url}" alt="" /><p class="fname">${f.name}</p>`;
-      }
+      box.innerHTML =
+        kind === "video"
+          ? `<video src="${url}" controls playsinline></video><p class="fname">${f.name}</p>`
+          : `<img src="${url}" alt="" /><p class="fname">${f.name}</p>`;
     });
   };
-  bindFilePreview("[data-video-file]", "[data-video-preview]", "video");
-  bindFilePreview("[data-cover-file]", "[data-cover-preview]", "img");
-  bindFilePreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
+  bindPreview("[data-video-file]", "[data-video-preview]", "video");
+  bindPreview("[data-cover-file]", "[data-cover-preview]", "img");
+  bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
 
-  // —— stems rows ——
   const stemsList = document.querySelector("[data-stems-list]");
   const renderStems = () => {
     if (!stemsList) return;
@@ -254,27 +224,23 @@ import Layout from "../../components/Layout.astro";
       .map(
         (row, i) => `
       <div class="stem-row" data-stem-i="${i}">
-        <input type="text" class="stem-label" placeholder="Etiqueta (ej. Pads)" value="${row.label.replace(/"/g, "&quot;")}" data-stem-label />
-        <input type="file" accept="audio/*,.mp3,.wav,.ogg" data-stem-file />
-        <span class="stem-fname">${row.file ? row.file.name : "Sin archivo"}</span>
-        <button type="button" class="btn btn--sm btn--danger" data-stem-remove title="Quitar">×</button>
+        <input type="text" placeholder="Etiqueta" value="${(row.label || "").replace(/"/g, "&quot;")}" data-stem-label />
+        <input type="file" accept="audio/*,.mp3,.wav" data-stem-file />
+        <span class="stem-fname">${row.file ? row.file.name : "—"}</span>
+        <button type="button" class="btn btn--sm btn--danger" data-stem-remove>×</button>
       </div>`,
       )
       .join("");
-
     stemsList.querySelectorAll(".stem-row").forEach((el) => {
       const i = Number((el as HTMLElement).dataset.stemI);
       el.querySelector("[data-stem-label]")?.addEventListener("input", (ev) => {
-        const t = (ev.target as HTMLInputElement).value;
-        if (stemRows[i]) stemRows[i]!.label = t;
+        if (stemRows[i]) stemRows[i]!.label = (ev.target as HTMLInputElement).value;
       });
       el.querySelector("[data-stem-file]")?.addEventListener("change", (ev) => {
         const f = (ev.target as HTMLInputElement).files?.[0] || null;
         if (stemRows[i]) {
           stemRows[i]!.file = f;
-          if (f && !stemRows[i]!.label) {
-            stemRows[i]!.label = f.name.replace(/\.[^.]+$/, "");
-          }
+          if (f && !stemRows[i]!.label) stemRows[i]!.label = f.name.replace(/\.[^.]+$/, "");
           renderStems();
         }
       });
@@ -284,20 +250,10 @@ import Layout from "../../components/Layout.astro";
       });
     });
   };
-
   document.querySelector("[data-add-stem]")?.addEventListener("click", () => {
-    stemRows.push({
-      id: `stem-${stemRows.length + 1}`,
-      label: "",
-      file: null,
-    });
+    stemRows.push({ label: "", file: null });
     renderStems();
   });
-  // start with 2 empty rows
-  stemRows = [
-    { id: "stem-1", label: "", file: null },
-    { id: "stem-2", label: "", file: null },
-  ];
   renderStems();
 
   const setStatus = (msg: string, ok = true) => {
@@ -308,201 +264,108 @@ import Layout from "../../components/Layout.astro";
     el.classList.toggle("is-err", !ok);
   };
 
-  const buildItem = (form: HTMLFormElement) => {
-    const fd = new FormData(form);
-    const title = String(fd.get("title") || "").trim();
-    const slug = String(fd.get("slug") || "").trim() || slugify(title);
-    const moods = fd.getAll("moodPick").map(String);
-    const tags = fd.getAll("tagPick").map(String);
-
-    const item: Record<string, unknown> = {
-      id: `lib-${slug}`,
-      slug,
-      title,
-      kind: channel === "stems" ? "stems" : "video",
-      aspect: channel === "stems" ? "1:1" : String(fd.get("aspect") || "1:1"),
-      tags,
-      moods,
-      description: String(fd.get("description") || "").trim(),
-      notes: String(fd.get("notes") || "").trim(),
-      year: Number(fd.get("year") || 2026),
-      provisional: fd.get("provisional") === "on",
-      licenseEnabled: fd.get("licenseEnabled") === "on",
-    };
-
-    const filesToSave: { file: File; name: string }[] = [];
-
-    if (channel === "video") {
-      const videoInput = form.querySelector("[data-video-file]") as HTMLInputElement;
-      const coverInput = form.querySelector("[data-cover-file]") as HTMLInputElement;
-      const vf = videoInput?.files?.[0] || null;
-      const cf = coverInput?.files?.[0] || null;
-      if (!vf) throw new Error("Elige un archivo de vídeo.");
-      const vName = `${slug}.${extOf(vf, "mp4")}`;
-      item.video = `/library/${vName}`;
-      filesToSave.push({ file: vf, name: vName });
-      if (cf) {
-        const cName = `${slug}-cover.${extOf(cf, "jpg")}`;
-        item.cover = `/library/${cName}`;
-        filesToSave.push({ file: cf, name: cName });
-      } else {
-        item.cover = null;
-      }
-    } else {
-      const coverInput = form.querySelector("[data-stems-cover]") as HTMLInputElement;
-      const cf = coverInput?.files?.[0] || null;
-      const ready = stemRows.filter((r) => r.file);
-      if (!ready.length) throw new Error("Añade al menos un stem con archivo de audio.");
-      if (cf) {
-        const cName = `${slug}-cover.${extOf(cf, "jpg")}`;
-        item.cover = `/library/${cName}`;
-        filesToSave.push({ file: cf, name: cName });
-      } else {
-        item.cover = null;
-      }
-      item.video = null;
-      item.stems = ready.map((r, i) => {
-        const f = r.file!;
-        const id = slugify(r.label || r.id || `stem-${i + 1}`) || `stem-${i + 1}`;
-        const fname = `${slug}-${id}.${extOf(f, "mp3")}`;
-        filesToSave.push({ file: f, name: fname });
-        return {
-          id,
-          label: r.label || id,
-          src: `/library/${fname}`,
-        };
-      });
-    }
-
-    return { item, filesToSave, slug };
-  };
-
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const out = document.querySelector("[data-out]");
-    const copy = document.querySelector("[data-copy]");
+    const btn = form.querySelector("[data-publish]");
+    if (btn instanceof HTMLButtonElement) btn.disabled = true;
+
     try {
-      const { item, filesToSave, slug } = buildItem(form);
-      setStatus(`Descargando ${filesToSave.length} archivo(s) + JSON…`);
+      const fd = new FormData(form);
+      const title = String(fd.get("title") || "").trim();
+      const slug = String(fd.get("slug") || "").trim() || slugify(title);
+      const moods = fd.getAll("moodPick").map(String);
+      const tags = fd.getAll("tagPick").map(String);
 
-      for (const { file, name } of filesToSave) {
-        downloadBlob(file, name);
-        await sleep(350);
+      const body = new FormData();
+      body.set("title", title);
+      body.set("slug", slug);
+      body.set("kind", channel);
+      body.set("aspect", String(fd.get("aspect") || "1:1"));
+      body.set("moods", JSON.stringify(moods));
+      body.set("tags", JSON.stringify(tags));
+      body.set("description", String(fd.get("description") || ""));
+      body.set("notes", String(fd.get("notes") || ""));
+      body.set("year", String(fd.get("year") || "2026"));
+      body.set("provisional", fd.get("provisional") === "on" ? "1" : "0");
+      body.set("licenseEnabled", fd.get("licenseEnabled") === "on" ? "1" : "0");
+
+      if (channel === "video") {
+        const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
+        if (!v) throw new Error("Elige un vídeo.");
+        body.set("video", v, v.name);
+        const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
+        if (c) body.set("cover", c, c.name);
+      } else {
+        const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+        if (c) body.set("cover", c, c.name);
+        let n = 0;
+        for (const row of stemRows) {
+          if (!row.file) continue;
+          body.set(`stem_${n}_file`, row.file, row.file.name);
+          body.set(`stem_${n}_label`, row.label || row.file.name);
+          n++;
+        }
+        if (!n) throw new Error("Añade al menos un stem con audio.");
       }
-      const json = JSON.stringify(item, null, 2);
-      downloadBlob(new Blob([json], { type: "application/json" }), `${slug}.library-item.json`);
 
-      const instructions = [
-        `✅ Listo: se han descargado ${filesToSave.length} media + ${slug}.library-item.json`,
-        "",
-        "1) Mueve los archivos de media a: public/library/",
-        "2) Abre src/data/library.json y pega el objeto (con coma si hace falta):",
-        "",
-        json,
-        "",
-        "3) npm run build && npm run deploy (o push a main)",
-        "",
-        "Si activas R2 en Cloudflare (binding LIBRARY_BUCKET), podrás subir sin copiar a mano.",
-      ].join("\n");
-
-      if (out instanceof HTMLElement) {
-        out.hidden = false;
-        out.textContent = instructions;
-      }
-      if (copy instanceof HTMLElement) copy.hidden = false;
-      setStatus("Descargas lanzadas. Revisa la carpeta de descargas del navegador.");
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Error", false);
-    }
-  });
-
-  // Subida a R2 (bucket nimpo-library, público en r2.dev)
-  document.querySelector("[data-try-r2]")?.addEventListener("click", async () => {
-    const form = document.querySelector("[data-admin-form]");
-    if (!(form instanceof HTMLFormElement)) return;
-    try {
-      const { item, filesToSave, slug } = buildItem(form);
-      const fd = new FormData();
-      fd.set("slug", slug);
-      fd.set("kind", String(item.kind));
-      for (const { file, name } of filesToSave) {
-        fd.append(name, file, name);
-      }
-      setStatus("Subiendo a R2…");
-      const res = await fetch("/admin/upload", {
+      setStatus("Publicando… (subida + catálogo)");
+      const res = await fetch("/admin/publish", {
         method: "POST",
-        body: fd,
+        body,
         credentials: "same-origin",
       });
       const data = await res.json();
-      if (!res.ok) {
-        setStatus(
-          data.message || data.error || "Error al subir a R2",
-          false,
-        );
-        return;
+      if (!res.ok || !data.ok) {
+        const err = String(data.error || "");
+        if (err === "bad_extension") {
+          throw new Error(
+            "Tipo de archivo no permitido. Vídeo: mp4/webm/mov · Audio: mp3/wav/m4a · Imagen: jpg/png/webp",
+          );
+        }
+        if (err === "file_too_large" || err === "total_too_large") {
+          throw new Error(
+            err === "total_too_large"
+              ? `Peso total máximo ${data.maxTotalMb || 250} MB por publicación`
+              : `Archivo demasiado grande (máx ${data.maxMb || 100} MB)`,
+          );
+        }
+        throw new Error(data.message || data.error || `Error ${res.status}`);
       }
-
-      // Reescribir rutas del ítem a URLs públicas de R2
-      const byName = new Map(
-        (data.uploaded || []).map((u: { field: string; publicUrl: string }) => [
-          u.field,
-          u.publicUrl,
-        ]),
-      );
-      if (item.video && typeof item.video === "string") {
-        const base = item.video.split("/").pop() || "";
-        if (byName.has(base)) item.video = byName.get(base);
-      }
-      if (item.cover && typeof item.cover === "string") {
-        const base = item.cover.split("/").pop() || "";
-        if (byName.has(base)) item.cover = byName.get(base);
-      }
-      if (Array.isArray(item.stems)) {
-        item.stems = item.stems.map((s: { id: string; label: string; src: string }) => {
-          const base = s.src.split("/").pop() || "";
-          return { ...s, src: byName.get(base) || s.src };
-        });
-      }
-
-      const json = JSON.stringify(item, null, 2);
-      downloadBlob(new Blob([json], { type: "application/json" }), `${slug}.library-item.json`);
 
       setStatus(
-        `✅ Subido a R2 (${data.uploaded?.length || 0} archivos). JSON descargado — pégalo en library.json`,
+        `✅ Publicado «${data.item?.title || title}». Ya está en la biblioteca. Abre /es/biblioteca/ y recarga.`,
       );
       const out = document.querySelector("[data-out]");
-      const copy = document.querySelector("[data-copy]");
       if (out instanceof HTMLElement) {
         out.hidden = false;
-        out.textContent = [
-          `✅ Media en R2 (público): ${data.publicBase}`,
-          "",
-          "Pega este ítem en src/data/library.json y haz deploy:",
-          "",
-          json,
-        ].join("\n");
+        out.textContent = JSON.stringify(
+          {
+            ok: true,
+            catalogCount: data.catalogCount,
+            item: data.item,
+            publicUrl: data.publicUrl,
+          },
+          null,
+          2,
+        );
       }
-      if (copy instanceof HTMLElement) copy.hidden = false;
+      form.reset();
+      stemRows = [
+        { label: "", file: null },
+        { label: "", file: null },
+      ];
+      renderStems();
+      document.querySelectorAll(".preview").forEach((p) => {
+        if (p instanceof HTMLElement) {
+          p.hidden = true;
+          p.innerHTML = "";
+        }
+      });
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Error R2", false);
-    }
-  });
-
-  const r2btn = document.querySelector("[data-try-r2]");
-  if (r2btn instanceof HTMLElement) {
-    r2btn.hidden = false;
-    r2btn.textContent = "Subir a R2 (recomendado)";
-  }
-
-  document.querySelector("[data-copy]")?.addEventListener("click", async () => {
-    const out = document.querySelector("[data-out]");
-    const t = out?.textContent || "";
-    const m = t.match(/\{[\s\S]*?\n\}(?=\n\n3\)|\n*$)/) || t.match(/\{[\s\S]*\}\s*$/);
-    if (m) {
-      await navigator.clipboard.writeText(m[0]);
-      setStatus("JSON copiado al portapapeles.");
+      setStatus(err instanceof Error ? err.message : "Error al publicar", false);
+    } finally {
+      if (btn instanceof HTMLButtonElement) btn.disabled = false;
     }
   });
 </script>
@@ -514,7 +377,6 @@ import Layout from "../../components/Layout.astro";
   }
   .head {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
   }
@@ -537,13 +399,11 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.95rem;
     line-height: 1.55;
   }
-  .lead code {
-    font-size: 0.85em;
+  .lead a {
     color: var(--color-accent);
   }
   .channels {
     display: flex;
-    flex-wrap: wrap;
     gap: 0.5rem;
     margin-bottom: 1.25rem;
   }
@@ -585,10 +445,6 @@ import Layout from "../../components/Layout.astro";
     color: var(--color-fg);
     font: inherit;
   }
-  .form input[type="file"] {
-    padding: 0.45rem;
-    font-size: 0.8rem;
-  }
   .form .check {
     flex-direction: row;
     align-items: center;
@@ -606,67 +462,40 @@ import Layout from "../../components/Layout.astro";
     border: 1px solid var(--color-border);
     background: #0c0c10;
   }
-  .preview video {
-    display: block;
-    width: 100%;
-    max-height: 280px;
-    background: #000;
-  }
+  .preview video,
   .preview img {
     display: block;
     width: 100%;
-    max-height: 200px;
+    max-height: 240px;
     object-fit: cover;
   }
   .preview .fname {
     margin: 0;
     padding: 0.4rem 0.65rem;
     font-size: 0.72rem;
-    color: var(--color-muted);
   }
   .stems-box {
     border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 0.85rem;
-    background: var(--color-surface);
   }
   .stems-head {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
     margin-bottom: 0.65rem;
-    font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-fg);
-  }
-  .stems-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    font-size: 0.85rem;
   }
   .stem-row {
     display: grid;
     grid-template-columns: 1fr 1fr auto auto;
     gap: 0.4rem;
+    margin-bottom: 0.45rem;
     align-items: center;
-  }
-  @media (max-width: 640px) {
-    .stem-row {
-      grid-template-columns: 1fr;
-    }
   }
   .stem-fname {
     font-size: 0.7rem;
-    color: var(--color-muted);
-    max-width: 8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .hint {
-    margin: 0.65rem 0 0;
-    font-size: 0.72rem;
     color: var(--color-muted);
   }
   .chips-field {
@@ -674,10 +503,6 @@ import Layout from "../../components/Layout.astro";
     border-radius: 10px;
     padding: 0.75rem;
     margin: 0;
-  }
-  .chips-field legend {
-    padding: 0 0.35rem;
-    font-size: 0.75rem;
   }
   .pick {
     display: flex;
@@ -693,11 +518,6 @@ import Layout from "../../components/Layout.astro";
     border: 1px solid var(--color-border);
     font-size: 0.75rem !important;
     cursor: pointer;
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
   }
   .btn {
     display: inline-flex;
@@ -717,7 +537,6 @@ import Layout from "../../components/Layout.astro";
   }
   .btn--danger {
     color: #f0a0a0;
-    border-color: rgb(240 160 160 / 0.35);
   }
   .btn--gold {
     background: var(--color-accent-light);
@@ -727,24 +546,22 @@ import Layout from "../../components/Layout.astro";
   .btn--ghost {
     font-size: 0.8rem;
     font-weight: 500;
-    opacity: 0.85;
   }
   .status {
-    margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--color-accent);
   }
   .status.is-err {
     color: #f0a0a0;
   }
   .out {
-    margin-top: 1.25rem;
+    margin-top: 1rem;
     padding: 1rem;
     border-radius: 10px;
     border: 1px solid var(--color-border);
     background: #0c0c10;
     font-size: 0.75rem;
-    overflow: auto;
     white-space: pre-wrap;
+    overflow: auto;
   }
 </style>

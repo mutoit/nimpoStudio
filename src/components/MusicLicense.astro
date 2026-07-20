@@ -17,6 +17,7 @@ interface Props {
 const { release, lang } = Astro.props;
 const t = useTranslations(lang);
 const license = getReleaseLicense(release);
+const turnstileSiteKey = (import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || "").trim();
 
 function priceLabel(tier: (typeof license.tiers)[number]): string {
   const mode =
@@ -246,6 +247,17 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
         <p class="quote__live-hint" data-quote-live-hint></p>
       </div>
 
+      {
+        turnstileSiteKey ? (
+          <div
+            class="cf-turnstile"
+            data-sitekey={turnstileSiteKey}
+            data-theme="dark"
+            data-size="flexible"
+          />
+        ) : null
+      }
+
       <button type="submit" class="quote__submit" data-quote-submit>
         {t("quoteSubmit")}
       </button>
@@ -263,6 +275,12 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
   </div>
 </section>
 
+{
+  turnstileSiteKey ? (
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  ) : null
+}
+
 <script>
   import {
     calculateLicenseQuote,
@@ -270,6 +288,14 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
     isLicenseUsageCode,
     type LicenseUsageCode,
   } from "../lib/license-quote";
+
+  function escapeHtml(s: string): string {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   const i18n = {
     pickUsage: "Elige un tipo de uso para ver el precio.",
@@ -368,7 +394,10 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
 
         if (liveLines) {
           liveLines.innerHTML = q.lineItems
-            .map((l) => `<li>${l.label}: <strong>${formatEur(l.amount)}</strong></li>`)
+            .map(
+              (l) =>
+                `<li>${escapeHtml(l.label)}: <strong>${formatEur(l.amount)}</strong></li>`,
+            )
             .join("");
         }
       };
@@ -388,6 +417,8 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
         const fd = new FormData(form);
         const input = readInput();
         if (!input.usage) return;
+
+        const turnstileToken = String(fd.get("cf-turnstile-response") || "").trim();
 
         const payload = {
           name: String(fd.get("name") || "").trim(),
@@ -409,6 +440,7 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           removeFromCatalog: input.removeFromCatalog,
           territoryExpand: input.territoryExpand,
           moreComposition: input.moreComposition,
+          turnstileToken: turnstileToken || undefined,
         };
 
         if (submitBtn instanceof HTMLButtonElement) {
@@ -454,13 +486,13 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
               lines.innerHTML = (q.lineItems || [])
                 .map(
                   (l: { label: string; amount: number }) =>
-                    `<li>${l.label}: <strong>${formatEur(l.amount)}</strong></li>`,
+                    `<li>${escapeHtml(l.label)}: <strong>${formatEur(l.amount)}</strong></li>`,
                 )
                 .join("");
             }
             if (mail) {
               const e = data.email || {};
-              if (e.clientSent && e.studioSent) mail.textContent = i18n.mailOk;
+              if (e.studioSent) mail.textContent = i18n.mailOk;
               else if (!e.configured) mail.textContent = i18n.mailPartial;
               else mail.textContent = i18n.mailFail;
             }

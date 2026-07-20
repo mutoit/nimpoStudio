@@ -1,13 +1,14 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: julio 2026  
-Documento de referencia para saber **qué está hecho**, **qué falta** y **qué depende de ti**.
+Última actualización: 2026-07-20  
+Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
 
 ## Resumen en una línea
 
-**Fase 1 en producción** (web estática + música + catálogo). **Contenido real y tienda pendientes.**
+**Biblioteca de licencias en producción** (preview + cotizador + admin un clic → R2).  
+**Aún no hay checkout/pago automático.** Contenido real y tienda (Stripe) pendientes.
 
 ---
 
@@ -15,97 +16,108 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 
 ### Infra y deploy
 - [x] Dominio `nimpo3dstudio.com` en Cloudflare (DNS)
-- [x] **Migración Pages** — proyecto `nimpo-studio`, dominios `www` + apex, deploy Git en `main`
-- [x] Deploy automático: push a `main` → Cloudflare Pages build (~30 s)
-- [x] Worker legacy `nimpostudioweb` — rutas DNS quitadas (pendiente: desconectar Git del Worker en panel; opcional: borrar Worker)
-- [x] Email Routing: `contacto@nimpo3dstudio.com` → Gmail personal
+- [x] Pages `nimpo-studio` — `www` + apex; deploy Git / `npm run deploy`
+- [x] Email Routing: `contacto@` → Gmail
+- [x] Worker mail `nimpo-mail` (presupuesto licencias → email estudio)
 - [x] Repo: https://github.com/mutoit/nimpoStudio.git
+- [x] **R2** bucket `nimpo-library` + binding `LIBRARY_BUCKET`
+- [x] Público media: `LIBRARY_PUBLIC_BASE` = `https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev`
+- [x] Secret `ADMIN_LIBRARY_SECRET` (login) + opcional `ADMIN_SESSION_SECRET` (firma cookie)
+- [x] Hardening: allowlist MIME/ext, cuotas publish, XSS catálogo, quote sin auto-mail cliente, Turnstile opcional, rate limit KV-ready
 
-### Web (fase 1)
-- [x] Home — landing con destacados y CTAs
-- [x] **Música** — `/musica` + ficha `/musica/[slug]` (presentación + tracklist + preview player)
-- [x] Badge destacado **«Composiciones originales MIDI»** en `/musica` y fichas (`MusicMidiBadge.astro`)
-- [x] **Catálogo** — `/catalogo` + ficha producto (software, packs, presets, licencias)
-- [x] **Feed Novedades** — panel lateral derecho (home, pantalla ≥1500px); datos en `updates.json`
-- [x] Cabecera — badge «en construcción» con brillo
-- [x] Sobre, Contacto, Privacidad, Términos (esqueleto legal)
-- [x] Diseño carbon + dorado, nav, footer
-- [x] Utilidades layout — `prose`, `section--full` (`src/styles/layout.css`)
-- [x] Portadas SVG de ejemplo (productos y música)
-- [x] Email contacto activo (`emailStatus: "active"`)
+### Producto principal — Biblioteca + licencias
+- [x] Nav pública: **Biblioteca · Sobre · Contacto** (música/catálogo fuera del menú principal)
+- [x] `/es/biblioteca/` — grid, miniaturas, play, stems (mute sin reiniciar), seek vía `StemTransport` (Web Audio; Pages no hace Range seek fiable en WAV)
+- [x] Modal detalle + formulario de licencia (usage, plazos, extras, precio)
+- [x] Precios conservadores en `src/lib/license-quote.ts` + mirror `functions/lib/license-quote.ts`
+- [x] `POST /api/quote` — cotización + email estudio (rate limit, CORS restringido)
+- [x] Catálogo **vivo** en R2: `catalog/library.json`
+- [x] `GET /api/library` — front hidrata desde API (fallback: `src/data/library.json` del build)
+- [x] Admin **un clic**: `/admin/biblioteca/` → **Publicar en la web** → `POST /admin/publish`  
+  (sube media a R2 + upsert catálogo; **sin copiar JSON ni redeploy**)
+- [x] Login admin cookie httpOnly; rate limit login/publish; sin confiar JWT CF Access spoofable
+- [x] Seed R2 hecho (`wrangler r2 object put … catalog/library.json --remote`)
+- [x] Docs precios: `docs/licencias/TABLA-RAPIDA-PRECIOS.md`, plan `PLAN-BIBLIOTECA-Y-PRECIOS.md`
+- [x] Admin: `docs/admin-acceso.md`
 
-### Código preparado para crecer
-- [x] `src/data/products.json` — catálogo digital
-- [x] `src/data/music.json` — lanzamientos musicales
-- [x] `src/data/updates.json` — feed de novedades (editar para publicar avisos)
-- [x] `public/previews/music/` — carpeta para MP3 de preview
-- [x] `public/images/products/` y `public/images/music/` — portadas
-- [x] `functions/README.md` — rutas API futuras documentadas
-- [x] `docs/configuracion.md` — DNS, Cloudflare, deploy
-- [x] `docs/analytics-publi.md` — estrategia analíticas, SEO, buscadores
+### Web base (fase 1, sigue viva)
+- [x] Home, Sobre, Contacto, Privacidad, Términos
+- [x] Música y catálogo digital (rutas existen; no son el foco del nav)
+- [x] Feed Novedades (`updates.json`)
+- [x] Diseño carbon + dorado
+- [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
 
----
-
-## Pendiente — depende de ti (contenido) 📝
-
-| Tarea | Archivo / carpeta | Notas |
-|-------|-------------------|--------|
-| Tus composiciones reales | `src/data/music.json` | Sustituir ejemplos (Nocturna, Pulso…) |
-| MP3 de preview | `public/previews/music/*.mp3` | 60–90 s por tema |
-| Portadas música | `public/images/music/` | JPG/PNG o SVG |
-| Productos reales (software, packs) | `src/data/products.json` | Precios, descripciones, licencias |
-| Portadas productos | `public/images/products/` | |
-| Logo definitivo | `public/` + Header | Hoy solo texto + punto dorado |
-| Textos legales finales | `src/content/legal/` | Antes de activar ventas |
-| Redes sociales | `src/config/site.json` → `social` | Instagram vacío |
-| Marcar ejemplos como borrador | `status: "draft"` en JSON | Opcional hasta tener contenido |
-| Novedades / avisos | `src/data/updates.json` | Una entrada real publicada (web en construcción) |
+### Datos / código de apoyo
+- [x] `src/data/library.json` — **semilla / fallback** (no es la fuente de verdad en prod)
+- [x] `src/data/music.json`, `products.json`, `updates.json`
+- [x] Previews en `public/previews/music/` (MP3 demo Deep in the forest, etc.)
+- [x] `functions/`: middleware, session, publish, upload, library, quote, track
 
 ---
 
-## Pendiente — desarrollo (cuando tengas 1 producto listo) 🔧
+## Flujo diario (publicar obra)
 
-### Fase 2 — Venta simple (sin cuentas)
-- [ ] Stripe (modo test → live)
-- [ ] Cloudflare R2 (archivos digitales)
-- [ ] Cloudflare D1 (pedidos)
-- [ ] `functions/`: checkout, webhook Stripe, enlace descarga firmado
-- [ ] Email de confirmación de compra
-- [ ] Botón "Comprar" en fichas
+1. Login → https://www.nimpo3dstudio.com/admin/biblioteca/  
+2. Canal vídeo o stems + título + archivos  
+3. **Publicar en la web**  
+4. Abrir `/es/biblioteca/` y **recargar**  
 
-### Fase 2b — Área de cliente
-- [ ] `/cuenta` — "Mis compras"
-- [ ] Magic link por email (sin contraseña)
-- [ ] Re-descarga de compras
+No editar `library.json` a mano salvo semilla local o fallback.
 
-### Fase 3 — Licencias avanzadas
-- [ ] Licencias software con clave/activación (si aplica)
-- [ ] Licencias exclusivas → flujo manual (contacto + contrato)
-- [ ] Integración Keygen u otro (solo si hace falta DRM)
+---
 
-### Fase 4 — Admin (opcional)
-- [ ] Panel o CMS para productos sin tocar JSON
+## Pendiente — depende de ti 📝
 
-### Opcional — feed
-- [ ] Mini reproductor de preview en el panel Novedades (cuando haya MP3)
+| Tarea | Dónde / notas |
+|-------|----------------|
+| Obras reales (no solo demos/placeholders) | Admin publish o seed R2; quitar `provisional` |
+| Portadas / covers buenas | Subida admin o `public/images/` |
+| Logo definitivo | Header / `public/` |
+| Textos legales finales | `src/content/legal/` — antes de cobros |
+| Redes | `src/config/site.json` → `social` |
+| Search Console / Bing | vars `PUBLIC_GSC_*` / `PUBLIC_BING_*` — `docs/analytics-publi.md` |
+| GA4 / Meta (opcional) | vars `PUBLIC_GA_*` / `PUBLIC_META_*` |
+| Cloudflare Access en `/admin*` | **recomendado**; `scripts/setup-access-admin.ps1 -Email "..."` |
+| `ADMIN_SESSION_SECRET` largo en Pages | Si aún no; rotar tras ponerlo (re-login) |
+| Turnstile (anti-bots quote) | `TURNSTILE_SECRET_KEY` + `PUBLIC_TURNSTILE_SITE_KEY` |
+| KV `RATE_LIMIT_KV` multi-edge | Opcional; ver `wrangler.toml` comentado |
+| Smoke: publish real → biblioteca | Confirmar end-to-end |
 
-### Analíticas, publicidad y SEO
-- [x] Módulo `src/lib/analytics/` + banner cookies RGPD
-- [x] Sitemap, robots.txt, JSON-LD, OG/Twitter
-- [x] **Cloudflare Web Analytics** — activo en panel (dominio añadido; auto-inject; no usar `PUBLIC_CF_WEB_ANALYTICS_TOKEN`)
-- [ ] **Tú:** Search Console — `PUBLIC_GSC_VERIFICATION` + enviar sitemap — ver `docs/analytics-publi.md`
-- [ ] **Tú:** Bing Webmaster — `PUBLIC_BING_VERIFICATION` (recomendado)
-- [ ] **Tú:** GA4 / Meta Pixel — `PUBLIC_GA_*` / `PUBLIC_META_*` cuando quieras
+---
+
+## Pendiente — desarrollo 🔧
+
+### Casi listo / pulido producto
+- [ ] Estados catálogo post-exclusiva: `available` / `sold_exclusive` / `off_catalog` + badges UI
+- [ ] Extra “retirar del catálogo” en formulario de exclusiva
+- [ ] Plantillas legales `docs/licencias/plantilla-*.md` alineadas a precios actuales
+- [ ] Email cliente con desglose (hoy prioriza email al estudio)
+- [x] Mixer preview música/ruido (sliders en modal stems; default ~12 % ruido)
+- [ ] QA visual mobile modal full-screen
+
+### Fase 2 — Venta / entrega automática
+- [ ] Stripe (test → live)
+- [ ] D1 pedidos (o equivalente)
+- [ ] Checkout + webhook + enlace descarga **masters** (R2 privado o firmado; distinto de previews públicos)
+- [ ] Email confirmación compra
+- [ ] Botón “Comprar / pagar” en flujo licencia (hoy: cotizar + contacto)
+
+### Fase 2b — Área cliente
+- [ ] `/cuenta` — mis compras, magic link, re-descarga
+
+### Limpieza infra
+- [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa
+- [ ] Placeholders en catálogo R2 (Nocturna, Pulso, Umbral) → sustituir o `off_catalog`
 
 ---
 
 ## No hacer aún ⏸️
 
-- Stripe live sin productos/precios definidos
-- R2 con archivos reales (coste almacenamiento)
-- Cuentas de usuario antes de primera venta
-- Claves de licencia antes de tener software activable
-- Perfil artista / Twitch (otro proyecto, otro repo)
+- Stripe live sin precios y 1 obra lista para entregar
+- Subir **masters** a la URL pública r2.dev (solo previews)
+- Cuentas de usuario antes de primera venta real
+- DRM / Keygen sin software activable
+- Volver al flujo “copiar JSON a mano” (obsoleto)
 
 ---
 
@@ -114,41 +126,48 @@ Documento de referencia para saber **qué está hecho**, **qué falta** y **qué
 | Qué | URL |
 |-----|-----|
 | Home | https://www.nimpo3dstudio.com |
-| Música | https://www.nimpo3dstudio.com/musica |
-| Catálogo | https://www.nimpo3dstudio.com/catalogo |
-| Contacto | https://www.nimpo3dstudio.com/contacto |
+| Biblioteca | https://www.nimpo3dstudio.com/es/biblioteca/ |
+| Admin publicar | https://www.nimpo3dstudio.com/admin/biblioteca/ |
+| API catálogo | https://www.nimpo3dstudio.com/api/library |
+| Contacto | https://www.nimpo3dstudio.com/es/contacto/ |
+| Música (secundaria) | https://www.nimpo3dstudio.com/es/musica/ |
 
 ---
 
-## Archivos clave
+## Archivos y docs clave
 
-| Archivo | Para qué |
-|---------|----------|
-| `docs/estado.md` | **Este doc** — tareas y estado |
-| `docs/configuracion.md` | Infra Cloudflare, DNS, email |
-| `docs/analytics-publi.md` | Analíticas, publicidad, permisos token |
-| `src/config/site.json` | Marca, email, redes |
-| `src/data/music.json` | Lanzamientos musicales |
-| `src/data/products.json` | Catálogo digital |
-| `src/data/updates.json` | Feed de novedades |
-| `src/styles/layout.css` | Anchos (prose, section--full, panel feed) |
-| `README.md` | Cómo desarrollar y añadir productos |
+| Ruta | Para qué |
+|------|----------|
+| **`docs/estado.md`** | **Este handoff** |
+| `docs/admin-acceso.md` | Login + publish un clic + R2 |
+| `docs/licencias/` | Precios, plan, plantillas |
+| `docs/configuracion.md` | DNS, Cloudflare, email |
+| `docs/analytics-publi.md` | SEO / analíticas |
+| `DEPLOY.md` / `SETUP-PAGES.md` | Deploy y Pages |
+| `functions/` | API + admin + middleware |
+| `src/lib/library-browser/bind.ts` | UI biblioteca + hydrate API |
+| `src/lib/license-quote.ts` | Cálculo precios (front) |
+| `src/data/library.json` | Semilla / fallback (no fuente de verdad prod) |
+| `wrangler.toml` | R2 binding + `LIBRARY_PUBLIC_BASE` |
 
 ---
 
 ## Próximo paso recomendado
 
-1. **Tú:** Search Console — verificar dominio + enviar sitemap (`docs/analytics-publi.md`)  
-2. **Tú:** primer lanzamiento musical real en `music.json` + 1–2 MP3 preview  
-3. **Tú:** decidir qué va en Catálogo (software) vs Música  
-4. **Dev (cuando digas):** infra "listo para rellenar" — esquema D1, `/cuenta` placeholder, campos precio en JSON  
-5. **Dev (cuando tengas producto + precio):** fase 2 Stripe + R2
+1. **Tú:** smoke — 1 publish real desde admin → recargar biblioteca  
+2. **Tú:** quitar demos / marcar provisional falso en obras reales  
+3. **Tú:** Search Console + sitemap  
+4. **Dev (cuando digas):** badges availability + checkout Stripe cuando haya 1 master listo para vender  
 
 ---
 
-## Historial reciente (commits relevantes)
+## Historial reciente (producto)
 
-- Badge «Composiciones originales MIDI» en sección música (`d90f2ba`)
-- Analíticas, SEO, consentimiento RGPD + doc estrategia (`b9bd962`)
-- Feed Novedades + `updates.json` (panel lateral, sin romper container)
-- Catálogo fase 1, email contacto, sección Música (tracklist, previews)
+- **Hardening seguridad (ola 7 puntos):** XSS catálogo, allowlist subidas, sesión ≠ password, cuotas, upload 410, quote anti-spam, Access/Turnstile docs
+- Biblioteca densa + stems + cotizador de licencias (precios conservadores)
+- Admin cookie + rate limits; endurecimiento auth (sin JWT spoof)
+- R2 `nimpo-library` + **Publicar en la web** (media + catálogo vivo)
+- `GET /api/library` — front sin redeploy al publicar
+- Seek stems con Web Audio (`StemTransport`); previews MP3
+- Nav centrada en biblioteca (música/catálogo fuera del menú principal)
+- Fase 1 web estática, analytics, SEO, email contacto (previo)

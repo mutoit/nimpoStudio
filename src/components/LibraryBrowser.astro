@@ -50,6 +50,7 @@ const usageGroups = [
 ];
 
 const P = LICENSE_PRICES;
+const turnstileSiteKey = (import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || "").trim();
 
 const payload = {
   items,
@@ -115,6 +116,39 @@ const payload = {
               />
               <span class="lb__time" data-lb-time>0:00 / --:--</span>
             </div>
+          </div>
+
+          <!-- Preview: balance música / ruido (no es el master de entrega) -->
+          <div class="lb__preview-mix" data-lb-preview-mix hidden>
+            <p class="lb__label">Preview · música / ruido</p>
+            <p class="lb__help-mini">
+              Solo en la web. El master limpio se entrega tras licencia. Ajusta cuánto oyes de
+              cada uno.
+            </p>
+            <label class="lb__mix-slider">
+              <span>Música <em data-lb-music-pct>100%</em></span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value="100"
+                step="1"
+                data-lb-music-level
+                aria-label="Nivel de música en preview"
+              />
+            </label>
+            <label class="lb__mix-slider">
+              <span>Ruido <em data-lb-noise-pct>12%</em></span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value="12"
+                step="1"
+                data-lb-noise-level
+                aria-label="Nivel de ruido en preview"
+              />
+            </label>
           </div>
           <p class="lb__label">{t("libDescription")}</p>
           <p class="lb__text" data-lb-desc></p>
@@ -253,6 +287,17 @@ const payload = {
               <p class="lb__live-hint" data-lb-live-hint></p>
             </div>
 
+            {
+              turnstileSiteKey ? (
+                <div
+                  class="cf-turnstile"
+                  data-sitekey={turnstileSiteKey}
+                  data-theme="dark"
+                  data-size="flexible"
+                />
+              ) : null
+            }
+
             <button type="submit" class="lb__btn lb__btn--solid">{t("quoteSubmit")}</button>
             <p class="lb__msg" data-lb-msg hidden></p>
           </form>
@@ -263,6 +308,11 @@ const payload = {
   </div>
 </div>
 
+{
+  turnstileSiteKey ? (
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  ) : null
+}
 
 <script>
   import { bindLibraryBrowser } from "../lib/library-browser/bind";
@@ -694,6 +744,41 @@ const payload = {
     gap: 0.4rem;
     font-size: 0.85rem;
     cursor: pointer;
+  }
+  .lb__preview-mix {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgb(201 169 98 / 0.22);
+    background: rgb(201 169 98 / 0.06);
+  }
+  .lb__help-mini {
+    margin: 0 0 0.55rem;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: rgb(150 150 160);
+  }
+  .lb__mix-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.8rem;
+    color: #c8c8d0;
+  }
+  .lb__mix-slider span {
+    display: flex;
+    justify-content: space-between;
+  }
+  .lb__mix-slider em {
+    font-style: normal;
+    color: #c9a962;
+    font-variant-numeric: tabular-nums;
+  }
+  .lb__mix-slider input[type="range"] {
+    width: 100%;
+    accent-color: #c9a962;
+    height: 0.45rem;
   }
   .lb__btn {
     margin-top: 0.55rem;

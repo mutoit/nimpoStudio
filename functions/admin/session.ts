@@ -8,12 +8,15 @@ import {
   clearSessionCookieHeader,
   createSessionToken,
   getSessionFromRequest,
+  getSessionSigningKey,
   secretsEqual,
   sessionCookieHeader,
   verifySessionToken,
   type AdminEnv,
 } from "../lib/admin-auth";
-import { clientIp, checkRateLimit } from "../lib/rate-limit";
+import { clientIp, checkRateLimitAsync, type RateLimitKv } from "../lib/rate-limit";
+
+type Env = AdminEnv & { RATE_LIMIT_KV?: RateLimitKv };
 
 function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
@@ -28,33 +31,35 @@ function json(data: unknown, status = 200, extraHeaders: Record<string, string> 
 
 export async function onRequest(context: {
   request: Request;
-  env: AdminEnv;
+  env: Env;
 }) {
   const { request, env } = context;
-  const secret = (env.ADMIN_LIBRARY_SECRET || "").trim();
+  const passwordSecret = (env.ADMIN_LIBRARY_SECRET || "").trim();
+  const signingKey = await getSessionSigningKey(env);
 
   if (request.method === "GET") {
-    if (!secret) {
+    if (!passwordSecret || !signingKey) {
       return json({ ok: true, authenticated: false, configured: false });
     }
     const token = getSessionFromRequest(request);
-    const authenticated = await verifySessionToken(secret, token);
-    return json({ ok: true, authenticated, configured: true });
+    const authenticated = await verifySessionToken(signingKey, token);
+    return json({
+      ok: true,
+      authenticated,
+      configured: true,
+      sessionSecretConfigured: Boolean(String(env.ADMIN_SESSION_SECRET || "").trim()),
+    });
   }
 
   if (request.method === "DELETE") {
-    return json(
-      { ok: true },
-      200,
-      { "Set-Cookie": clearSessionCookieHeader() },
-    );
+    return json({ ok: true }, 200, { "Set-Cookie": clearSessionCookieHeader() });
   }
 
   if (request.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
 
-  if (!secret) {
+  if (!passwordSecret || !signingKey) {
     return json(
       {
         ok: false,
@@ -67,7 +72,11 @@ export async function onRequest(context: {
   }
 
   const ip = clientIp(request);
-  const rl = checkRateLimit(`admin-login:${ip}`, { limit: 10, windowSec: 15 * 60 });
+  const rl = await checkRateLimitAsync(
+    `admin-login:${ip}`,
+    { limit: 8, windowSec: 15 * 60 },
+    env.RATE_LIMIT_KV,
+  );
   if (!rl.ok) {
     return json(
       { ok: false, error: "rate_limited" },
@@ -84,11 +93,11 @@ export async function onRequest(context: {
   }
 
   const password = String(body.password || "");
-  if (!password || !(await secretsEqual(password, secret))) {
+  if (!password || !(await secretsEqual(password, passwordSecret))) {
     return json({ ok: false, error: "invalid_password" }, 401);
   }
 
-  const token = await createSessionToken(secret);
+  const token = await createSessionToken(signingKey);
   return json(
     { ok: true, authenticated: true },
     200,

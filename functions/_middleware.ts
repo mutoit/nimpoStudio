@@ -1,12 +1,12 @@
 /**
  * Protege /admin/* (HTML estático incluido).
- * - Exige cookie de sesión válida (ADMIN_LIBRARY_SECRET) O
- * - JWT de Cloudflare Access (CF-Access-Jwt-Assertion) si llega (Access delante).
+ * Cookie firmada con ADMIN_SESSION_SECRET (o derivada de ADMIN_LIBRARY_SECRET).
  * /admin/session se deja pasar (login/logout).
  */
 
 import {
   getSessionFromRequest,
+  getSessionSigningKey,
   verifySessionToken,
   type AdminEnv,
 } from "./lib/admin-auth";
@@ -87,7 +87,9 @@ function loginHtml(nextPath: string): string {
         if (!res.ok || !data.ok) {
           e.textContent = data.error === 'not_configured'
             ? 'Admin no configurado (falta secreto en Pages).'
-            : 'Contraseña incorrecta';
+            : data.error === 'rate_limited'
+              ? 'Demasiados intentos. Espera unos minutos.'
+              : 'Contraseña incorrecta';
           b.disabled = false;
           return;
         }
@@ -114,16 +116,12 @@ export async function onRequest(context: {
     return next();
   }
 
-  // API de sesión siempre accesible (login / logout / status)
   if (isSessionApi(url.pathname)) {
     return next();
   }
 
-  // No confiar en CF-Access-Jwt-Assertion sin verificar firma (spoofable).
-  // Access real va delante del edge; aquí solo cookie firmada.
-
-  const secret = String(env.ADMIN_LIBRARY_SECRET || "").trim();
-  if (!secret) {
+  const password = String(env.ADMIN_LIBRARY_SECRET || "").trim();
+  if (!password) {
     return new Response(
       `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><title>Admin</title></head>
 <body style="font-family:system-ui;background:#08080a;color:#eee;padding:2rem">
@@ -142,13 +140,13 @@ export async function onRequest(context: {
     );
   }
 
+  const signingKey = await getSessionSigningKey(env);
   const token = getSessionFromRequest(request);
-  const ok = await verifySessionToken(secret, token);
+  const ok = signingKey ? await verifySessionToken(signingKey, token) : false;
   if (ok) {
     return next();
   }
 
-  // GET (navegador o Accept vacío/*) → HTML de login; clientes API con Accept json → JSON
   const accept = (request.headers.get("Accept") || "").toLowerCase();
   const wantsJson =
     accept.includes("application/json") && !accept.includes("text/html");

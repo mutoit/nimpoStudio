@@ -9,5 +9,12 @@ binding = "LIBRARY_BUCKET"
 bucket_name = "nimpo-library"
 preview_bucket_name = "nimpo-library"
 
+# Opcional: rate limit multi-edge (descomenta y pon el id del namespace KV)
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
 [vars]
 LIBRARY_PUBLIC_BASE = "https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev"
+# SEND_CLIENT_QUOTE_EMAIL = "0"  # no auto-mail al solicitante (default en código)
+

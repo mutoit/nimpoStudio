@@ -1,6 +1,8 @@
 /**
- * Auth del panel /admin/* — secreto solo en servidor (Pages env ADMIN_LIBRARY_SECRET).
- * Cookie httpOnly firmada (HMAC-SHA256), Path=/admin.
+ * Auth del panel /admin/* —
+ * - ADMIN_LIBRARY_SECRET = contraseña de login
+ * - ADMIN_SESSION_SECRET = clave HMAC de cookie (si falta, se deriva del password)
+ * Cookie httpOnly, Path=/admin, SameSite=Strict.
  */
 
 const COOKIE = "nimpo_admin_session";
@@ -9,6 +11,8 @@ const COOKIE_PATH = "/admin";
 
 export type AdminEnv = {
   ADMIN_LIBRARY_SECRET?: string;
+  /** Clave de firma de sesión (recomendada, distinta del password). */
+  ADMIN_SESSION_SECRET?: string;
 };
 
 function b64url(buf: ArrayBuffer | Uint8Array): string {
@@ -34,12 +38,32 @@ async function sign(secret: string, payload: string): Promise<string> {
   return b64url(sig);
 }
 
+/**
+ * Clave de firma de cookie.
+ * Preferir ADMIN_SESSION_SECRET (largo, aleatorio).
+ * Fallback: derivación determinista del password (instalaciones sin secret extra).
+ */
+export async function getSessionSigningKey(env: AdminEnv): Promise<string | null> {
+  const explicit = String(env.ADMIN_SESSION_SECRET || "").trim();
+  if (explicit.length >= 16) return explicit;
+
+  const password = String(env.ADMIN_LIBRARY_SECRET || "").trim();
+  if (!password) return null;
+
+  const key = await hmacKey(password);
+  const derived = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode("nimpo-admin-session-v1"),
+  );
+  return b64url(derived);
+}
+
 /** Comparación constant-time de dos strings (password vs secret). */
 export async function secretsEqual(a: string, b: string): Promise<boolean> {
   const enc = new TextEncoder();
   const ba = enc.encode(a);
   const bb = enc.encode(b);
-  // Misma longitud de trabajo para no filtrar por early-return de size
   const len = Math.max(ba.length, bb.length, 1);
   const xa = new Uint8Array(len);
   const xb = new Uint8Array(len);
@@ -52,18 +76,18 @@ export async function secretsEqual(a: string, b: string): Promise<boolean> {
   return diff === 0;
 }
 
-export async function createSessionToken(secret: string): Promise<string> {
+export async function createSessionToken(signingKey: string): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE_SEC;
   const payload = `v1.${exp}`;
-  const sig = await sign(secret, payload);
+  const sig = await sign(signingKey, payload);
   return `${payload}.${sig}`;
 }
 
 export async function verifySessionToken(
-  secret: string,
+  signingKey: string,
   token: string | undefined | null,
 ): Promise<boolean> {
-  if (!token) return false;
+  if (!token || !signingKey) return false;
   const parts = token.split(".");
   if (parts.length !== 3) return false;
   const [v, expStr, sig] = parts;
@@ -71,13 +95,24 @@ export async function verifySessionToken(
   const exp = Number(expStr);
   if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
   const payload = `${v}.${expStr}`;
-  const expected = await sign(secret, payload);
+  const expected = await sign(signingKey, payload);
   if (expected.length !== sig.length) return false;
   let ok = 0;
   for (let i = 0; i < expected.length; i++) {
     ok |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
   }
   return ok === 0;
+}
+
+/** Comprueba cookie de sesión con la clave correcta del env. */
+export async function isAdminAuthenticated(
+  env: AdminEnv,
+  request: Request,
+): Promise<boolean> {
+  const key = await getSessionSigningKey(env);
+  if (!key) return false;
+  const token = getSessionFromRequest(request);
+  return verifySessionToken(key, token);
 }
 
 export function parseCookies(header: string | null): Record<string, string> {

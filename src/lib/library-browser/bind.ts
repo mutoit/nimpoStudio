@@ -5,7 +5,7 @@ import {
     type LicenseUsageCode,
   } from "../license-quote";
 import { StemTransport } from "../stem-transport";
-import { escapeHtml, safeMediaUrl } from "../dom-escape";
+import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
 
 type Stem = { id: string; label: string; src: string };
 type Item = {
@@ -37,7 +37,11 @@ export function bindLibraryBrowser() {
         moods: string[];
         labels: Record<string, string>;
       };
-      const { items, lang, moods, labels: L } = data;
+      // items mutables: semilla del build + catálogo vivo /api/library
+      let items: Item[] = Array.isArray(data.items) ? [...data.items] : [];
+      const lang = data.lang;
+      let moods: string[] = Array.isArray(data.moods) ? [...data.moods] : [];
+      const L = data.labels;
 
       const grid = root.querySelector("[data-lb-grid]");
       const overlay = root.querySelector("[data-lb-overlay]");
@@ -45,11 +49,23 @@ export function bindLibraryBrowser() {
       const countEl = root.querySelector("[data-lb-count]");
       const moodsBar = root.querySelector("[data-lb-moods]");
 
-      if (moodsBar) {
+      const paintMoods = () => {
+        if (!moodsBar) return;
         moodsBar.innerHTML = moods
-          .map((m) => `<button type="button" class="lb__chip" data-mood="${m}">${m}</button>`)
+          .map((m) => `<button type="button" class="lb__chip" data-mood="${escapeHtml(m)}">${escapeHtml(m)}</button>`)
           .join("");
-      }
+        moodsBar.querySelectorAll("[data-mood]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const m = (btn as HTMLElement).dataset.mood || null;
+            moodFilter = moodFilter === m ? null : m;
+            moodsBar.querySelectorAll("[data-mood]").forEach((b) => {
+              b.classList.toggle("is-on", (b as HTMLElement).dataset.mood === moodFilter);
+            });
+            renderGrid();
+          });
+        });
+      };
+      paintMoods();
 
       let typeFilter = "all";
       let moodFilter: string | null = null;
@@ -190,7 +206,20 @@ export function bindLibraryBrowser() {
         }
       };
 
+      const applyPreviewLevelsFromUi = () => {
+        const musicEl = root.querySelector<HTMLInputElement>("[data-lb-music-level]");
+        const noiseEl = root.querySelector<HTMLInputElement>("[data-lb-noise-level]");
+        const musicPct = root.querySelector("[data-lb-music-pct]");
+        const noisePct = root.querySelector("[data-lb-noise-pct]");
+        const m = musicEl ? Number(musicEl.value) / 100 : 1;
+        const n = noiseEl ? Number(noiseEl.value) / 100 : 0.12;
+        stemsTx.setPreviewMix(m, n);
+        if (musicPct) musicPct.textContent = `${Math.round(m * 100)}%`;
+        if (noisePct) noisePct.textContent = `${Math.round(n * 100)}%`;
+      };
+
       const applyStemMixFromUi = () => {
+        applyPreviewLevelsFromUi();
         const modalOpen =
           overlay instanceof HTMLElement &&
           !overlay.hidden &&
@@ -312,7 +341,7 @@ export function bindLibraryBrowser() {
           if (typeFilter === "stems") {
             if (!(i.kind === "stems" || (i.stems && i.stems.length))) return false;
           } else if (typeFilter === "1:1" || typeFilter === "9:16") {
-            if (i.aspect !== typeFilter) return false;
+            if (safeAspectLabel(i.aspect) !== typeFilter) return false;
           }
           if (moodFilter && !i.moods.includes(moodFilter)) return false;
           return true;
@@ -389,10 +418,12 @@ export function bindLibraryBrowser() {
 
         grid.innerHTML = list
           .map((item) => {
+            const id = safeDomId(item.id);
+            const aspect = safeAspectLabel(item.aspect);
             const media = safeMediaUrl(item.video)
-              ? `<video src="${safeMediaUrl(item.video)}" muted loop playsinline preload="metadata" poster="${safeMediaUrl(item.cover) || ""}" data-vid="${item.id}"></video>`
+              ? `<video src="${escapeHtml(safeMediaUrl(item.video))}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(item.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`
               : item.cover
-                ? `<img src="${safeMediaUrl(item.cover)}" alt="" loading="lazy" />`
+                ? `<img src="${escapeHtml(safeMediaUrl(item.cover))}" alt="" loading="lazy" />`
                 : `<div class="lb__ph"></div>`;
             const prov = isProv(item) ? `<span class="lb__badge">${escapeHtml(L.provisional)}</span>` : "";
             const stemBadge =
@@ -404,40 +435,43 @@ export function bindLibraryBrowser() {
               : "";
             const canLic = item.licenseEnabled !== false && isAvailable(item);
             const lic = canLic
-              ? `<button type="button" class="lb__card-lic" data-open-lic="${item.id}">${escapeHtml(L.license)}</button>`
+              ? `<button type="button" class="lb__card-lic" data-open-lic="${escapeHtml(id)}">${escapeHtml(L.license)}</button>`
               : "";
             const canPlay = !!(item.stems?.length || safeMediaUrl(item.video));
-            const isPlayingHere = playingId === item.id;
+            const isPlayingHere = playingId === item.id || playingId === id;
             const playBtn = canPlay
-              ? `<button type="button" class="lb__play-fab" data-thumb-play="${item.id}" aria-label="${escapeHtml(L.play)}" aria-pressed="${isPlayingHere ? "true" : "false"}">${isPlayingHere ? L.stop : "▶"}</button>`
+              ? `<button type="button" class="lb__play-fab" data-thumb-play="${escapeHtml(id)}" aria-label="${escapeHtml(L.play)}" aria-pressed="${isPlayingHere ? "true" : "false"}">${isPlayingHere ? L.stop : "▶"}</button>`
               : "";
             const prog = canPlay
-              ? `<div class="lb__thumb-progress" data-thumb-progress="${item.id}" ${isPlayingHere ? "" : "hidden"} style="--p:0%" role="slider" aria-label="Progreso" aria-valuemin="0" aria-valuemax="100"></div>`
+              ? `<div class="lb__thumb-progress" data-thumb-progress="${escapeHtml(id)}" ${isPlayingHere ? "" : "hidden"} style="--p:0%" role="slider" aria-label="Progreso" aria-valuemin="0" aria-valuemax="100"></div>`
               : "";
 
-            return `<article class="lb__card ${active?.id === item.id ? "is-on" : ""}" data-card="${item.id}">
+            return `<article class="lb__card ${active && safeDomId(active.id) === id ? "is-on" : ""}" data-card="${escapeHtml(id)}">
               <div class="lb__thumb-wrap">
-                <button type="button" class="lb__thumb" data-open="${item.id}" aria-label="${escapeHtml(item.title)}">
+                <button type="button" class="lb__thumb" data-open="${escapeHtml(id)}" aria-label="${escapeHtml(item.title)}">
                   <span class="lb__frame">${media}</span>
                   ${prov}${stemBadge}${unavail}
-                  <span class="lb__ratio">${item.aspect}</span>
+                  <span class="lb__ratio">${escapeHtml(aspect)}</span>
                 </button>
                 ${playBtn}
                 ${prog}
               </div>
               <div class="lb__cap">
                 <strong>${escapeHtml(item.title)}</strong>
-                <span>${item.moods.slice(0, 2).map(escapeHtml).join(" · ") || item.tags.slice(0, 2).map(escapeHtml).join(" · ")}</span>
+                <span>${(item.moods || []).slice(0, 2).map(escapeHtml).join(" · ") || (item.tags || []).slice(0, 2).map(escapeHtml).join(" · ")}</span>
                 ${lic}
               </div>
             </article>`;
           })
           .join("");
 
+        const findByDomId = (id: string) =>
+          items.find((x) => safeDomId(x.id) === id || x.id === id);
+
         grid.querySelectorAll("[data-open]").forEach((btn) => {
           btn.addEventListener("click", () => {
             const id = (btn as HTMLElement).dataset.open || "";
-            const item = items.find((x) => x.id === id);
+            const item = findByDomId(id);
             if (item) openModal(item, false);
           });
         });
@@ -446,7 +480,7 @@ export function bindLibraryBrowser() {
           btn.addEventListener("click", (e) => {
             e.stopPropagation();
             const id = (btn as HTMLElement).dataset.openLic || "";
-            const item = items.find((x) => x.id === id);
+            const item = findByDomId(id);
             if (item) openModal(item, true);
           });
         });
@@ -456,7 +490,7 @@ export function bindLibraryBrowser() {
             e.preventDefault();
             e.stopPropagation();
             const id = (btn as HTMLElement).dataset.thumbPlay || "";
-            const item = items.find((x) => x.id === id);
+            const item = findByDomId(id);
             if (!item) return;
 
             if (playingId === id || (playingId === "modal-" + id && transportPlaying)) {
@@ -545,8 +579,9 @@ export function bindLibraryBrowser() {
           const el = root.querySelector(sel);
           if (el) el.textContent = v;
         };
-        set("[data-lb-kicker]", `${item.kind} · ${item.aspect}`);
-        set("[data-lb-title]", item.title);
+        const aspect = safeAspectLabel(item.aspect);
+        set("[data-lb-kicker]", `${item.kind === "stems" ? "stems" : "video"} · ${aspect}`);
+        set("[data-lb-title]", item.title || "");
         set("[data-lb-desc]", item.description || "—");
         set("[data-lb-notes]", item.notes || "—");
 
@@ -559,15 +594,17 @@ export function bindLibraryBrowser() {
         const media = root.querySelector("[data-lb-media]");
         if (media) {
           const frameClass =
-            item.aspect === "9:16"
+            aspect === "9:16"
               ? "lb__panel-frame lb__panel-frame--916"
-              : item.aspect === "1:1"
+              : aspect === "1:1"
                 ? "lb__panel-frame lb__panel-frame--11"
                 : "lb__panel-frame lb__panel-frame--169";
-          if (safeMediaUrl(item.video)) {
-            media.innerHTML = `<div class="${frameClass}"><video src="${safeMediaUrl(item.video)}" playsinline poster="${safeMediaUrl(item.cover) || ""}" data-modal-vid></video></div>`;
-          } else if (item.cover) {
-            media.innerHTML = `<div class="${frameClass}"><img src="${safeMediaUrl(item.cover)}" alt="" /></div>`;
+          const v = safeMediaUrl(item.video);
+          const c = safeMediaUrl(item.cover);
+          if (v) {
+            media.innerHTML = `<div class="${frameClass}"><video src="${escapeHtml(v)}" playsinline poster="${escapeHtml(c)}" data-modal-vid></video></div>`;
+          } else if (c) {
+            media.innerHTML = `<div class="${frameClass}"><img src="${escapeHtml(c)}" alt="" /></div>`;
           } else {
             media.innerHTML = `<div class="${frameClass}"><div class="lb__ph"></div></div>`;
           }
@@ -583,16 +620,20 @@ export function bindLibraryBrowser() {
 
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");
+        const previewMix = root.querySelector("[data-lb-preview-mix]");
         const hasStems = !!(item.stems && item.stems.length);
         if (stemsWrap instanceof HTMLElement) stemsWrap.hidden = !hasStems;
+        // Controles música/ruido solo con stems (Web Audio)
+        if (previewMix instanceof HTMLElement) previewMix.hidden = !hasStems;
         if (mixer && hasStems && item.stems) {
           mixer.innerHTML = item.stems
-            .map(
-              (s) =>
-                `<label class="lb__mix-row"><input type="checkbox" checked data-stem-src="${safeMediaUrl(s.src)}" /> ${escapeHtml(s.label)}</label>`,
-            )
+            .map((s) => {
+              const src = escapeHtml(safeMediaUrl(s.src));
+              return `<label class="lb__mix-row"><input type="checkbox" checked data-stem-src="${src}" /> ${escapeHtml(s.label)}</label>`;
+            })
             .join("");
         }
+        applyPreviewLevelsFromUi();
 
         const licWrap = root.querySelector("[data-lb-lic-wrap]");
         const noLic = root.querySelector("[data-lb-no-lic]");
@@ -678,6 +719,14 @@ export function bindLibraryBrowser() {
         }
       });
 
+      // Sliders música / ruido (preview watermark)
+      root.querySelector("[data-lb-music-level]")?.addEventListener("input", () => {
+        applyPreviewLevelsFromUi();
+      });
+      root.querySelector("[data-lb-noise-level]")?.addEventListener("input", () => {
+        applyPreviewLevelsFromUi();
+      });
+
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
       let seekDragging = false;
 
@@ -749,16 +798,7 @@ export function bindLibraryBrowser() {
         });
       });
 
-      root.querySelectorAll("[data-mood]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const m = (btn as HTMLElement).dataset.mood || null;
-          moodFilter = moodFilter === m ? null : m;
-          root.querySelectorAll("[data-mood]").forEach((b) => {
-            b.classList.toggle("is-on", (b as HTMLElement).dataset.mood === moodFilter);
-          });
-          renderGrid();
-        });
-      });
+      // moods: se re-bindean en paintMoods()
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);
@@ -770,6 +810,16 @@ export function bindLibraryBrowser() {
         const msg = root.querySelector("[data-lb-msg]");
         const usage = String(fd.get("usage") || "");
         if (!isLicenseUsageCode(usage)) return;
+
+        const turnstileToken =
+          String(fd.get("cf-turnstile-response") || "") ||
+          (typeof (window as unknown as { turnstile?: { getResponse?: (el?: Element) => string } })
+            .turnstile?.getResponse === "function"
+            ? (window as unknown as { turnstile: { getResponse: (el?: Element) => string } }).turnstile.getResponse(
+                root.querySelector(".cf-turnstile") || undefined,
+              )
+            : "") ||
+          "";
 
         try {
           const res = await fetch("/api/quote", {
@@ -795,16 +845,25 @@ export function bindLibraryBrowser() {
               removeFromCatalog: fd.get("removeFromCatalog") === "1",
               territoryExpand: fd.get("territoryExpand") === "1",
               moreComposition: fd.get("moreComposition") === "1",
+              turnstileToken: turnstileToken || undefined,
             }),
           });
           const json = await res.json();
           if (msg instanceof HTMLElement) {
             msg.hidden = false;
-            msg.textContent = json.ok
-              ? json.quote?.total != null
-                ? `Presupuesto: ${json.quote.total} € · Enviado`
-                : "Solicitud enviada"
-              : "Error al enviar";
+            if (!json.ok) {
+              msg.textContent =
+                json.error === "turnstile_required" || json.error === "turnstile_failed"
+                  ? "Completa la verificación anti-bots"
+                  : json.error === "rate_limited"
+                    ? "Demasiadas solicitudes. Prueba más tarde."
+                    : "Error al enviar";
+            } else {
+              msg.textContent =
+                json.quote?.total != null
+                  ? `Presupuesto: ${json.quote.total} € · Enviado al estudio`
+                  : "Solicitud enviada al estudio";
+            }
           }
           if (json.ok) {
             setTimeout(() => closeModal(), 1600);
@@ -818,6 +877,43 @@ export function bindLibraryBrowser() {
       });
 
       renderGrid();
+
+      // Catálogo vivo (R2) — un publish en admin se ve sin redeploy
+      void (async () => {
+        try {
+          const res = await fetch("/api/library", { credentials: "same-origin" });
+          if (!res.ok) return;
+          const live = await res.json();
+          if (!live?.ok || !Array.isArray(live.items) || !live.items.length) return;
+          // API ya sanitiza; re-normalizar ids/aspect en cliente por defensa
+          items = (live.items as Item[]).map((raw) => ({
+            ...raw,
+            id: safeDomId(raw.id),
+            aspect: safeAspectLabel(raw.aspect),
+            title: String(raw.title || ""),
+            moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
+            tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+            video: safeMediaUrl(raw.video) || null,
+            cover: safeMediaUrl(raw.cover) || null,
+            stems: Array.isArray(raw.stems)
+              ? raw.stems
+                  .map((s) => ({
+                    id: safeDomId(s.id),
+                    label: String(s.label || ""),
+                    src: safeMediaUrl(s.src),
+                  }))
+                  .filter((s) => s.src)
+              : undefined,
+          }));
+          moods = [
+            ...new Set(items.flatMap((i) => (Array.isArray(i.moods) ? i.moods : []))),
+          ].sort();
+          paintMoods();
+          renderGrid();
+        } catch {
+          /* keep build seed */
+        }
+      })();
     });
   }
 

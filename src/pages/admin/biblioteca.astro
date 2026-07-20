@@ -182,7 +182,7 @@ import Layout from "../../components/Layout.astro";
                   </label>
                   <label class="pick-filter" title="Mostrar en filtros de biblioteca">
                     <input type="checkbox" name="moodFilter" value={m} data-chip-filter />
-                    <span>filtro</span>
+                    <span>F</span>
                   </label>
                 </div>
               ))
@@ -220,7 +220,7 @@ import Layout from "../../components/Layout.astro";
                   </label>
                   <label class="pick-filter" title="Mostrar en filtros de biblioteca">
                     <input type="checkbox" name="tagFilter" value={t} data-chip-filter />
-                    <span>filtro</span>
+                    <span>F</span>
                   </label>
                 </div>
               ))
@@ -686,7 +686,7 @@ import Layout from "../../components/Layout.astro";
     filCb.dataset.chipFilter = "1";
     filCb.checked = opts?.filter ?? false;
     filLab.appendChild(filCb);
-    filLab.appendChild(document.createElement("span")).textContent = "filtro";
+    filLab.appendChild(document.createElement("span")).textContent = "F";
     // Si quitas el mood/tag, quita el filtro
     mainCb.addEventListener("change", () => {
       if (!mainCb.checked) filCb.checked = false;
@@ -1719,45 +1719,39 @@ import Layout from "../../components/Layout.astro";
   }
   .pick-item {
     display: inline-flex;
+    flex-direction: row;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.25rem 0.4rem 0.25rem 0.5rem;
-    border-radius: 8px;
+    gap: 0.4rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.55rem;
+    border-radius: 999px;
     border: 1px solid var(--color-border);
     background: var(--color-bg-elevated);
-    font-size: 0.8rem;
+    font-size: 1.2rem;
   }
   .pick-main {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.35rem;
     cursor: pointer;
     color: var(--color-fg);
+    font-size: 1.2rem;
+    font-weight: 500;
   }
   .pick-filter {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    padding: 0.1rem 0.35rem;
+    gap: 0.15rem;
+    padding: 0.12rem 0.3rem;
     border-radius: 6px;
     border: 1px solid rgb(201 169 98 / 0.3);
     background: rgb(201 169 98 / 0.08);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
     color: var(--color-accent);
     cursor: pointer;
-  }
-  .pick-item {
-    flex-direction: row !important;
-    align-items: center;
-    gap: 0.3rem !important;
-    padding: 0.25rem 0.5rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    font-size: 0.75rem !important;
-    cursor: pointer;
+    flex-shrink: 0;
   }
   .btn {
     display: inline-flex;

@@ -374,7 +374,7 @@ export async function onRequest(context: {
     buyout: Boolean(body.buyout),
     needSpecialReview: Boolean(body.needSpecialReview),
     specialNotes: String(body.specialNotes || "").trim(),
-    term: ["project", "1y", "2y", "custom"].includes(termRaw) ? termRaw : "2y",
+    term: ["single", "project", "1y", "2y", "custom"].includes(termRaw) ? termRaw : "2y",
     termPlus1y: Boolean(body.termPlus1y),
     removeFromCatalog: Boolean(body.removeFromCatalog),
     territoryExpand: Boolean(body.territoryExpand),

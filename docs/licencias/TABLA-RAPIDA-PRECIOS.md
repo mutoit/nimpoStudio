@@ -10,11 +10,16 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 
 | | Precio |
 |--|--------|
-| Comercial 1 obra / 1 proyecto / no exclusiva / 2 años | **179 €** |
-| + stems | **+59 €** → **238 €** |
+| **Un solo uso** (1 entrega / 1 vuelo) | **99 €** |
+| Comercial · 1 año | **139 €** |
+| Comercial · vida del proyecto | **159 €** |
+| Comercial · 2 años (lista estándar) | **179 €** |
+| + stems | **+59 €** |
 | + edit corto | **+49 €** |
-| + ads campaña (ref. 6 meses) | **329 €** (179+150) |
-| +1 año comercial / exclusiva | **+59 €** / **+190 €** |
+| + ads campaña (sobre el plazo) | **+150 €** (ej. 2y → 329 €) |
+| +1 año extra comercial / exclusiva | **+59 €** / **+190 €** |
+
+> La **duración del audio** (20 s / 1 min / 3 min) **no** cambia el precio: se cobra el derecho de uso, no el minutaje. Para pistas cortas (stings, hooks) suele encajar **un solo uso**.
 | Ampliar territorio/medios | **+149 €** |
 | Más composición / custom ½ día | **+149 €** |
 | Exclusiva (desde, puede seguir listada no disponible) | **890 €** |
@@ -54,10 +59,11 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 ## Script de respuesta (30 s)
 
 1. ¿Dinero / marca / cliente? → mín. comercial.  
-2. ¿Ads de pago? → 329.  
-3. ¿Exclusiva / buyout? → 890 / 2.490+.  
-4. ¿1 obra 1 proyecto resto ok? → 179 (+59 stems).  
-5. ¿Multi / live / SaaS / TV gorda? → abre `00-PRECIOS-REFERENCIA.md` §4.
+2. ¿Un post / un vuelo / un sting? → **99** (single).  
+3. ¿Ads de pago? → base del plazo + 150.  
+4. ¿Exclusiva / buyout? → según plazo / 2.490+.  
+5. ¿2 años 1 obra 1 proyecto? → 179 (+59 stems).  
+6. ¿Multi / live / SaaS / TV gorda? → revisión.
 
 ---
 

@@ -160,9 +160,10 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
         <label class="quote__field">
           <span>{t("quoteTerm")}</span>
           <select name="term" data-quote-term>
-            <option value="2y">{t("quoteTerm2y")}</option>
+            <option value="single">{t("quoteTermSingle")}</option>
             <option value="1y">{t("quoteTerm1y")}</option>
             <option value="project">{t("quoteTermProject")}</option>
+            <option value="2y" selected>{t("quoteTerm2y")}</option>
             <option value="custom">{t("quoteTermCustom")}</option>
           </select>
         </label>
@@ -316,7 +317,12 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           buyout: fd.get("buyout") === "1",
           needSpecialReview: fd.get("needSpecialReview") === "1",
           specialNotes: String(fd.get("specialNotes") || ""),
-          term: String(fd.get("term") || "2y") as "project" | "1y" | "2y" | "custom",
+          term: String(fd.get("term") || "2y") as
+            | "single"
+            | "project"
+            | "1y"
+            | "2y"
+            | "custom",
           termPlus1y: fd.get("termPlus1y") === "1",
           removeFromCatalog: fd.get("removeFromCatalog") === "1",
           territoryExpand: fd.get("territoryExpand") === "1",

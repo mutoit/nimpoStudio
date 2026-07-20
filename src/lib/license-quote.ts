@@ -1,6 +1,9 @@
 /**
  * Calculadora de presupuestos de licencia.
  * Precios: docs/licencias/PLAN-BIBLIOTECA-Y-PRECIOS.md (conservadores, media baja).
+ *
+ * El plazo SÍ mueve el precio (un solo uso < 1 año < proyecto < 2 años).
+ * La duración del audio (20 s vs 3 min) NO rebaja el fee: se cobra el uso, no el minutaje.
  */
 
 export type LicenseUsageCode =
@@ -23,7 +26,8 @@ export type LicenseUsageCode =
   | "buyout"
   | "other";
 
-export type LicenseTermCode = "project" | "1y" | "2y" | "custom";
+/** single = 1 entrega / 1 publicación / 1 vuelo; project = vida del proyecto nombrado */
+export type LicenseTermCode = "single" | "project" | "1y" | "2y" | "custom";
 
 export type QuoteLine = {
   code: string;
@@ -42,7 +46,7 @@ export type LicenseQuoteInput = {
   needSpecialReview?: boolean;
   specialNotes?: string;
   term?: LicenseTermCode;
-  /** +1 año comercial o sobre exclusiva */
+  /** +1 año comercial o sobre exclusiva (sobre el plazo ya elegido) */
   termPlus1y?: boolean;
   /** Exclusiva: marcar no disponible / retirar del catálogo público */
   removeFromCatalog?: boolean;
@@ -63,13 +67,27 @@ export type LicenseQuoteResult = {
   scopeEs: string[];
 };
 
-/** Anclas conservadoras (media baja). EUR sin IVA. */
+/**
+ * Anclas conservadoras (media baja). EUR sin IVA.
+ * Comercial “catálogo” = 2 años. Plazos más cortos = menos €.
+ */
 export const LICENSE_PRICES = {
+  /** 2 años — tarifa de lista estándar */
   commercialBase: 179,
+  /** Un solo uso (1 entrega / 1 post / 1 vuelo declarado) */
+  singleUse: 99,
+  /** 1 año calendario */
+  term1y: 139,
+  /** Vida del proyecto nombrado (1 obra en ese proyecto) */
+  termProject: 159,
   stems: 59,
   editShort: 49,
   adsUplift: 150,
   exclusiveFrom: 890,
+  /** Exclusiva 1 año / un solo uso / proyecto (suelos) */
+  exclusive1y: 790,
+  exclusiveSingle: 690,
+  exclusiveProject: 840,
   removeFromCatalog: 190,
   termPlus1yCommercial: 59,
   termPlus1yExclusive: 190,
@@ -114,6 +132,86 @@ const USAGE_BY_CODE = Object.fromEntries(
 
 export function isLicenseUsageCode(v: string): v is LicenseUsageCode {
   return v in USAGE_BY_CODE;
+}
+
+export function isLicenseTermCode(v: string): v is LicenseTermCode {
+  return v === "single" || v === "project" || v === "1y" || v === "2y" || v === "custom";
+}
+
+function termLabel(term: LicenseTermCode): string {
+  switch (term) {
+    case "single":
+      return "un solo uso";
+    case "1y":
+      return "1 año";
+    case "project":
+      return "vida del proyecto";
+    case "custom":
+      return "plazo a medida";
+    case "2y":
+    default:
+      return "2 años";
+  }
+}
+
+/** Precio comercial base según plazo (no ads, no exclusiva). */
+export function commercialPriceForTerm(term: LicenseTermCode = "2y"): {
+  amount: number;
+  label: string;
+} {
+  switch (term) {
+    case "single":
+      return {
+        amount: LICENSE_PRICES.singleUse,
+        label: "Licencia comercial · un solo uso",
+      };
+    case "1y":
+      return {
+        amount: LICENSE_PRICES.term1y,
+        label: "Licencia comercial · 1 año",
+      };
+    case "project":
+      return {
+        amount: LICENSE_PRICES.termProject,
+        label: "Licencia comercial · vida del proyecto",
+      };
+    case "2y":
+    default:
+      return {
+        amount: LICENSE_PRICES.commercialBase,
+        label: "Licencia comercial · 2 años",
+      };
+  }
+}
+
+/** Suelo exclusiva según plazo. */
+export function exclusivePriceForTerm(term: LicenseTermCode = "2y"): {
+  amount: number;
+  label: string;
+} {
+  switch (term) {
+    case "single":
+      return {
+        amount: LICENSE_PRICES.exclusiveSingle,
+        label: "Exclusiva · un solo uso / vuelo",
+      };
+    case "1y":
+      return {
+        amount: LICENSE_PRICES.exclusive1y,
+        label: "Exclusiva · 1 año",
+      };
+    case "project":
+      return {
+        amount: LICENSE_PRICES.exclusiveProject,
+        label: "Exclusiva · vida del proyecto",
+      };
+    case "2y":
+    default:
+      return {
+        amount: LICENSE_PRICES.exclusiveFrom,
+        label: "Exclusiva · 2 años (alcance pactado)",
+      };
+  }
 }
 
 function addExtras(
@@ -173,15 +271,20 @@ function addExtras(
 
 /**
  * P⇒Q: input con usage válido ⇒ result con mode y total/fromAmount coherentes.
+ * El plazo (term) modifica el precio de lista comercial y exclusiva.
  */
 export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteResult {
   const meta = USAGE_BY_CODE[input.usage];
   const lineItems: QuoteLine[] = [];
+  const term: LicenseTermCode =
+    input.term && isLicenseTermCode(input.term) ? input.term : "2y";
+
   const scopeEs: string[] = [
     "Composición original del estudio (MIDI), hecha a mano, sin IA como autora.",
     "1 obra (tema) y 1 proyecto declarado, salvo acuerdo distinto.",
     "Sin derecho a revender el audio como librería o stock.",
     "Previews web no son el master; entrega tras aceptación y pago.",
+    "El precio es por derechos de uso, no por minutos de audio (un sting de 20 s y un tema de 3 min comparten tarifa de uso).",
   ];
 
   const wantsExclusive =
@@ -191,7 +294,7 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
   const forceReview =
     !!input.needSpecialReview ||
     input.usage === "other" ||
-    input.term === "custom" ||
+    term === "custom" ||
     (!meta.canInstant && !wantsExclusive && !wantsBuyout);
 
   // —— Personal ——
@@ -238,11 +341,12 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
 
   // —— Exclusiva ——
   if (wantsExclusive) {
-    let total = LICENSE_PRICES.exclusiveFrom;
+    const ex = exclusivePriceForTerm(term === "custom" ? "2y" : term);
+    let total = ex.amount;
     lineItems.push({
       code: "exclusive",
-      label: "Exclusiva (alcance pactado)",
-      amount: LICENSE_PRICES.exclusiveFrom,
+      label: ex.label,
+      amount: ex.amount,
     });
     total = addExtras(input, lineItems, total, true);
     const remove = !!input.removeFromCatalog;
@@ -254,11 +358,11 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
       lineItems,
       summaryKey: "quoteResultExclusive",
       summaryEs: remove
-        ? `Exclusiva + no disponible en catálogo: ${total} €.`
-        : `Exclusiva (puede seguir listada como «no disponible»): ${total} €.`,
+        ? `Exclusiva (${termLabel(term)}) + no disponible en catálogo: ${total} €.`
+        : `Exclusiva (${termLabel(term)}): ${total} €.`,
       scopeEs: [
         ...scopeEs,
-        "Exclusividad en el alcance pactado por escrito.",
+        `Exclusividad en el alcance pactado · plazo: ${termLabel(term)}.`,
         remove
           ? "Retirada o marcaje no disponible en catálogo público durante la exclusiva."
           : "Puede permanecer visible como no disponible / exclusiva.",
@@ -268,10 +372,11 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
 
   // —— Revisión ——
   if (meta.base === "review" || forceReview) {
+    const fromBase = commercialPriceForTerm(term === "custom" ? "2y" : term).amount;
     const from =
       meta.base === "ads" || input.usage === "film_feature"
-        ? LICENSE_PRICES.commercialBase + LICENSE_PRICES.adsUplift
-        : LICENSE_PRICES.commercialBase;
+        ? fromBase + LICENSE_PRICES.adsUplift
+        : fromBase;
     return {
       mode: "review",
       currency: "EUR",
@@ -287,13 +392,15 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
   }
 
   // —— Instant comercial / ads ——
+  const commercial = commercialPriceForTerm(term);
   let total = 0;
+
   if (meta.base === "ads" || input.usage === "ads_paid") {
-    total = LICENSE_PRICES.commercialBase + LICENSE_PRICES.adsUplift;
+    total = commercial.amount + LICENSE_PRICES.adsUplift;
     lineItems.push({
       code: "commercial",
-      label: "Licencia comercial base",
-      amount: LICENSE_PRICES.commercialBase,
+      label: commercial.label,
+      amount: commercial.amount,
     });
     lineItems.push({
       code: "ads",
@@ -301,19 +408,36 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
       amount: LICENSE_PRICES.adsUplift,
     });
     scopeEs.push(
-      "Vuelo publicitario de pago multi-canal de referencia (hasta ~6 meses, 1 marca).",
+      `Vuelo publicitario de pago multi-canal · plazo de derechos: ${termLabel(term)}.`,
     );
   } else {
-    total = LICENSE_PRICES.commercialBase;
+    total = commercial.amount;
     lineItems.push({
       code: "commercial",
-      label: "Licencia comercial estándar",
-      amount: LICENSE_PRICES.commercialBase,
+      label: commercial.label,
+      amount: commercial.amount,
     });
-    scopeEs.push(
-      "No exclusiva. Territorio mundial, plazo 2 años (o vida del proyecto), master WAV.",
-      "Medios del proyecto: online, redes, festival, trailer del mismo proyecto.",
-    );
+    if (term === "single") {
+      scopeEs.push(
+        "Un solo uso: 1 entrega / 1 publicación o vuelo declarado. No reutilizable en otra campaña o proyecto.",
+        "Territorio mundial en ese uso. Master WAV.",
+      );
+    } else if (term === "1y") {
+      scopeEs.push(
+        "No exclusiva. Territorio mundial, 1 año desde la fecha de licencia, master WAV.",
+        "Medios del proyecto: online, redes, festival, trailer del mismo proyecto.",
+      );
+    } else if (term === "project") {
+      scopeEs.push(
+        "No exclusiva. Vida del proyecto nombrado (mientras ese proyecto exista en su forma declarada).",
+        "No se reutiliza la obra en otro proyecto sin nueva licencia.",
+      );
+    } else {
+      scopeEs.push(
+        "No exclusiva. Territorio mundial, plazo 2 años, master WAV.",
+        "Medios del proyecto: online, redes, festival, trailer del mismo proyecto.",
+      );
+    }
   }
 
   total = addExtras(input, lineItems, total, false);
@@ -325,7 +449,7 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
     fromAmount: null,
     lineItems,
     summaryKey: "quoteResultInstant",
-    summaryEs: `Presupuesto de catálogo: ${total} € (IVA no incluido). Condiciones estándar del uso elegido.`,
+    summaryEs: `Presupuesto de catálogo (${termLabel(term)}): ${total} € (IVA no incluido).`,
     scopeEs,
   };
 }

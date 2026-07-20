@@ -179,9 +179,10 @@ const payload = {
               <label>
                 {t("quoteTerm")}
                 <select name="term">
-                  <option value="2y">{t("quoteTerm2y")}</option>
+                  <option value="single">{t("quoteTermSingle")}</option>
                   <option value="1y">{t("quoteTerm1y")}</option>
                   <option value="project">{t("quoteTermProject")}</option>
+                  <option value="2y" selected>{t("quoteTerm2y")}</option>
                   <option value="custom">{t("quoteTermCustom")}</option>
                 </select>
               </label>
@@ -627,7 +628,12 @@ const payload = {
           buyout: fd.get("buyout") === "1",
           needSpecialReview: fd.get("needSpecialReview") === "1",
           specialNotes: String(fd.get("specialNotes") || ""),
-          term: String(fd.get("term") || "2y") as "2y" | "1y" | "project" | "custom",
+          term: String(fd.get("term") || "2y") as
+            | "single"
+            | "2y"
+            | "1y"
+            | "project"
+            | "custom",
           termPlus1y: fd.get("termPlus1y") === "1",
           removeFromCatalog: fd.get("removeFromCatalog") === "1",
           territoryExpand: fd.get("territoryExpand") === "1",

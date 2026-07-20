@@ -20,6 +20,10 @@ const items = getLibraryItems();
       <p class="hero__eyebrow">{t("libEyebrow")}</p>
       <h1 class="hero__title">{t("libTitle")}</h1>
       <p class="hero__desc">{t("libDesc")}</p>
+      <p class="hero__protect" role="note">
+        <span class="hero__protect-tag">Preview protegido</span>
+        {t("musicLicensePreviewNote")}
+      </p>
     </header>
     <LibraryBrowser items={items} lang={lang} />
   </div>
@@ -51,5 +55,38 @@ const items = getLibraryItems();
     margin: 0.75rem 0 0;
     color: var(--color-muted);
     line-height: 1.65;
+  }
+
+  .hero__protect {
+    margin: 1.15rem 0 0;
+    max-width: 40rem;
+    padding: 0.9rem 1.05rem;
+    border-radius: 12px;
+    border: 1px solid rgb(201 169 98 / 0.5);
+    background:
+      linear-gradient(145deg, rgb(201 169 98 / 0.2), rgb(201 169 98 / 0.06) 60%),
+      var(--color-surface, #121018);
+    box-shadow:
+      0 0 0 1px rgb(201 169 98 / 0.15),
+      0 0 32px rgb(201 169 98 / 0.28),
+      0 0 64px rgb(201 169 98 / 0.12);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: #f2e4bc;
+    text-shadow: 0 0 20px rgb(201 169 98 / 0.4);
+  }
+
+  .hero__protect-tag {
+    display: inline-block;
+    margin: 0 0.45rem 0.4rem 0;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #0a0a0c;
+    background: #c9a962;
+    box-shadow: 0 0 18px rgb(201 169 98 / 0.65);
   }
 </style>

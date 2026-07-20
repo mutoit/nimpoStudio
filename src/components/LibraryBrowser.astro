@@ -88,6 +88,11 @@ const payload = {
     <span class="lb__count" data-lb-count></span>
   </div>
 
+  <p class="lb__banner-protect" role="note">
+    <span class="lb__banner-protect__tag">Preview protegido</span>
+    {t("musicLicensePreviewNote")}
+  </p>
+
   <div class="lb__grid" data-lb-grid></div>
 
   <!-- Modal encima del catálogo -->
@@ -435,15 +440,47 @@ const payload = {
     pointer-events: none;
   }
 
+  .lb__banner-protect {
+    margin: 0 0 1.15rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background:
+      linear-gradient(135deg, rgb(201 169 98 / 0.16), rgb(201 169 98 / 0.05) 55%),
+      #121018;
+    box-shadow:
+      0 0 0 1px rgb(201 169 98 / 0.12),
+      0 0 28px rgb(201 169 98 / 0.22),
+      0 0 56px rgb(201 169 98 / 0.1);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #f0e2b8;
+    text-shadow: 0 0 18px rgb(201 169 98 / 0.35);
+  }
+  .lb__banner-protect__tag {
+    display: inline-block;
+    margin: 0 0.5rem 0.35rem 0;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0a0a0c;
+    background: #c9a962;
+    box-shadow: 0 0 16px rgb(201 169 98 / 0.55);
+    vertical-align: middle;
+  }
   .lb__protect {
     margin: 0.55rem 0 0.85rem;
     padding: 0.65rem 0.75rem;
     border-radius: 8px;
-    border: 1px solid rgb(201 169 98 / 0.3);
-    background: rgb(201 169 98 / 0.08);
-    font-size: 0.78rem;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.1);
+    box-shadow: 0 0 20px rgb(201 169 98 / 0.15);
+    font-size: 0.8rem;
     line-height: 1.45;
-    color: #d4c4a0;
+    color: #e8d5a0;
   }
   .lb__protect--lic {
     margin: 0 0 1rem;

@@ -101,6 +101,25 @@ export class AdminMixPreview {
     this.stopInternal();
   }
 
+  private async playBuffers(buffers: AudioBuffer[]) {
+    const ctx = this.ensure();
+    if (ctx.state === "suspended") await ctx.resume();
+    for (const buffer of buffers) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = 1;
+      src.connect(g);
+      g.connect(this.musicGain!);
+      src.start(0);
+      this.layers.push({ source: src, gain: g });
+    }
+    this.startNoise(ctx);
+    this.setGains(this.music01, this.noise01);
+    this.playing = true;
+  }
+
   /**
    * Reproduce stems (File[]) mezclados + ruido.
    */
@@ -118,22 +137,41 @@ export class AdminMixPreview {
         return ctx.decodeAudioData(raw.slice(0));
       }),
     );
+    await this.playBuffers(buffers);
+  }
 
-    for (const buffer of buffers) {
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      const g = ctx.createGain();
-      g.gain.value = 1;
-      src.connect(g);
-      g.connect(this.musicGain!);
-      src.start(0);
-      this.layers.push({ source: src, gain: g });
+  /**
+   * Stems ya en servidor (URLs same-origin /api/media/...).
+   */
+  async playStemUrls(urls: string[]) {
+    this.stopInternal();
+    const list = urls.map((u) => String(u || "").trim()).filter(Boolean);
+    if (!list.length) throw new Error("No hay URLs de audio");
+
+    const ctx = this.ensure();
+    if (ctx.state === "suspended") await ctx.resume();
+
+    const buffers: AudioBuffer[] = [];
+    const errors: string[] = [];
+    for (const url of list) {
+      try {
+        const res = await fetch(url, { credentials: "same-origin" });
+        if (!res.ok) {
+          errors.push(`${res.status} ${url}`);
+          continue;
+        }
+        const raw = await res.arrayBuffer();
+        buffers.push(await ctx.decodeAudioData(raw.slice(0)));
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
     }
-
-    this.startNoise(ctx);
-    this.setGains(this.music01, this.noise01);
-    this.playing = true;
+    if (!buffers.length) {
+      throw new Error(
+        errors[0] ? `No se pudo cargar audio: ${errors[0]}` : "No se pudo cargar audio del servidor",
+      );
+    }
+    await this.playBuffers(buffers);
   }
 
   /**

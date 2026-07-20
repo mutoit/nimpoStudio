@@ -58,7 +58,7 @@ import Layout from "../../components/Layout.astro";
           <div class="media-status" data-status-video hidden role="status"></div>
           <label class="file-label">
             Vídeo (mp4 / webm) *
-            <input type="file" accept="video/mp4,video/webm,video/*" data-video-file required />
+            <input type="file" accept="video/mp4,video/webm,video/*" data-video-file />
           </label>
           <div class="preview" data-video-preview hidden></div>
           <label class="file-label">
@@ -616,13 +616,25 @@ import Layout from "../../components/Layout.astro";
     try {
       if (channel === "stems") {
         const files = stemRows.map((r) => r.file).filter((f): f is File => !!f);
-        if (!files.length) {
-          setMixMsg("Primero arrastra stems de audio.", true);
+        if (files.length) {
+          await mixPreview.playStems(files);
+          setMixMsg(
+            `Local · ${files.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+          );
           return;
         }
-        await mixPreview.playStems(files);
+        // Edición: stems ya en servidor
+        const serverStems = Array.isArray(editingItem?.stems)
+          ? (editingItem!.stems as { src?: string }[])
+          : [];
+        const urls = serverStems.map((s) => String(s.src || "")).filter(Boolean);
+        if (!urls.length) {
+          setMixMsg("No hay stems locales ni en servidor. Arrastra audio o elige otra ficha.", true);
+          return;
+        }
+        await mixPreview.playStemUrls(urls);
         setMixMsg(
-          `Reproduciendo ${files.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+          `Servidor · ${urls.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% (solo escucha; para grabar nuevo ruido re-sube o usa re-mezcla al publicar stems nuevos)`,
         );
       } else {
         const vInput = document.querySelector<HTMLInputElement>("[data-video-file]");
@@ -630,7 +642,6 @@ import Layout from "../../components/Layout.astro";
         const previewBox = document.querySelector("[data-video-preview]");
         let videoEl = previewBox?.querySelector("video") as HTMLVideoElement | null;
         if (!videoEl && file) {
-          // Forzar preview si no hay
           const url = URL.createObjectURL(file);
           if (previewBox instanceof HTMLElement) {
             previewBox.hidden = false;
@@ -638,13 +649,21 @@ import Layout from "../../components/Layout.astro";
             videoEl = previewBox.querySelector("video");
           }
         }
+        if (!videoEl && editingItem?.video) {
+          const url = String(editingItem.video);
+          if (previewBox instanceof HTMLElement) {
+            previewBox.hidden = false;
+            previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">servidor</p>`;
+            videoEl = previewBox.querySelector("video");
+          }
+        }
         if (!videoEl) {
-          setMixMsg("Elige un vídeo primero.", true);
+          setMixMsg("No hay vídeo local ni en servidor.", true);
           return;
         }
         await mixPreview.playMediaElement(videoEl);
         setMixMsg(
-          `Vídeo + ruido · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% (solo escucha; el mp4 no se re-mezcla al publicar)`,
+          `Vídeo + ruido · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
         );
       }
     } catch (e) {
@@ -1090,12 +1109,25 @@ import Layout from "../../components/Layout.astro";
     if (btn instanceof HTMLButtonElement) btn.disabled = true;
 
     try {
+      // No confiar en required HTML (rompe edición silenciosamente)
+      const titleInput = form.querySelector("[data-title]") as HTMLInputElement | null;
+      const title = String(titleInput?.value || form.querySelector<HTMLInputElement>("[name=title]")?.value || "").trim();
+      if (!title) {
+        setStatus("El título es obligatorio.", false);
+        titleInput?.focus();
+        return;
+      }
+
       const fd = new FormData(form);
-      const title = String(fd.get("title") || "").trim();
       const slug =
-        editingSlug ||
+        (editingSlug && String(editingSlug).trim()) ||
         String(fd.get("slug") || "").trim() ||
         slugify(title);
+      if (!slug) {
+        setStatus("Falta slug (o un título para generarlo).", false);
+        return;
+      }
+
       const moods = fd.getAll("moodPick").map(String);
       const tags = fd.getAll("tagPick").map(String);
       const filterMoods = fd.getAll("moodFilter").map(String).filter((m) => moods.includes(m));
@@ -1112,15 +1144,16 @@ import Layout from "../../components/Layout.astro";
       const hasStemFiles = stemRows.some((r) => r.file);
       const hasAnyNewMedia = hasVideoFile || hasCoverFile || hasStemFiles;
 
-      // Siempre preferir PATCH si solo cambian texto/tags (sin archivos nuevos)
+      // Solo metadatos / tags: POST update (no requiere re-subir stems)
       if (editingSlug && !hasAnyNewMedia) {
-        setStatus("Guardando (conservando media)…");
+        setStatus("Guardando cambios (media se conserva)…");
         const res = await fetch("/admin/items", {
-          method: "PATCH",
+          method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            slug,
+            action: "update",
+            slug: editingSlug,
             title,
             aspect: String(fd.get("aspect") || "1:1"),
             description: String(fd.get("description") || ""),
@@ -1134,13 +1167,23 @@ import Layout from "../../components/Layout.astro";
             licenseEnabled: fd.get("licenseEnabled") === "on",
           }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.message || data.error || "Error");
+        let data: { ok?: boolean; message?: string; error?: string; item?: unknown } = {};
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(`Respuesta no JSON (${res.status}). ¿Sesión caducada? Vuelve a entrar.`);
+        }
+        if (!res.ok || !data.ok) {
+          throw new Error(
+            data.message || data.error || `Error al guardar (${res.status})`,
+          );
+        }
         setStatus(`✅ ${data.message || "Guardado"}`);
-        showToast(`✅ Guardado «${title}» (media intacta)`, 14000);
+        showToast(`✅ Guardado «${title}» — media intacta en servidor`, 16000);
         await loadPubs();
-        // Seguir en edición con el ítem actualizado
-        const updated = publications.find((p) => p.slug === slug) || data.item;
+        const updated =
+          publications.find((p) => p.slug === editingSlug) ||
+          (data.item as Record<string, unknown> | undefined);
         if (updated) setEditMode(updated as Record<string, unknown>);
         return;
       }

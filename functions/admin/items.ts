@@ -3,6 +3,7 @@
  * GET  /admin/items          → lista ítems (auth)
  * DELETE /admin/items?slug=  → borra del catálogo + media R2
  * PATCH  /admin/items        → actualiza metadatos (mantiene media)
+ * POST /admin/items          → { action:"update", ... } (mismo que PATCH; más fiable en algunos clients)
  */
 
 import {
@@ -103,7 +104,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
-  if (request.method === "PATCH") {
+  const isUpdate =
+    request.method === "PATCH" ||
+    (request.method === "POST" &&
+      (request.headers.get("Content-Type") || "").includes("application/json"));
+
+  if (isUpdate && request.method !== "GET" && request.method !== "DELETE") {
+    // POST sin action=update se trata igual si trae slug (compat)
     const rl = await checkRateLimitAsync(
       `admin-items-patch:${ip}`,
       { limit: 40, windowSec: 3600 },
@@ -118,13 +125,30 @@ export async function onRequest(context: { request: Request; env: Env }) {
       return json({ ok: false, error: "invalid_json" }, 400);
     }
 
+    // POST genérico: exigir action o slug de update
+    if (request.method === "POST") {
+      const action = String(body.action || "update");
+      if (action !== "update" && action !== "patch") {
+        return json({ ok: false, error: "unknown_action" }, 400);
+      }
+    }
+
     const slug = safeSlug(String(body.slug || ""), "");
     if (!slug || slug === "item") {
       return json({ ok: false, error: "missing_slug" }, 400);
     }
 
     const existing = await findCatalogItem(bucket, slug);
-    if (!existing) return json({ ok: false, error: "not_found" }, 404);
+    if (!existing) {
+      return json(
+        {
+          ok: false,
+          error: "not_found",
+          message: `No hay ítem con slug «${slug}» en el catálogo R2.`,
+        },
+        404,
+      );
+    }
 
     const title = clipText(body.title ?? existing.title, 200);
     if (!title) return json({ ok: false, error: "missing_title" }, 400);
@@ -165,7 +189,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       item: next,
       catalogCount: catalog.length,
-      message: "Metadatos guardados (media sin cambios).",
+      message: "Cambios guardados. Media en servidor sin tocar.",
     });
   }
 

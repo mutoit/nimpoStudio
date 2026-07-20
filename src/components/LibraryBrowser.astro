@@ -611,7 +611,8 @@ const payload = {
 
   .lb__modal {
     position: relative;
-    width: min(1100px, 100%);
+    width: min(68rem, 100%);
+    max-width: 100%;
     margin: auto;
     padding: 1.35rem 1.25rem 1.75rem;
     border-radius: 14px;
@@ -619,6 +620,8 @@ const payload = {
     background: #121216;
     color: #e8e8ec;
     box-shadow: 0 24px 64px rgb(0 0 0 / 0.55);
+    overflow-x: clip;
+    box-sizing: border-box;
   }
 
   .lb__x {
@@ -638,6 +641,13 @@ const payload = {
     display: grid;
     gap: 1.75rem;
     padding-top: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .lb__modal-left,
+  .lb__modal-right {
+    min-width: 0;
+    max-width: 100%;
   }
   @media (min-width: 900px) {
     .lb__modal-grid {
@@ -815,6 +825,8 @@ const payload = {
     border-radius: 12px;
     border: 1px solid rgb(201 169 98 / 0.3);
     background: rgb(8 8 10 / 0.75);
+    overflow-x: clip;
+    box-sizing: border-box;
   }
   .lb__form-title {
     margin: 0;
@@ -831,20 +843,27 @@ const payload = {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    min-width: 0;
+    max-width: 100%;
   }
   .lb__form-row {
     display: grid;
     gap: 0.75rem;
+    min-width: 0;
+    grid-template-columns: 1fr;
   }
-  @media (min-width: 560px) {
+  /* Dos columnas solo si hay sitio real (no solo min-width de viewport con UI L) */
+  @media (min-width: 720px) {
     .lb__form-row {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
   }
   .lb__form label {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+    min-width: 0;
+    max-width: 100%;
     font-size: 0.75rem;
     font-weight: 600;
     color: rgb(150 150 160);
@@ -852,6 +871,10 @@ const payload = {
   .lb__form input,
   .lb__form select,
   .lb__form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     font: inherit;
     font-weight: 400;
     font-size: 0.9rem;
@@ -860,6 +883,18 @@ const payload = {
     border-radius: 8px;
     border: 1px solid rgb(255 255 255 / 0.12);
     background: #0a0a0c;
+  }
+  .lb__form select {
+    /* Texto largo en plazos/uso: no reventar el frame en M/L */
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .lb__protect {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .lb__fieldset {
     margin: 0;

@@ -1,7 +1,8 @@
 /**
  * POST /admin/publish
- * Un paso: media → R2 + upsert catálogo vivo.
- * Allowlist MIME/ext, cuotas, aspect/id sanitizados.
+ * Media → R2 + upsert catálogo.
+ * Si el slug ya existe: fusiona (conserva vídeo/stems/cover que no se reenvían).
+ * No borra el prefijo entero al editar (evita perder archivos al cambiar un tag).
  */
 
 import {
@@ -12,7 +13,7 @@ import {
 } from "../lib/admin-auth";
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
 import {
-  deleteMediaPrefix,
+  findCatalogItem,
   upsertCatalogItem,
   type CatalogBucket,
 } from "../lib/library-catalog";
@@ -44,6 +45,8 @@ type Env = AdminEnv & {
   LIBRARY_PUBLIC_BASE?: string;
   RATE_LIMIT_KV?: RateLimitKv;
 };
+
+type StemItem = { id: string; label: string; src: string };
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -102,15 +105,9 @@ export async function onRequest(context: {
   const slug = safeSlug(String(form.get("slug") || ""), title);
   const kind = String(form.get("kind") || "video") === "stems" ? "stems" : "video";
   const aspect = safeAspect(String(form.get("aspect") || "1:1"));
-  // Same-origin: el front hace fetch (Web Audio) sin CORS de r2.dev
   const publicBase = "/api/media";
 
-  // Re-publicar mismo slug: limpia media antigua para no dejar basura
-  try {
-    await deleteMediaPrefix(env.LIBRARY_BUCKET, slug);
-  } catch (e) {
-    console.warn("[admin/publish] delete prefix", e);
-  }
+  const existing = (await findCatalogItem(env.LIBRARY_BUCKET, slug)) || null;
 
   const parseList = (raw: FormDataEntryValue | null) => {
     if (!raw) return [] as string[];
@@ -129,7 +126,6 @@ export async function onRequest(context: {
 
   const moods = parseList(form.get("moods"));
   const tags = parseList(form.get("tags"));
-  // Subconjunto marcado “mostrar en filtros biblioteca”
   const filterMoods = parseList(form.get("filterMoods")).filter((m) => moods.includes(m));
   const filterTags = parseList(form.get("filterTags")).filter((t) => tags.includes(t));
 
@@ -165,40 +161,41 @@ export async function onRequest(context: {
   };
 
   try {
-    let video: string | null = null;
-    let cover: string | null = null;
-    let stems: { id: string; label: string; src: string }[] | undefined;
+    let video: string | null =
+      existing && typeof existing.video === "string" ? existing.video : null;
+    let cover: string | null =
+      existing && typeof existing.cover === "string" ? existing.cover : null;
+    let stems: StemItem[] | undefined = Array.isArray(existing?.stems)
+      ? (existing!.stems as StemItem[])
+      : undefined;
+
+    const videoFile = form.get("video");
+    const hasNewVideo = videoFile instanceof File && videoFile.size > 0;
+    const coverFile = form.get("cover");
+    const hasNewCover = coverFile instanceof File && coverFile.size > 0;
 
     if (kind === "video") {
-      const videoFile = form.get("video");
-      if (!(videoFile instanceof File) || !videoFile.size) {
+      if (hasNewVideo) {
+        video = await putFile("video", videoFile as File, "video", slug);
+      } else if (!video) {
         return json({ ok: false, error: "missing_video" }, 400);
       }
-      video = await putFile("video", videoFile, "video", slug);
-
-      const coverFile = form.get("cover");
-      if (coverFile instanceof File && coverFile.size) {
-        cover = await putFile("cover", coverFile, "image", `${slug}-cover`);
+      if (hasNewCover) {
+        cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
       }
     } else {
-      // Canal stems: audio obligatorio; vídeo y cover opcionales (vídeo sirve de miniatura visual)
-      const videoFile = form.get("video");
-      if (videoFile instanceof File && videoFile.size) {
-        video = await putFile("video", videoFile, "video", slug);
+      if (hasNewVideo) {
+        video = await putFile("video", videoFile as File, "video", slug);
+      }
+      if (hasNewCover) {
+        cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
       }
 
-      const coverFile = form.get("cover");
-      if (coverFile instanceof File && coverFile.size) {
-        cover = await putFile("cover", coverFile, "image", `${slug}-cover`);
-      }
-
-      const stemItems: { id: string; label: string; src: string }[] = [];
+      const stemItems: StemItem[] = [];
       for (let i = 0; i < MAX_STEMS; i++) {
         const f = form.get(`stem_${i}_file`);
         if (!(f instanceof File) || !f.size) continue;
-        if (stemItems.length >= MAX_STEMS) {
-          throw new Error("too_many_stems");
-        }
+        if (stemItems.length >= MAX_STEMS) throw new Error("too_many_stems");
         const label = clipText(
           form.get(`stem_${i}_label`) || f.name.replace(/\.[^.]+$/, "") || `Stem ${i + 1}`,
           80,
@@ -207,14 +204,17 @@ export async function onRequest(context: {
         const src = await putFile(`stem_${i}`, f, "audio", `${slug}-${id}`);
         stemItems.push({ id, label, src });
       }
-      if (!stemItems.length) {
+      if (stemItems.length) {
+        // Nuevos stems → sustituyen la lista (con ruido bake en cliente)
+        stems = stemItems;
+      } else if (!stems?.length) {
         return json({ ok: false, error: "missing_stems" }, 400);
       }
-      stems = stemItems;
+      // si no hay stems nuevos y ya había: se conservan
     }
 
     const item = {
-      id: safeItemId(slug),
+      id: existing?.id || safeItemId(slug),
       slug,
       title,
       kind,
@@ -231,8 +231,11 @@ export async function onRequest(context: {
       year: Number(form.get("year") || new Date().getFullYear()) || new Date().getFullYear(),
       provisional: String(form.get("provisional") || "") === "1",
       licenseEnabled: String(form.get("licenseEnabled") || "1") !== "0",
-      availability: "available" as const,
-      publishedAt: new Date().toISOString(),
+      availability: (existing?.availability as string) || "available",
+      publishedAt:
+        (typeof existing?.publishedAt === "string" && existing.publishedAt) ||
+        new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     const catalog = await upsertCatalogItem(env.LIBRARY_BUCKET, item);
@@ -241,6 +244,12 @@ export async function onRequest(context: {
       ok: true,
       item,
       uploaded,
+      merged: Boolean(existing),
+      keptMedia: {
+        video: !hasNewVideo && Boolean(video),
+        cover: !hasNewCover && Boolean(cover),
+        stems: kind === "stems" && !uploaded.some((u) => u.role.startsWith("stem_")),
+      },
       catalogCount: catalog.length,
       limits: {
         maxFileMb: MAX_FILE_BYTES / (1024 * 1024),
@@ -248,17 +257,15 @@ export async function onRequest(context: {
         maxStems: MAX_STEMS,
       },
       publicUrl: "https://www.nimpo3dstudio.com/es/biblioteca/",
-      message: "Publicado. Ya debería verse en la biblioteca (recarga la página).",
+      message: existing
+        ? "Guardado (se conservó la media que no re-subiste)."
+        : "Publicado. Ya debería verse en la biblioteca (recarga la página).",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "upload_failed";
     if (msg === "file_too_large") {
       return json(
-        {
-          ok: false,
-          error: "file_too_large",
-          maxMb: MAX_FILE_BYTES / (1024 * 1024),
-        },
+        { ok: false, error: "file_too_large", maxMb: MAX_FILE_BYTES / (1024 * 1024) },
         413,
       );
     }

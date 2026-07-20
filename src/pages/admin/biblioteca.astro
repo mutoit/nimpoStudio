@@ -251,10 +251,17 @@ import Layout from "../../components/Layout.astro";
           <input name="year" type="number" value="2026" />
         </label>
 
+        <div class="kept-media" data-kept-media hidden>
+          <p class="kept-media__title">Media ya en servidor (se conserva al guardar)</p>
+          <ul class="kept-media__list" data-kept-list></ul>
+          <p class="hint">
+            No hace falta re-subir para cambiar tags/moods. Solo sube archivos si quieres
+            <strong>reemplazar</strong> vídeo o stems.
+          </p>
+        </div>
         <p class="hint" data-edit-hint hidden>
-          En edición: si no subes archivos nuevos, solo se actualizan título/moods/texto
-          (el audio/vídeo se mantiene). Si subes stems nuevos, se re-suben con el ruido del
-          slider.
+          Guardar fusiona cambios: la media que no toques se mantiene. Puedes guardar varias
+          veces seguidas.
         </p>
         <button type="submit" class="btn btn--gold" data-publish>
           Publicar en la web
@@ -760,6 +767,35 @@ import Layout from "../../components/Layout.astro";
     }
   };
 
+  const paintKeptMedia = (item: Record<string, unknown> | null) => {
+    const box = document.querySelector("[data-kept-media]");
+    const list = document.querySelector("[data-kept-list]");
+    if (!(box instanceof HTMLElement) || !(list instanceof HTMLElement)) return;
+    if (!item) {
+      box.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+    const lines: string[] = [];
+    if (item.video) lines.push(`Vídeo: ${String(item.video).split("/").pop()}`);
+    if (item.cover) lines.push(`Cover: ${String(item.cover).split("/").pop()}`);
+    const stems = Array.isArray(item.stems) ? item.stems : [];
+    if (stems.length) {
+      lines.push(
+        `Stems (${stems.length}): ${stems
+          .map((s: { label?: string }) => s.label || "?")
+          .join(", ")}`,
+      );
+    }
+    if (!lines.length) {
+      box.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+    box.hidden = false;
+    list.innerHTML = lines.map((l) => `<li>${l.replace(/</g, "&lt;")}</li>`).join("");
+  };
+
   const setEditMode = (item: Record<string, unknown> | null) => {
     editingItem = item;
     editingSlug = item ? String(item.slug || "") : null;
@@ -775,6 +811,12 @@ import Layout from "../../components/Layout.astro";
     if (slugInput) {
       slugInput.readOnly = !!item;
       slugInput.style.opacity = item ? "0.7" : "1";
+    }
+    paintKeptMedia(item);
+    // En edición el vídeo no es obligatorio en el input
+    const videoInput = document.querySelector("[data-video-file]");
+    if (videoInput instanceof HTMLInputElement) {
+      videoInput.required = !item && channel === "video";
     }
     if (!item) {
       const form = document.querySelector("[data-admin-form]");
@@ -850,7 +892,7 @@ import Layout from "../../components/Layout.astro";
     stemRows = [];
     renderStems();
     setStatus(
-      `Editando «${item.title}». Cambia texto y Guarda, o sube stems nuevos (+ ruido) para reemplazar audio.`,
+      `Editando «${item.title}». Cambia tags/texto y Guarda — la media se conserva. Solo re-sube archivos si quieres reemplazarlos.`,
     );
   };
 
@@ -1002,14 +1044,11 @@ import Layout from "../../components/Layout.astro";
           ? !!(form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0]
           : !!(form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
       const hasStemFiles = stemRows.some((r) => r.file);
-      const metaOnly =
-        !!editingSlug &&
-        !hasVideoFile &&
-        !hasCoverFile &&
-        !hasStemFiles;
+      const hasAnyNewMedia = hasVideoFile || hasCoverFile || hasStemFiles;
 
-      if (metaOnly) {
-        setStatus("Guardando metadatos…");
+      // Siempre preferir PATCH si solo cambian texto/tags (sin archivos nuevos)
+      if (editingSlug && !hasAnyNewMedia) {
+        setStatus("Guardando (conservando media)…");
         const res = await fetch("/admin/items", {
           method: "PATCH",
           credentials: "same-origin",
@@ -1031,9 +1070,12 @@ import Layout from "../../components/Layout.astro";
         });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.message || data.error || "Error");
-        setStatus(`✅ ${data.message}`);
-        setEditMode(null);
+        setStatus(`✅ ${data.message || "Guardado"}`);
+        showToast(`✅ Guardado «${title}» (media intacta)`, 14000);
         await loadPubs();
+        // Seguir en edición con el ítem actualizado
+        const updated = publications.find((p) => p.slug === slug) || data.item;
+        if (updated) setEditMode(updated as Record<string, unknown>);
         return;
       }
 
@@ -1055,11 +1097,7 @@ import Layout from "../../components/Layout.astro";
       if (channel === "video") {
         const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
         if (!v && !editingSlug) throw new Error("Elige un vídeo.");
-        if (!v && editingSlug) {
-          throw new Error(
-            "Para reemplazar media sube un vídeo. Para solo texto usa Guardar sin archivos (metadatos).",
-          );
-        }
+        // En edición: sin vídeo nuevo → el servidor conserva el existente
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) body.set("cover", c, c.name);
@@ -1070,34 +1108,33 @@ import Layout from "../../components/Layout.astro";
         if (c) body.set("cover", c, c.name);
         const { music01, noise01 } = readMixGains();
         const withFile = stemRows.filter((r) => r.file);
-        if (!withFile.length) {
-          throw new Error(
-            editingSlug
-              ? "Sube stems nuevos (con ruido) o guarda solo metadatos sin archivos."
-              : "Añade al menos un stem con audio.",
-          );
+        if (!withFile.length && !editingSlug) {
+          throw new Error("Añade al menos un stem con audio.");
         }
-        mixPreview.stop();
-        setStatus(
-          `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
-        );
-        let n = 0;
-        for (const row of withFile) {
-          if (!row.file) continue;
-          let file = row.file;
-          try {
-            file = await bakePreviewNoise(row.file, noise01, music01);
-          } catch (err) {
-            console.warn("[bake noise]", err);
+        // En edición sin stems nuevos: servidor conserva stems
+        if (withFile.length) {
+          mixPreview.stop();
+          setStatus(
+            `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
+          );
+          let n = 0;
+          for (const row of withFile) {
+            if (!row.file) continue;
+            let file = row.file;
+            try {
+              file = await bakePreviewNoise(row.file, noise01, music01);
+            } catch (err) {
+              console.warn("[bake noise]", err);
+            }
+            body.set(`stem_${n}_file`, file, file.name);
+            body.set(`stem_${n}_label`, row.label || row.file.name);
+            n++;
           }
-          body.set(`stem_${n}_file`, file, file.name);
-          body.set(`stem_${n}_label`, row.label || row.file.name);
-          n++;
         }
       }
 
       mixPreview.stop();
-      setStatus("Publicando… (subida + catálogo)");
+      setStatus(editingSlug ? "Guardando cambios…" : "Publicando… (subida + catálogo)");
       const res = await fetch("/admin/publish", {
         method: "POST",
         body,
@@ -1118,41 +1155,60 @@ import Layout from "../../components/Layout.astro";
               : `Archivo demasiado grande (máx ${data.maxMb || 100} MB)`,
           );
         }
+        if (err === "missing_stems") {
+          throw new Error("Faltan stems y no hay stems previos que conservar.");
+        }
+        if (err === "missing_video") {
+          throw new Error("Falta vídeo y no hay vídeo previo que conservar.");
+        }
         throw new Error(data.message || data.error || `Error ${res.status}`);
       }
 
-      setStatus(
-        `✅ Publicado «${data.item?.title || title}». Ya está en /es/biblioteca/ (recarga la pública).`,
-      );
-      showToast(
-        `✅ Publicado «${data.item?.title || title}» · ${data.catalogCount ?? "?"} en catálogo`,
-        18000,
-      );
+      const msg =
+        data.message ||
+        `✅ ${editingSlug ? "Guardado" : "Publicado"} «${data.item?.title || title}»`;
+      setStatus(`✅ ${msg}`);
+      showToast(`✅ ${msg}`, 18000);
       const out = document.querySelector("[data-out]");
       if (out instanceof HTMLElement) {
         out.hidden = false;
         out.textContent = JSON.stringify(
           {
             ok: true,
+            merged: data.merged,
+            keptMedia: data.keptMedia,
             catalogCount: data.catalogCount,
             item: data.item,
-            publicUrl: data.publicUrl,
           },
           null,
           2,
         );
       }
-      setEditMode(null);
-      form.reset();
-      stemRows = [];
-      renderStems();
-      document.querySelectorAll(".preview").forEach((p) => {
-        if (p instanceof HTMLElement) {
-          p.hidden = true;
-          p.innerHTML = "";
-        }
-      });
       await loadPubs();
+      // Seguir editando el mismo ítem (cambios acumulativos)
+      const updated =
+        publications.find((p) => p.slug === slug) ||
+        (data.item as Record<string, unknown> | undefined);
+      if (updated) {
+        setEditMode(updated);
+        stemRows = [];
+        renderStems();
+        // limpiar inputs file
+        form.querySelectorAll('input[type="file"]').forEach((inp) => {
+          if (inp instanceof HTMLInputElement) inp.value = "";
+        });
+        document.querySelectorAll(".preview").forEach((p) => {
+          if (p instanceof HTMLElement) {
+            p.hidden = true;
+            p.innerHTML = "";
+          }
+        });
+      } else {
+        setEditMode(null);
+        form.reset();
+        stemRows = [];
+        renderStems();
+      }
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error al publicar", false);
     } finally {
@@ -1391,6 +1447,26 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.78rem;
     line-height: 1.45;
     color: #e0d0a8;
+  }
+  .kept-media {
+    margin: 0.75rem 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
+    border: 1px dashed rgb(201 169 98 / 0.4);
+    background: rgb(201 169 98 / 0.06);
+  }
+  .kept-media__title {
+    margin: 0 0 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+  .kept-media__list {
+    margin: 0 0 0.5rem;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    color: var(--color-muted);
+    line-height: 1.45;
   }
   .mix-slider {
     display: flex;

@@ -6,6 +6,7 @@ import {
   } from "../license-quote";
 import { StemTransport } from "../stem-transport";
 import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
+import { translateFilterLabels } from "../filter-label-i18n";
 
 type Stem = { id: string; label: string; src: string };
 type Item = {
@@ -75,6 +76,7 @@ export function bindLibraryBrowser() {
       const paintChipBar = (
         bar: Element | null,
         values: string[],
+        labels: string[],
         attr: "mood" | "tag",
         getActive: () => string | null,
         setActive: (v: string | null) => void,
@@ -86,16 +88,16 @@ export function bindLibraryBrowser() {
         }
         const active = getActive();
         bar.innerHTML = values
-          .map(
-            (v) =>
-              `<button type="button" class="lb__chip${active === v ? " is-on" : ""}" data-${attr}="${escapeHtml(v)}">${escapeHtml(v)}</button>`,
-          )
+          .map((v, i) => {
+            const label = labels[i] || v;
+            return `<button type="button" class="lb__chip${active === v ? " is-on" : ""}" data-${attr}="${escapeHtml(v)}">${escapeHtml(label)}</button>`;
+          })
           .join("");
         bar.querySelectorAll(`[data-${attr}]`).forEach((btn) => {
           btn.addEventListener("click", () => {
             const v = (btn as HTMLElement).getAttribute(`data-${attr}`) || null;
             setActive(getActive() === v ? null : v);
-            paintFilters();
+            void paintFilters();
             renderGrid();
           });
         });
@@ -105,16 +107,18 @@ export function bindLibraryBrowser() {
       let moodFilter: string | null = null;
       let tagFilter: string | null = null;
 
-      const paintFilters = () => {
-        paintChipBar(moodsBar, filterMoods, "mood", () => moodFilter, (v) => {
+      const paintFilters = async () => {
+        const moodLabels = await translateFilterLabels(filterMoods, lang);
+        const tagLabels = await translateFilterLabels(filterTags, lang);
+        paintChipBar(moodsBar, filterMoods, moodLabels, "mood", () => moodFilter, (v) => {
           moodFilter = v;
         });
-        paintChipBar(tagsBar, filterTags, "tag", () => tagFilter, (v) => {
+        paintChipBar(tagsBar, filterTags, tagLabels, "tag", () => tagFilter, (v) => {
           tagFilter = v;
         });
       };
       collectFilters(items);
-      paintFilters();
+      void paintFilters();
       let active: Item | null = null;
       /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
       const stemsTx = new StemTransport();
@@ -972,7 +976,7 @@ export function bindLibraryBrowser() {
               : undefined,
           }));
           collectFilters(items);
-          paintFilters();
+          void paintFilters();
           renderGrid();
         } catch {
           /* keep build seed */

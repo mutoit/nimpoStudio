@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../components/Layout.astro";
 import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
+import MusicLicense from "../../../components/MusicLicense.astro";
 import MusicTracklist from "../../../components/MusicTracklist.astro";
 import StemPlayer from "../../../components/StemPlayer.astro";
 import {
@@ -8,6 +9,7 @@ import {
   getStaticMusicPaths,
   getTrackCount,
   getReleaseTypeLabels,
+  isProvisionalRelease,
 } from "../../../lib/music";
 import type { Locale } from "../../../i18n/translations";
 import { useTranslations, localizePath } from "../../../lib/locale";
@@ -38,6 +40,7 @@ const musicHref = localizePath("/musica", lang);
 
 const firstTrack = release?.tracks?.[0];
 const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
+const provisional = release ? isProvisionalRelease(release) : false;
 ---
 
 <Layout
@@ -94,8 +97,18 @@ const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
         <MusicMidiBadge size="inline" lang={lang} />
         <h1 class="release__title">{release.name}</h1>
         {
-          release.status === "coming-soon" && (
+          provisional && (
+            <p class="release__badge release__badge--provisional">{t("badgeProvisional")}</p>
+          )
+        }
+        {
+          !provisional && release.status === "coming-soon" && (
             <p class="release__badge">{t("musicSoon")}</p>
+          )
+        }
+        {
+          provisional && (
+            <p class="release__provisional-note" role="status">{t("provisionalNotice")}</p>
           )
         }
         <p class="release__lead">
@@ -114,6 +127,9 @@ const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
             </ul>
           )
         }
+        <a href="#licencias" class="release__license-btn">
+          {t("musicLicenseOpen")}
+        </a>
       </div>
     </article>
 
@@ -139,8 +155,10 @@ const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
       lang={lang}
     />
 
+    <MusicLicense release={release} lang={lang} />
+
     <p class="notice">
-      {t("musicNotice")}
+      {release.status === "coming-soon" ? t("musicSoon") : t("musicNotice")}
     </p>
 
     <a href={musicHref} class="back">{t("musicBack")}</a>
@@ -251,6 +269,26 @@ const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
     font-weight: 600;
   }
 
+  .release__badge--provisional {
+    background: rgb(60 28 12 / 0.95);
+    color: #ffb38a;
+    border: 1px solid rgb(255 140 80 / 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+  }
+
+  .release__provisional-note {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(255 140 80 / 0.35);
+    background: rgb(255 140 80 / 0.1);
+    color: #ffc9a8;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
   .release__lead {
     margin: 1rem 0 0;
     font-size: 1.1rem;
@@ -295,6 +333,23 @@ const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
     background: var(--color-accent-light);
     color: var(--color-accent-dim);
     font-size: 0.75rem;
+  }
+
+  .release__license-btn {
+    display: inline-flex;
+    margin-top: 1.35rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: rgb(201 169 98 / 0.12);
+    color: var(--color-accent);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .release__license-btn:hover {
+    background: rgb(201 169 98 / 0.2);
   }
 
   .notice {

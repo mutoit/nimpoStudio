@@ -14,6 +14,7 @@ const t = useTranslations(lang);
 const currentPath = Astro.url.pathname;
 
 const nav = [
+  { href: "/biblioteca", label: t("navLibrary") },
   { href: "/musica", label: t("navMusic") },
   { href: "/catalogo", label: t("navCatalog") },
   { href: "/sobre", label: t("navAbout") },

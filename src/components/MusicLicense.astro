@@ -1,0 +1,774 @@
+---
+import type { MusicRelease } from "../lib/music";
+import { getReleaseLicense } from "../lib/music";
+import {
+  LICENSE_PRICES,
+  USAGE_CATALOG,
+  type LicenseUsageCode,
+} from "../lib/license-quote";
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
+interface Props {
+  release: MusicRelease;
+  lang: Locale;
+}
+
+const { release, lang } = Astro.props;
+const t = useTranslations(lang);
+const license = getReleaseLicense(release);
+
+function priceLabel(tier: (typeof license.tiers)[number]): string {
+  const mode =
+    tier.pricing ?? (tier.requestOnly || tier.id === "personal" ? "request" : "from");
+  if (mode === "request" || tier.requestOnly || tier.id === "personal") {
+    return t("musicLicensePriceRequestOnly");
+  }
+  if (tier.priceFrom == null || tier.priceFrom === "") {
+    return t("musicLicensePriceOnRequest");
+  }
+  if (mode === "fixed") return tier.priceFrom;
+  return `${t("musicLicensePriceFrom")} ${tier.priceFrom}`;
+}
+
+const tierCopy = {
+  personal: { title: t("musicLicenseTierPersonal"), desc: t("musicLicenseTierPersonalDesc") },
+  commercial: {
+    title: t("musicLicenseTierCommercial"),
+    desc: t("musicLicenseTierCommercialDesc"),
+  },
+  exclusive: {
+    title: t("musicLicenseTierExclusive"),
+    desc: t("musicLicenseTierExclusiveDesc"),
+  },
+} as const;
+
+const tiersPayload = license.tiers.map((tier) => ({
+  id: tier.id,
+  title: tierCopy[tier.id].title,
+  desc: tierCopy[tier.id].desc,
+  price: priceLabel(tier),
+}));
+
+const usageLabelKey: Record<LicenseUsageCode, string> = {
+  personal_private: "usagePersonalPrivate",
+  film_short: "usageFilmShort",
+  film_feature: "usageFilmFeature",
+  series_one: "usageSeriesOne",
+  series_multi: "usageSeriesMulti",
+  ads_paid: "usageAdsPaid",
+  brand_video: "usageBrandVideo",
+  social_brand: "usageSocialBrand",
+  game_indie: "usageGameIndie",
+  game_liveops: "usageGameLiveops",
+  app_one: "usageAppOne",
+  app_saas: "usageAppSaas",
+  install_one: "usageInstallOne",
+  tour_event: "usageTourEvent",
+  podcast_one: "usagePodcastOne",
+  exclusive_scope: "usageExclusive",
+  buyout: "usageBuyout",
+  other: "usageOther",
+};
+
+const usageGroups = [
+  { id: "personal", label: t("usageGroupPersonal") },
+  { id: "audiovisual", label: t("usageGroupAudiovisual") },
+  { id: "ads", label: t("usageGroupAds") },
+  { id: "interactive", label: t("usageGroupInteractive") },
+  { id: "live", label: t("usageGroupLive") },
+  { id: "special", label: t("usageGroupSpecial") },
+] as const;
+
+const usageOptions = USAGE_CATALOG.map((u) => ({
+  ...u,
+  label: t(usageLabelKey[u.code] as Parameters<typeof t>[0]),
+}));
+---
+
+<section class="license" id="licencias" aria-labelledby="license-title" data-quote-root>
+  <header class="license__header">
+    <h2 id="license-title" class="license__title">{t("musicLicenseTitle")}</h2>
+    <p class="license__craft">{t("musicLicenseCraft")}</p>
+    <p class="license__intro">{t("musicLicenseIntro")}</p>
+    <p class="license__note">{t("musicLicensePreviewNote")}</p>
+  </header>
+
+  <p class="license__step">{t("musicLicenseSummary")}</p>
+  <div class="license__tiers">
+    {
+      tiersPayload.map((tier) => (
+        <article class="license__tier">
+          <div class="license__tier-top">
+            <h3 class="license__tier-name">{tier.title}</h3>
+            <span class="license__price">{tier.price}</span>
+          </div>
+          <p class="license__tier-desc">{tier.desc}</p>
+        </article>
+      ))
+    }
+  </div>
+
+  <div class="quote">
+    <h3 class="quote__title">{t("quoteFormTitle")}</h3>
+    <p class="quote__lead">{t("quoteFormLead")}</p>
+
+    <form class="quote__form" data-quote-form>
+      <input type="hidden" name="workName" value={release.name} />
+      <input type="hidden" name="workSlug" value={release.slug} />
+      <input type="hidden" name="lang" value={lang} />
+
+      <div class="quote__grid">
+        <label class="quote__field">
+          <span>{t("quoteName")}</span>
+          <input name="name" type="text" required autocomplete="name" />
+        </label>
+        <label class="quote__field">
+          <span>{t("quoteEmail")}</span>
+          <input name="email" type="email" required autocomplete="email" />
+        </label>
+      </div>
+
+      <label class="quote__field">
+        <span>{t("quoteUsageType")}</span>
+        <select name="usage" required data-quote-usage>
+          <option value="">{t("quoteSelect")}</option>
+          {
+            usageGroups.map((g) => (
+              <optgroup label={g.label}>
+                {usageOptions
+                  .filter((u) => u.group === g.id)
+                  .map((u) => (
+                    <option value={u.code}>{u.label}</option>
+                  ))}
+              </optgroup>
+            ))
+          }
+        </select>
+      </label>
+
+      <div class="quote__grid">
+        <label class="quote__field">
+          <span>{t("quoteTerritory")}</span>
+          <input
+            name="territory"
+            type="text"
+            required
+            placeholder={t("quoteTerritoryPh")}
+          />
+        </label>
+        <label class="quote__field">
+          <span>{t("quoteTerm")}</span>
+          <select name="term" data-quote-term>
+            <option value="2y">{t("quoteTerm2y")}</option>
+            <option value="1y">{t("quoteTerm1y")}</option>
+            <option value="project">{t("quoteTermProject")}</option>
+            <option value="custom">{t("quoteTermCustom")}</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="quote__field">
+        <span>{t("quoteProject")}</span>
+        <textarea name="project" rows="3" required placeholder={t("quoteProjectPh")}
+        ></textarea>
+      </label>
+
+      <fieldset class="quote__checks">
+        <legend>{t("quoteExtras")}</legend>
+        <label
+          ><input type="checkbox" name="stems" value="1" data-quote-flag />{
+            " "
+          }{t("quoteStems")} (+{LICENSE_PRICES.stems} €)</label
+        >
+        <label
+          ><input type="checkbox" name="editShort" value="1" data-quote-flag />{
+            " "
+          }{t("quoteEdit")} (+{LICENSE_PRICES.editShort} €)</label
+        >
+        <label
+          ><input type="checkbox" name="termPlus1y" value="1" data-quote-flag />{
+            " "
+          }Extensión +1 año (+{LICENSE_PRICES.termPlus1yCommercial} € / +{
+            LICENSE_PRICES.termPlus1yExclusive
+          } € si exclusiva)</label
+        >
+        <label
+          ><input type="checkbox" name="territoryExpand" value="1" data-quote-flag />{
+            " "
+          }Ampliar territorio / medios (+{LICENSE_PRICES.territoryExpand} €)</label
+        >
+        <label
+          ><input type="checkbox" name="moreComposition" value="1" data-quote-flag />{
+            " "
+          }Más composición / custom ½ día (+{LICENSE_PRICES.moreComposition} €)</label
+        >
+        <label
+          ><input type="checkbox" name="exclusive" value="1" data-quote-flag />{
+            " "
+          }{t("quoteExclusive")} (desde {LICENSE_PRICES.exclusiveFrom} €)</label
+        >
+        <label
+          ><input type="checkbox" name="removeFromCatalog" value="1" data-quote-flag />{
+            " "
+          }No disponible / retirar del catálogo (+{LICENSE_PRICES.removeFromCatalog} €, con
+          exclusiva)</label
+        >
+        <label
+          ><input type="checkbox" name="buyout" value="1" data-quote-flag />{
+            " "
+          }{t("quoteBuyout")} (desde {LICENSE_PRICES.buyoutFrom} €)</label
+        >
+      </fieldset>
+
+      <fieldset class="quote__special">
+        <legend>{t("quoteSpecialLegend")}</legend>
+        <p class="quote__special-help">{t("quoteSpecialHelp")}</p>
+        <label class="quote__special-check">
+          <input type="checkbox" name="needSpecialReview" value="1" data-quote-flag />
+          <span>{t("quoteSpecialCheck")}</span>
+        </label>
+        <label class="quote__field">
+          <span>{t("quoteSpecialNotes")}</span>
+          <textarea
+            name="specialNotes"
+            rows="2"
+            placeholder={t("quoteSpecialNotesPh")}></textarea>
+        </label>
+      </fieldset>
+
+      <!-- Estimación en vivo -->
+      <div class="quote__live" data-quote-live aria-live="polite">
+        <p class="quote__live-label">{t("quoteLiveLabel")}</p>
+        <p class="quote__live-total" data-quote-live-total>—</p>
+        <ul class="quote__live-lines" data-quote-live-lines></ul>
+        <p class="quote__live-hint" data-quote-live-hint></p>
+      </div>
+
+      <button type="submit" class="quote__submit" data-quote-submit>
+        {t("quoteSubmit")}
+      </button>
+      <p class="quote__privacy">{t("quotePrivacy")}</p>
+      <p class="quote__error" data-quote-error hidden></p>
+    </form>
+
+    <div class="quote__done" data-quote-done hidden>
+      <h3 data-quote-done-title></h3>
+      <p class="quote__done-price" data-quote-done-price></p>
+      <p data-quote-done-body></p>
+      <ul class="quote__done-lines" data-quote-done-lines></ul>
+      <p class="quote__done-mail" data-quote-done-mail></p>
+    </div>
+  </div>
+</section>
+
+<script>
+  import {
+    calculateLicenseQuote,
+    formatEur,
+    isLicenseUsageCode,
+    type LicenseUsageCode,
+  } from "../lib/license-quote";
+
+  const i18n = {
+    pickUsage: "Elige un tipo de uso para ver el precio.",
+    instant: "Precio de catálogo (condiciones estándar)",
+    review: "Revisión manual — te confirmamos por email",
+    from: "Desde",
+    submitInstant: "Confirmar y recibir presupuesto",
+    submitReview: "Enviar a revisión del estudio",
+    okInstant: "Presupuesto listo",
+    okReview: "Solicitud enviada a revisión",
+    bodyInstant:
+      "Este es tu presupuesto de catálogo. El estudio te escribe para confirmar, enviar la licencia PDF y el pago. El master se entrega tras el pago.",
+    bodyReview:
+      "Tu caso no cierra tarifa fija automática. El estudio revisará los datos y te enviará el presupuesto por email.",
+    mailOk: "Te hemos enviado copia por email (y al estudio).",
+    mailPartial: "Presupuesto calculado. El email automático no está configurado aún en el servidor; el estudio verá la solicitud en logs o te responderá al contacto.",
+    mailFail: "Presupuesto calculado en pantalla. Si no llega email, escribe a contacto@nimpo3dstudio.com con capturas.",
+    err: "No se pudo enviar. Revisa los campos o inténtalo de nuevo.",
+    network: "Error de red. Inténtalo de nuevo.",
+  };
+
+  function bind() {
+    document.querySelectorAll("[data-quote-root]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
+      root.dataset.bound = "1";
+
+      const form = root.querySelector("[data-quote-form]");
+      if (!(form instanceof HTMLFormElement)) return;
+
+      const liveTotal = root.querySelector("[data-quote-live-total]");
+      const liveLines = root.querySelector("[data-quote-live-lines]");
+      const liveHint = root.querySelector("[data-quote-live-hint]");
+      const submitBtn = root.querySelector("[data-quote-submit]");
+      const errEl = root.querySelector("[data-quote-error]");
+      const done = root.querySelector("[data-quote-done]");
+
+      const readInput = () => {
+        const fd = new FormData(form);
+        const usage = String(fd.get("usage") || "");
+        return {
+          usage: isLicenseUsageCode(usage) ? (usage as LicenseUsageCode) : null,
+          stems: fd.get("stems") === "1",
+          editShort: fd.get("editShort") === "1",
+          exclusive: fd.get("exclusive") === "1",
+          buyout: fd.get("buyout") === "1",
+          needSpecialReview: fd.get("needSpecialReview") === "1",
+          specialNotes: String(fd.get("specialNotes") || ""),
+          term: String(fd.get("term") || "2y") as "project" | "1y" | "2y" | "custom",
+          termPlus1y: fd.get("termPlus1y") === "1",
+          removeFromCatalog: fd.get("removeFromCatalog") === "1",
+          territoryExpand: fd.get("territoryExpand") === "1",
+          moreComposition: fd.get("moreComposition") === "1",
+        };
+      };
+
+      const refreshLive = () => {
+        const input = readInput();
+        if (!input.usage) {
+          if (liveTotal) liveTotal.textContent = "—";
+          if (liveLines) liveLines.innerHTML = "";
+          if (liveHint) liveHint.textContent = i18n.pickUsage;
+          if (submitBtn) submitBtn.textContent = i18n.submitInstant;
+          return;
+        }
+        const q = calculateLicenseQuote({
+          usage: input.usage,
+          stems: input.stems,
+          editShort: input.editShort,
+          exclusive: input.exclusive,
+          buyout: input.buyout,
+          needSpecialReview: input.needSpecialReview,
+          specialNotes: input.specialNotes,
+          term: input.term,
+          termPlus1y: input.termPlus1y,
+          removeFromCatalog: input.removeFromCatalog,
+          territoryExpand: input.territoryExpand,
+          moreComposition: input.moreComposition,
+        });
+
+        if (q.mode === "instant" && q.total != null) {
+          if (liveTotal) liveTotal.textContent = formatEur(q.total);
+          if (liveHint) liveHint.textContent = i18n.instant;
+          if (submitBtn) submitBtn.textContent = i18n.submitInstant;
+        } else {
+          if (liveTotal)
+            liveTotal.textContent =
+              q.fromAmount != null ? `${i18n.from} ${formatEur(q.fromAmount)}` : i18n.review;
+          if (liveHint) liveHint.textContent = i18n.review;
+          if (submitBtn) submitBtn.textContent = i18n.submitReview;
+        }
+
+        if (liveLines) {
+          liveLines.innerHTML = q.lineItems
+            .map((l) => `<li>${l.label}: <strong>${formatEur(l.amount)}</strong></li>`)
+            .join("");
+        }
+      };
+
+      form.addEventListener("change", refreshLive);
+      form.addEventListener("input", refreshLive);
+      refreshLive();
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!form.reportValidity()) return;
+        if (errEl instanceof HTMLElement) {
+          errEl.hidden = true;
+          errEl.textContent = "";
+        }
+
+        const fd = new FormData(form);
+        const input = readInput();
+        if (!input.usage) return;
+
+        const payload = {
+          name: String(fd.get("name") || "").trim(),
+          email: String(fd.get("email") || "").trim(),
+          workName: String(fd.get("workName") || "").trim(),
+          workSlug: String(fd.get("workSlug") || "").trim(),
+          lang: String(fd.get("lang") || "es"),
+          usage: input.usage,
+          territory: String(fd.get("territory") || "").trim(),
+          term: input.term,
+          project: String(fd.get("project") || "").trim(),
+          stems: input.stems,
+          editShort: input.editShort,
+          exclusive: input.exclusive,
+          buyout: input.buyout,
+          needSpecialReview: input.needSpecialReview,
+          specialNotes: String(fd.get("specialNotes") || "").trim(),
+          termPlus1y: input.termPlus1y,
+          removeFromCatalog: input.removeFromCatalog,
+          territoryExpand: input.territoryExpand,
+          moreComposition: input.moreComposition,
+        };
+
+        if (submitBtn instanceof HTMLButtonElement) {
+          submitBtn.disabled = true;
+        }
+
+        try {
+          const res = await fetch("/api/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || "fail");
+          }
+
+          const q = data.quote;
+          form.hidden = true;
+          if (done instanceof HTMLElement) {
+            done.hidden = false;
+            const title = done.querySelector("[data-quote-done-title]");
+            const price = done.querySelector("[data-quote-done-price]");
+            const body = done.querySelector("[data-quote-done-body]");
+            const lines = done.querySelector("[data-quote-done-lines]");
+            const mail = done.querySelector("[data-quote-done-mail]");
+
+            if (title)
+              title.textContent =
+                q.mode === "instant" ? i18n.okInstant : i18n.okReview;
+            if (price) {
+              price.textContent =
+                q.mode === "instant" && q.total != null
+                  ? formatEur(q.total)
+                  : q.fromAmount != null
+                    ? `${i18n.from} ${formatEur(q.fromAmount)}`
+                    : i18n.review;
+            }
+            if (body)
+              body.textContent =
+                q.mode === "instant" ? i18n.bodyInstant : i18n.bodyReview;
+            if (lines) {
+              lines.innerHTML = (q.lineItems || [])
+                .map(
+                  (l: { label: string; amount: number }) =>
+                    `<li>${l.label}: <strong>${formatEur(l.amount)}</strong></li>`,
+                )
+                .join("");
+            }
+            if (mail) {
+              const e = data.email || {};
+              if (e.clientSent && e.studioSent) mail.textContent = i18n.mailOk;
+              else if (!e.configured) mail.textContent = i18n.mailPartial;
+              else mail.textContent = i18n.mailFail;
+            }
+          }
+        } catch {
+          if (errEl instanceof HTMLElement) {
+            errEl.hidden = false;
+            errEl.textContent = i18n.err;
+          }
+        } finally {
+          if (submitBtn instanceof HTMLButtonElement) {
+            submitBtn.disabled = false;
+          }
+        }
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", bind);
+  document.addEventListener("astro:page-load", bind);
+</script>
+
+<style>
+  .license {
+    margin: 2.5rem 0 0;
+    padding: 1.5rem 1.35rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(201 169 98 / 0.28);
+    background:
+      linear-gradient(145deg, rgb(201 169 98 / 0.08), transparent 55%),
+      var(--color-surface);
+    scroll-margin-top: 5rem;
+  }
+
+  .license__header {
+    margin-bottom: 1.15rem;
+  }
+
+  .license__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 500;
+  }
+
+  .license__craft {
+    margin: 0.55rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-warm);
+  }
+
+  .license__intro,
+  .license__note {
+    margin: 0.65rem 0 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+
+  .license__note {
+    font-size: 0.8rem;
+    color: var(--color-accent-dim);
+  }
+
+  .license__step {
+    margin: 0 0 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .license__tiers {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0 0 1.75rem;
+  }
+
+  @media (min-width: 900px) {
+    .license__tiers {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .license__tier {
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: rgb(8 8 10 / 0.35);
+  }
+
+  .license__tier-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .license__tier-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .license__price {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-warm);
+  }
+
+  .license__tier-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--color-muted);
+  }
+
+  .quote {
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .quote__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .quote__lead {
+    margin: 0.4rem 0 1rem;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+    line-height: 1.55;
+  }
+
+  .quote__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .quote__grid {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  @media (min-width: 640px) {
+    .quote__grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .quote__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+
+  .quote__field input,
+  .quote__field select,
+  .quote__field textarea {
+    font: inherit;
+    font-weight: 400;
+    color: var(--color-fg);
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: rgb(8 8 10 / 0.5);
+  }
+
+  .quote__checks,
+  .quote__special {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+  }
+
+  .quote__special {
+    border-color: rgb(201 120 80 / 0.35);
+    background: rgb(201 120 80 / 0.06);
+  }
+
+  .quote__checks legend,
+  .quote__special legend {
+    padding: 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+
+  .quote__special-help {
+    margin: 0 0 0.65rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+    font-weight: 400;
+  }
+
+  .quote__checks label,
+  .quote__special-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--color-fg);
+    cursor: pointer;
+  }
+
+  .quote__live {
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.1);
+  }
+
+  .quote__live-label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .quote__live-total {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 500;
+    color: var(--color-accent);
+  }
+
+  .quote__live-lines {
+    margin: 0.5rem 0 0;
+    padding: 0 0 0 1.1rem;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .quote__live-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--color-accent-dim);
+  }
+
+  .quote__submit {
+    align-self: flex-start;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: #0a0a0c;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .quote__submit:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .quote__privacy {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .quote__error {
+    margin: 0;
+    color: #e88;
+    font-size: 0.85rem;
+  }
+
+  .quote__done h3 {
+    margin: 1rem 0 0.35rem;
+    font-size: 1.15rem;
+  }
+
+  .quote__done-price {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--color-accent);
+  }
+
+  .quote__done p {
+    margin: 0.65rem 0 0;
+    color: var(--color-muted);
+    line-height: 1.55;
+    font-size: 0.9rem;
+  }
+
+  .quote__done-lines {
+    margin: 0.75rem 0 0;
+    padding: 0 0 0 1.1rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  .quote__done-mail {
+    font-size: 0.8rem !important;
+  }
+</style>

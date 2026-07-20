@@ -1,0 +1,7 @@
+name = "nimpo-mail"
+main = "src/index.ts"
+compatibility_date = "2024-07-01"
+account_id = "9465ef52d5149092dd29a0382f746954"
+
+[[send_email]]
+name = "EMAIL"

@@ -1,0 +1,1259 @@
+---
+/**
+ * Biblioteca: miniaturas en frame 1:1 + modal overlay (detalle, stems, licencia completa).
+ * CSS is:global (HTML del grid vía JS).
+ * Plan: docs/licencias/PLAN-BIBLIOTECA-Y-PRECIOS.md
+ */
+import type { LibraryItem } from "../lib/library";
+import { getLibraryMoods } from "../lib/library";
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+import { LICENSE_PRICES, USAGE_CATALOG } from "../lib/license-quote";
+
+interface Props {
+  items: LibraryItem[];
+  lang: Locale;
+}
+
+const { items, lang } = Astro.props;
+const t = useTranslations(lang);
+const allMoods = getLibraryMoods();
+
+const usageLabelMap: Record<string, string> = {
+  personal_private: t("usagePersonalPrivate"),
+  film_short: t("usageFilmShort"),
+  film_feature: t("usageFilmFeature"),
+  series_one: t("usageSeriesOne"),
+  series_multi: t("usageSeriesMulti"),
+  brand_video: t("usageBrandVideo"),
+  social_brand: t("usageSocialBrand"),
+  podcast_one: t("usagePodcastOne"),
+  ads_paid: t("usageAdsPaid"),
+  game_indie: t("usageGameIndie"),
+  game_liveops: t("usageGameLiveops"),
+  app_one: t("usageAppOne"),
+  app_saas: t("usageAppSaas"),
+  install_one: t("usageInstallOne"),
+  tour_event: t("usageTourEvent"),
+  exclusive_scope: t("usageExclusive"),
+  buyout: t("usageBuyout"),
+  other: t("usageOther"),
+};
+
+const usageGroups = [
+  { id: "personal", label: t("usageGroupPersonal") },
+  { id: "audiovisual", label: t("usageGroupAudiovisual") },
+  { id: "ads", label: t("usageGroupAds") },
+  { id: "interactive", label: t("usageGroupInteractive") },
+  { id: "live", label: t("usageGroupLive") },
+  { id: "special", label: t("usageGroupSpecial") },
+];
+
+const P = LICENSE_PRICES;
+
+const payload = {
+  items,
+  lang,
+  moods: allMoods,
+  labels: {
+    all: t("libFilterAll"),
+    video11: t("libFilter11"),
+    video916: t("libFilter916"),
+    stems: t("libFilterStems"),
+    license: t("musicLicenseOpen"),
+    provisional: t("badgeProvisionalShort"),
+    empty: t("libEmpty"),
+    play: t("libPlay"),
+    stop: "❚❚",
+    close: t("libClose"),
+    from: t("musicLicensePriceFrom"),
+    review: t("musicLicensePriceOnRequest"),
+    select: t("quoteSelect"),
+    unavailable: t("libUnavailable"),
+    noLicense: t("libNoLicense"),
+  },
+};
+---
+
+<div class="lb" data-library-root data-payload={JSON.stringify(payload)}>
+  <div class="lb__bar" role="toolbar" aria-label={t("libFilters")}>
+    <div class="lb__chips" data-lb-types>
+      <button type="button" class="lb__chip is-on" data-type="all">{t("libFilterAll")}</button>
+      <button type="button" class="lb__chip" data-type="1:1">{t("libFilter11")}</button>
+      <button type="button" class="lb__chip" data-type="9:16">{t("libFilter916")}</button>
+      <button type="button" class="lb__chip" data-type="stems">{t("libFilterStems")}</button>
+    </div>
+    <div class="lb__chips" data-lb-moods></div>
+    <span class="lb__count" data-lb-count></span>
+  </div>
+
+  <div class="lb__grid" data-lb-grid></div>
+
+  <!-- Modal encima del catálogo -->
+  <div class="lb__overlay" data-lb-overlay hidden>
+    <div class="lb__modal" role="dialog" aria-modal="true" data-lb-modal>
+      <button type="button" class="lb__x" data-lb-close aria-label={t("libClose")}>×</button>
+
+      <div class="lb__modal-grid">
+        <div class="lb__modal-left">
+          <p class="lb__kicker" data-lb-kicker></p>
+          <h2 class="lb__ptitle" data-lb-title></h2>
+          <p class="lb__prov-badge" data-lb-prov hidden></p>
+          <div class="lb__media" data-lb-media></div>
+          <button type="button" class="lb__btn" data-lb-preview-play>{t("libPlay")}</button>
+          <p class="lb__label">{t("libDescription")}</p>
+          <p class="lb__text" data-lb-desc></p>
+          <p class="lb__label">{t("libNotes")}</p>
+          <p class="lb__text" data-lb-notes></p>
+          <p class="lb__label">{t("libMoods")}</p>
+          <ul class="lb__pills" data-lb-mood-pills></ul>
+          <p class="lb__label">Tags</p>
+          <ul class="lb__pills" data-lb-tag-pills></ul>
+          <div data-lb-stems-wrap hidden>
+            <p class="lb__label">{t("libStemsTitle")}</p>
+            <div class="lb__mixer" data-lb-mixer></div>
+          </div>
+        </div>
+
+        <div class="lb__modal-right" data-lb-lic-wrap hidden>
+          <h3 class="lb__form-title">{t("quoteFormTitle")}</h3>
+          <p class="lb__form-lead">{t("quoteFormLead")}</p>
+
+          <form class="lb__form" data-lb-form>
+            <input type="hidden" name="workSlug" />
+            <input type="hidden" name="workName" />
+
+            <div class="lb__form-row">
+              <label
+                >{t("quoteName")}<input name="name" required autocomplete="name" /></label
+              >
+              <label
+                >{t("quoteEmail")}<input
+                  name="email"
+                  type="email"
+                  required
+                  autocomplete="email"
+                /></label
+              >
+            </div>
+
+            <label>
+              {t("quoteUsageType")}
+              <select name="usage" required data-lb-usage>
+                <option value="">{t("quoteSelect")}</option>
+                {
+                  usageGroups.map((g) => (
+                    <optgroup label={g.label}>
+                      {USAGE_CATALOG.filter((u) => u.group === g.id).map((u) => (
+                        <option value={u.code}>{usageLabelMap[u.code]}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                }
+              </select>
+            </label>
+
+            <div class="lb__form-row">
+              <label
+                >{t("quoteTerritory")}<input
+                  name="territory"
+                  required
+                  placeholder="ES / EU / mundial"
+                /></label
+              >
+              <label>
+                {t("quoteTerm")}
+                <select name="term">
+                  <option value="2y">{t("quoteTerm2y")}</option>
+                  <option value="1y">{t("quoteTerm1y")}</option>
+                  <option value="project">{t("quoteTermProject")}</option>
+                  <option value="custom">{t("quoteTermCustom")}</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              {t("quoteProject")}
+              <textarea name="project" rows="3" required placeholder={t("quoteProjectPh")}
+              ></textarea>
+            </label>
+
+            <fieldset class="lb__fieldset">
+              <legend>{t("quoteExtras")}</legend>
+              <label class="lb__check"
+                ><input type="checkbox" name="stems" value="1" data-lb-flag />
+                {t("quoteStems")} (+{P.stems} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="editShort" value="1" data-lb-flag />
+                {t("quoteEdit")} (+{P.editShort} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="termPlus1y" value="1" data-lb-flag />
+                Extensión +1 año (+{P.termPlus1yCommercial} € / +{P.termPlus1yExclusive} € si
+                exclusiva)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="territoryExpand" value="1" data-lb-flag />
+                Ampliar territorio / medios (+{P.territoryExpand} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="moreComposition" value="1" data-lb-flag />
+                Más composición / custom ½ día (+{P.moreComposition} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="exclusive" value="1" data-lb-flag />
+                {t("quoteExclusive")} (desde {P.exclusiveFrom} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="removeFromCatalog" value="1" data-lb-flag />
+                No disponible / retirar del catálogo público (+{P.removeFromCatalog} €, con
+                exclusiva)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="buyout" value="1" data-lb-flag />
+                {t("quoteBuyout")} (desde {P.buyoutFrom} €)</label
+              >
+            </fieldset>
+
+            <fieldset class="lb__fieldset lb__fieldset--special">
+              <legend>{t("quoteSpecialLegend")}</legend>
+              <p class="lb__help">{t("quoteSpecialHelp")}</p>
+              <label class="lb__check"
+                ><input type="checkbox" name="needSpecialReview" value="1" data-lb-flag />
+                {t("quoteSpecialCheck")}</label
+              >
+              <label>
+                {t("quoteSpecialNotes")}
+                <textarea name="specialNotes" rows="2" placeholder={t("quoteSpecialNotesPh")}
+                ></textarea>
+              </label>
+            </fieldset>
+
+            <div class="lb__live">
+              <p class="lb__live-label">{t("quoteLiveLabel")}</p>
+              <p class="lb__live-total" data-lb-live-total>—</p>
+              <ul class="lb__live-lines" data-lb-live-lines></ul>
+              <p class="lb__live-hint" data-lb-live-hint></p>
+            </div>
+
+            <button type="submit" class="lb__btn lb__btn--solid">{t("quoteSubmit")}</button>
+            <p class="lb__msg" data-lb-msg hidden></p>
+          </form>
+        </div>
+        <p class="lb__text" data-lb-no-lic hidden>{t("libNoLicense")}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import {
+    calculateLicenseQuote,
+    formatEur,
+    isLicenseUsageCode,
+    type LicenseUsageCode,
+  } from "../lib/license-quote";
+
+  type Stem = { id: string; label: string; src: string };
+  type Item = {
+    id: string;
+    slug: string;
+    title: string;
+    kind: string;
+    aspect: string;
+    cover?: string | null;
+    video?: string | null;
+    stems?: Stem[];
+    tags: string[];
+    moods: string[];
+    description?: string;
+    notes?: string;
+    provisional?: boolean;
+    licenseEnabled?: boolean;
+    availability?: string;
+  };
+
+  function bind() {
+    document.querySelectorAll("[data-library-root]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
+      root.dataset.bound = "1";
+
+      const data = JSON.parse(root.dataset.payload || "{}") as {
+        items: Item[];
+        lang: string;
+        moods: string[];
+        labels: Record<string, string>;
+      };
+      const { items, lang, moods, labels: L } = data;
+
+      const grid = root.querySelector("[data-lb-grid]");
+      const overlay = root.querySelector("[data-lb-overlay]");
+      const form = root.querySelector("[data-lb-form]");
+      const countEl = root.querySelector("[data-lb-count]");
+      const moodsBar = root.querySelector("[data-lb-moods]");
+
+      if (moodsBar) {
+        moodsBar.innerHTML = moods
+          .map((m) => `<button type="button" class="lb__chip" data-mood="${m}">${m}</button>`)
+          .join("");
+      }
+
+      let typeFilter = "all";
+      let moodFilter: string | null = null;
+      let active: Item | null = null;
+      let stemAudios: HTMLAudioElement[] = [];
+      let gridVideo: HTMLVideoElement | null = null;
+      let playingId: string | null = null;
+
+      const stopAll = () => {
+        stemAudios.forEach((a) => {
+          a.pause();
+          a.currentTime = 0;
+        });
+        stemAudios = [];
+        if (gridVideo) {
+          gridVideo.pause();
+          gridVideo.currentTime = 0;
+          gridVideo = null;
+        }
+        const modalVid = root.querySelector<HTMLVideoElement>("[data-lb-media] video");
+        if (modalVid) {
+          modalVid.pause();
+          modalVid.currentTime = 0;
+        }
+        playingId = null;
+        root.querySelectorAll("[data-thumb-play]").forEach((b) => {
+          b.textContent = "▶";
+          b.setAttribute("aria-pressed", "false");
+        });
+        const prev = root.querySelector("[data-lb-preview-play]");
+        if (prev) prev.textContent = L.play;
+      };
+
+      const isProv = (i: Item) => i.provisional !== false && i.slug !== "deep-in-the-forest";
+      const isAvailable = (i: Item) =>
+        !i.availability || i.availability === "available";
+
+      const filtered = () =>
+        items.filter((i) => {
+          if (i.availability === "off_catalog") return false;
+          if (typeFilter === "stems") {
+            if (!(i.kind === "stems" || (i.stems && i.stems.length))) return false;
+          } else if (typeFilter === "1:1" || typeFilter === "9:16") {
+            if (i.aspect !== typeFilter) return false;
+          }
+          if (moodFilter && !i.moods.includes(moodFilter)) return false;
+          return true;
+        });
+
+      const refreshLive = () => {
+        if (!(form instanceof HTMLFormElement)) return;
+        const fd = new FormData(form);
+        const usage = String(fd.get("usage") || "");
+        const totalEl = root.querySelector("[data-lb-live-total]");
+        const linesEl = root.querySelector("[data-lb-live-lines]");
+        const hintEl = root.querySelector("[data-lb-live-hint]");
+        if (!isLicenseUsageCode(usage)) {
+          if (totalEl) totalEl.textContent = "—";
+          if (linesEl) linesEl.innerHTML = "";
+          if (hintEl) hintEl.textContent = L.select;
+          return;
+        }
+        const q = calculateLicenseQuote({
+          usage: usage as LicenseUsageCode,
+          stems: fd.get("stems") === "1",
+          editShort: fd.get("editShort") === "1",
+          exclusive: fd.get("exclusive") === "1",
+          buyout: fd.get("buyout") === "1",
+          needSpecialReview: fd.get("needSpecialReview") === "1",
+          specialNotes: String(fd.get("specialNotes") || ""),
+          term: String(fd.get("term") || "2y") as "2y" | "1y" | "project" | "custom",
+          termPlus1y: fd.get("termPlus1y") === "1",
+          removeFromCatalog: fd.get("removeFromCatalog") === "1",
+          territoryExpand: fd.get("territoryExpand") === "1",
+          moreComposition: fd.get("moreComposition") === "1",
+        });
+        if (q.mode === "instant" && q.total != null) {
+          if (totalEl) totalEl.textContent = formatEur(q.total);
+          if (hintEl) hintEl.textContent = "Precio de catálogo";
+        } else {
+          if (totalEl)
+            totalEl.textContent =
+              q.fromAmount != null ? `${L.from} ${formatEur(q.fromAmount)}` : L.review;
+          if (hintEl) hintEl.textContent = "Revisión / a medida";
+        }
+        if (linesEl) {
+          linesEl.innerHTML = q.lineItems
+            .map((l) => `<li>${l.label}: <strong>${formatEur(l.amount)}</strong></li>`)
+            .join("");
+        }
+      };
+
+      const lockScroll = (on: boolean) => {
+        document.body.style.overflow = on ? "hidden" : "";
+      };
+
+      const closeModal = () => {
+        stopAll();
+        active = null;
+        if (overlay instanceof HTMLElement) overlay.hidden = true;
+        lockScroll(false);
+        renderGrid();
+      };
+
+      const playStems = (item: Item, btn: Element | null) => {
+        const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]:checked");
+        let srcs = [...checks].map((c) => c.dataset.stemSrc).filter(Boolean) as string[];
+        if (!srcs.length) srcs = (item.stems || []).map((s) => s.src);
+        if (!srcs.length) return;
+        stemAudios = srcs.map((src) => {
+          const a = new Audio(src);
+          a.loop = true;
+          return a;
+        });
+        Promise.all(stemAudios.map((a) => a.play().catch(() => {}))).then(() => {
+          playingId = item.id;
+          if (btn) {
+            btn.textContent = L.stop;
+            btn.setAttribute("aria-pressed", "true");
+          }
+        });
+      };
+
+      const renderGrid = () => {
+        if (!grid) return;
+        const list = filtered();
+        if (countEl) countEl.textContent = String(list.length);
+        if (!list.length) {
+          grid.innerHTML = `<p class="lb__empty">${L.empty}</p>`;
+          return;
+        }
+
+        grid.innerHTML = list
+          .map((item) => {
+            const media = item.video
+              ? `<video src="${item.video}" muted loop playsinline preload="metadata" poster="${item.cover || ""}" data-vid="${item.id}"></video>`
+              : item.cover
+                ? `<img src="${item.cover}" alt="" loading="lazy" />`
+                : `<div class="lb__ph"></div>`;
+            const prov = isProv(item) ? `<span class="lb__badge">${L.provisional}</span>` : "";
+            const stemBadge =
+              item.stems && item.stems.length
+                ? `<span class="lb__badge lb__badge--stem">STEMS</span>`
+                : "";
+            const unavail = !isAvailable(item)
+              ? `<span class="lb__badge lb__badge--sold">${L.unavailable}</span>`
+              : "";
+            const canLic = item.licenseEnabled !== false && isAvailable(item);
+            const lic = canLic
+              ? `<button type="button" class="lb__card-lic" data-open-lic="${item.id}">${L.license}</button>`
+              : "";
+            const playBtn = `<button type="button" class="lb__play-fab" data-thumb-play="${item.id}" aria-label="${L.play}" aria-pressed="false">▶</button>`;
+
+            return `<article class="lb__card ${active?.id === item.id ? "is-on" : ""}" data-card="${item.id}">
+              <div class="lb__thumb-wrap">
+                <button type="button" class="lb__thumb" data-open="${item.id}" aria-label="${item.title}">
+                  <span class="lb__frame">${media}</span>
+                  ${prov}${stemBadge}${unavail}
+                  <span class="lb__ratio">${item.aspect}</span>
+                </button>
+                ${playBtn}
+              </div>
+              <div class="lb__cap">
+                <strong>${item.title}</strong>
+                <span>${item.moods.slice(0, 2).join(" · ") || item.tags.slice(0, 2).join(" · ")}</span>
+                ${lic}
+              </div>
+            </article>`;
+          })
+          .join("");
+
+        grid.querySelectorAll("[data-open]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = (btn as HTMLElement).dataset.open || "";
+            const item = items.find((x) => x.id === id);
+            if (item) openModal(item, false);
+          });
+        });
+
+        grid.querySelectorAll("[data-open-lic]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const id = (btn as HTMLElement).dataset.openLic || "";
+            const item = items.find((x) => x.id === id);
+            if (item) openModal(item, true);
+          });
+        });
+
+        grid.querySelectorAll("[data-thumb-play]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const id = (btn as HTMLElement).dataset.thumbPlay || "";
+            const item = items.find((x) => x.id === id);
+            if (!item) return;
+
+            if (playingId === id) {
+              stopAll();
+              return;
+            }
+            stopAll();
+
+            if (item.video) {
+              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${id}"]`);
+              if (v) {
+                v.muted = false;
+                gridVideo = v;
+                v.play()
+                  .then(() => {
+                    playingId = id;
+                    btn.textContent = L.stop;
+                    btn.setAttribute("aria-pressed", "true");
+                  })
+                  .catch(() => {
+                    v.muted = true;
+                    v.play().catch(() => {});
+                    playingId = id;
+                    btn.textContent = L.stop;
+                  });
+              }
+            } else if (item.stems?.length) {
+              playStems(item, btn);
+            }
+          });
+        });
+      };
+
+      const openModal = (item: Item, focusLicense: boolean) => {
+        stopAll();
+        active = item;
+        if (!(overlay instanceof HTMLElement)) return;
+        overlay.hidden = false;
+        lockScroll(true);
+
+        const set = (sel: string, v: string) => {
+          const el = root.querySelector(sel);
+          if (el) el.textContent = v;
+        };
+        set("[data-lb-kicker]", `${item.kind} · ${item.aspect}`);
+        set("[data-lb-title]", item.title);
+        set("[data-lb-desc]", item.description || "—");
+        set("[data-lb-notes]", item.notes || "—");
+
+        const prov = root.querySelector("[data-lb-prov]");
+        if (prov instanceof HTMLElement) {
+          prov.hidden = !isProv(item);
+          prov.textContent = L.provisional;
+        }
+
+        const media = root.querySelector("[data-lb-media]");
+        if (media) {
+          const frameClass =
+            item.aspect === "9:16"
+              ? "lb__panel-frame lb__panel-frame--916"
+              : item.aspect === "1:1"
+                ? "lb__panel-frame lb__panel-frame--11"
+                : "lb__panel-frame lb__panel-frame--169";
+          if (item.video) {
+            media.innerHTML = `<div class="${frameClass}"><video src="${item.video}" playsinline poster="${item.cover || ""}" data-modal-vid></video></div>`;
+          } else if (item.cover) {
+            media.innerHTML = `<div class="${frameClass}"><img src="${item.cover}" alt="" /></div>`;
+          } else {
+            media.innerHTML = `<div class="${frameClass}"><div class="lb__ph"></div></div>`;
+          }
+        }
+
+        const fill = (sel: string, arr: string[]) => {
+          const ul = root.querySelector(sel);
+          if (!ul) return;
+          ul.innerHTML = arr.length ? arr.map((x) => `<li>${x}</li>`).join("") : "<li>—</li>";
+        };
+        fill("[data-lb-mood-pills]", item.moods || []);
+        fill("[data-lb-tag-pills]", item.tags || []);
+
+        const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
+        const mixer = root.querySelector("[data-lb-mixer]");
+        const hasStems = !!(item.stems && item.stems.length);
+        if (stemsWrap instanceof HTMLElement) stemsWrap.hidden = !hasStems;
+        if (mixer && hasStems && item.stems) {
+          mixer.innerHTML = item.stems
+            .map(
+              (s) =>
+                `<label class="lb__mix-row"><input type="checkbox" checked data-stem-src="${s.src}" /> ${s.label}</label>`,
+            )
+            .join("");
+        }
+
+        const licWrap = root.querySelector("[data-lb-lic-wrap]");
+        const noLic = root.querySelector("[data-lb-no-lic]");
+        const ok = item.licenseEnabled !== false && isAvailable(item);
+        if (licWrap instanceof HTMLElement) licWrap.hidden = !ok;
+        if (noLic instanceof HTMLElement) {
+          noLic.hidden = ok;
+          if (!ok) noLic.textContent = isAvailable(item) ? L.noLicense || "" : L.unavailable;
+        }
+
+        if (form instanceof HTMLFormElement) {
+          (form.elements.namedItem("workSlug") as HTMLInputElement).value = item.slug;
+          (form.elements.namedItem("workName") as HTMLInputElement).value = item.title;
+          const stemsCb = form.elements.namedItem("stems") as HTMLInputElement | null;
+          if (stemsCb) stemsCb.checked = hasStems;
+          const usageSel = form.elements.namedItem("usage") as HTMLSelectElement | null;
+          if (usageSel) usageSel.value = "brand_video";
+          const msg = root.querySelector("[data-lb-msg]");
+          if (msg instanceof HTMLElement) msg.hidden = true;
+          refreshLive();
+        }
+
+        renderGrid();
+
+        if (focusLicense) {
+          requestAnimationFrame(() => {
+            (form?.querySelector("[name=name]") as HTMLInputElement | null)?.focus();
+          });
+        }
+      };
+
+      root.querySelector("[data-lb-close]")?.addEventListener("click", closeModal);
+      overlay?.addEventListener("click", (e) => {
+        if (e.target === overlay) closeModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay instanceof HTMLElement && !overlay.hidden) {
+          closeModal();
+        }
+      });
+
+      root.querySelector("[data-lb-preview-play]")?.addEventListener("click", () => {
+        if (!active) return;
+        const btn = root.querySelector("[data-lb-preview-play]");
+        if (playingId === "modal-" + active.id) {
+          stopAll();
+          return;
+        }
+        stopAll();
+        const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+        if (v) {
+          v.play()
+            .then(() => {
+              playingId = "modal-" + active!.id;
+              if (btn) btn.textContent = L.stop;
+            })
+            .catch(() => {});
+        } else if (active.stems?.length) {
+          playStems(active, btn);
+          if (btn) btn.textContent = L.stop;
+        }
+      });
+
+      root.querySelectorAll("[data-type]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          typeFilter = (btn as HTMLElement).dataset.type || "all";
+          root.querySelectorAll("[data-type]").forEach((b) => b.classList.remove("is-on"));
+          btn.classList.add("is-on");
+          renderGrid();
+        });
+      });
+
+      root.querySelectorAll("[data-mood]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const m = (btn as HTMLElement).dataset.mood || null;
+          moodFilter = moodFilter === m ? null : m;
+          root.querySelectorAll("[data-mood]").forEach((b) => {
+            b.classList.toggle("is-on", (b as HTMLElement).dataset.mood === moodFilter);
+          });
+          renderGrid();
+        });
+      });
+
+      form?.addEventListener("change", refreshLive);
+      form?.addEventListener("input", refreshLive);
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!(form instanceof HTMLFormElement) || !active) return;
+        const fd = new FormData(form);
+        const msg = root.querySelector("[data-lb-msg]");
+        const usage = String(fd.get("usage") || "");
+        if (!isLicenseUsageCode(usage)) return;
+
+        try {
+          const res = await fetch("/api/quote", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: String(fd.get("name") || ""),
+              email: String(fd.get("email") || ""),
+              workName: String(fd.get("workName") || active.title),
+              workSlug: String(fd.get("workSlug") || active.slug),
+              lang,
+              usage,
+              territory: String(fd.get("territory") || ""),
+              term: String(fd.get("term") || "2y"),
+              project: String(fd.get("project") || ""),
+              stems: fd.get("stems") === "1",
+              editShort: fd.get("editShort") === "1",
+              exclusive: fd.get("exclusive") === "1",
+              buyout: fd.get("buyout") === "1",
+              needSpecialReview: fd.get("needSpecialReview") === "1",
+              specialNotes: String(fd.get("specialNotes") || ""),
+              termPlus1y: fd.get("termPlus1y") === "1",
+              removeFromCatalog: fd.get("removeFromCatalog") === "1",
+              territoryExpand: fd.get("territoryExpand") === "1",
+              moreComposition: fd.get("moreComposition") === "1",
+            }),
+          });
+          const json = await res.json();
+          if (msg instanceof HTMLElement) {
+            msg.hidden = false;
+            msg.textContent = json.ok
+              ? json.quote?.total != null
+                ? `Presupuesto: ${json.quote.total} € · Enviado`
+                : "Solicitud enviada"
+              : "Error al enviar";
+          }
+          if (json.ok) {
+            setTimeout(() => closeModal(), 1600);
+          }
+        } catch {
+          if (msg instanceof HTMLElement) {
+            msg.hidden = false;
+            msg.textContent = "Error de red";
+          }
+        }
+      });
+
+      renderGrid();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", bind);
+  document.addEventListener("astro:page-load", bind);
+</script>
+
+<style is:global>
+  .lb__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .lb__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .lb__chip {
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: rgb(20 20 24);
+    color: rgb(180 180 190);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .lb__chip.is-on {
+    border-color: rgb(201 169 98 / 0.55);
+    color: #e8c97a;
+    background: rgb(201 169 98 / 0.12);
+  }
+  .lb__count {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: rgb(140 140 150);
+  }
+
+  .lb__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: 1.15rem 0.9rem;
+    align-items: start;
+  }
+
+  .lb__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+    background: transparent;
+  }
+  .lb__card.is-on .lb__thumb {
+    border-color: rgb(201 169 98 / 0.65);
+    box-shadow: 0 0 0 1px rgb(201 169 98 / 0.3);
+  }
+
+  .lb__thumb-wrap {
+    position: relative;
+  }
+
+  .lb__thumb {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0c0c10;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  .lb__frame {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #0c0c10;
+  }
+  .lb__frame img,
+  .lb__frame video,
+  .lb__frame .lb__ph {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+  .lb__ph {
+    width: 100%;
+    height: 100%;
+    min-height: 4rem;
+    background: linear-gradient(145deg, #1c1c22, #0a0a0c);
+  }
+
+  .lb__play-fab {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    border: none;
+    background: rgb(201 169 98 / 0.92);
+    color: #0a0a0c;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.45);
+  }
+  .lb__play-fab:hover {
+    filter: brightness(1.08);
+  }
+
+  .lb__badge {
+    position: absolute;
+    top: 0.45rem;
+    left: 0.45rem;
+    z-index: 2;
+    padding: 0.2rem 0.45rem;
+    border-radius: 5px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffb38a;
+    background: rgb(40 18 10 / 0.92);
+    border: 1px solid rgb(255 140 80 / 0.45);
+  }
+  .lb__badge--stem {
+    left: auto;
+    right: 0.45rem;
+    color: #9dcea8;
+    background: rgb(12 32 22 / 0.92);
+    border-color: rgb(100 180 120 / 0.4);
+  }
+  .lb__badge--sold {
+    top: auto;
+    bottom: 0.45rem;
+    left: 0.45rem;
+    color: #ddd;
+    background: rgb(30 30 35 / 0.92);
+    border-color: rgb(120 120 130 / 0.5);
+  }
+  .lb__ratio {
+    position: absolute;
+    right: 0.4rem;
+    bottom: 0.4rem;
+    z-index: 2;
+    font-size: 0.58rem;
+    font-weight: 600;
+    padding: 0.12rem 0.35rem;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 0.7);
+    color: rgb(160 160 170);
+  }
+
+  .lb__cap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  .lb__cap strong {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #f0f0f2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lb__cap span {
+    font-size: 0.72rem;
+    color: rgb(140 140 150);
+  }
+  .lb__card-lic {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: transparent;
+    color: #e8c97a;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .lb__card-lic:hover {
+    background: rgb(201 169 98 / 0.12);
+  }
+  .lb__empty {
+    grid-column: 1 / -1;
+    color: rgb(140 140 150);
+  }
+
+  /* —— Modal overlay —— */
+  .lb__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4vh 1rem 2rem;
+    overflow: auto;
+    background: rgb(0 0 0 / 0.72);
+    backdrop-filter: blur(6px);
+  }
+  .lb__overlay[hidden] {
+    display: none !important;
+  }
+
+  .lb__modal {
+    position: relative;
+    width: min(1100px, 100%);
+    margin: auto;
+    padding: 1.35rem 1.25rem 1.75rem;
+    border-radius: 14px;
+    border: 1px solid rgb(201 169 98 / 0.3);
+    background: #121216;
+    color: #e8e8ec;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.55);
+  }
+
+  .lb__x {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.85rem;
+    z-index: 2;
+    border: none;
+    background: transparent;
+    color: rgb(150 150 160);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .lb__modal-grid {
+    display: grid;
+    gap: 1.75rem;
+    padding-top: 0.5rem;
+  }
+  @media (min-width: 900px) {
+    .lb__modal-grid {
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+      align-items: start;
+    }
+  }
+
+  .lb__kicker {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #c9a962;
+  }
+  .lb__ptitle {
+    margin: 0.35rem 2rem 0 0;
+    font-family: var(--font-display, Georgia, serif);
+    font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+    font-weight: 500;
+    color: #f5f5f7;
+  }
+  .lb__prov-badge {
+    display: inline-block;
+    margin: 0.5rem 0 0;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #ffb38a;
+    border: 1px solid rgb(255 140 80 / 0.4);
+    background: rgb(50 22 12 / 0.9);
+  }
+
+  .lb__media {
+    margin: 0.85rem 0 0.65rem;
+  }
+  .lb__panel-frame {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: #0a0a0c;
+  }
+  .lb__panel-frame--11 {
+    aspect-ratio: 1 / 1;
+    max-width: 280px;
+  }
+  .lb__panel-frame--916 {
+    aspect-ratio: 9 / 16;
+    max-width: 180px;
+    max-height: 320px;
+  }
+  .lb__panel-frame--169 {
+    aspect-ratio: 16 / 9;
+    max-height: 200px;
+  }
+  .lb__panel-frame video,
+  .lb__panel-frame img,
+  .lb__panel-frame .lb__ph {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .lb__ph {
+    width: 100%;
+    height: 100%;
+    min-height: 4rem;
+    background: linear-gradient(145deg, #1c1c22, #0a0a0c);
+  }
+
+  .lb__label {
+    margin: 0.75rem 0 0.3rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(130 130 140);
+  }
+  .lb__text {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: rgb(170 170 180);
+  }
+  .lb__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lb__pills li {
+    padding: 0.18rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: #c9a962;
+    background: rgb(201 169 98 / 0.1);
+  }
+  .lb__mixer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: #0a0a0c;
+  }
+  .lb__mix-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .lb__btn {
+    margin-top: 0.55rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.4);
+    background: transparent;
+    color: #e8c97a;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .lb__btn--solid {
+    background: #c9a962;
+    color: #0a0a0c;
+    border-color: transparent;
+    width: 100%;
+  }
+
+  .lb__modal-right {
+    padding: 1.15rem 1.2rem 1.35rem;
+    border-radius: 12px;
+    border: 1px solid rgb(201 169 98 / 0.3);
+    background: rgb(8 8 10 / 0.75);
+  }
+  .lb__form-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  .lb__form-lead {
+    margin: 0.45rem 0 1rem;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgb(160 160 170);
+  }
+  .lb__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .lb__form-row {
+    display: grid;
+    gap: 0.75rem;
+  }
+  @media (min-width: 560px) {
+    .lb__form-row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .lb__form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgb(150 150 160);
+  }
+  .lb__form input,
+  .lb__form select,
+  .lb__form textarea {
+    font: inherit;
+    font-weight: 400;
+    font-size: 0.9rem;
+    color: #f0f0f2;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: #0a0a0c;
+  }
+  .lb__fieldset {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid rgb(255 255 255 / 0.1);
+  }
+  .lb__fieldset--special {
+    border-color: rgb(201 120 80 / 0.35);
+    background: rgb(201 120 80 / 0.06);
+  }
+  .lb__fieldset legend {
+    padding: 0 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: rgb(150 150 160);
+  }
+  .lb__check {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    font-size: 0.85rem !important;
+    font-weight: 400 !important;
+    color: #e0e0e6 !important;
+    cursor: pointer;
+  }
+  .lb__help {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgb(160 160 170);
+  }
+  .lb__live {
+    padding: 1rem 1.1rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.1);
+  }
+  .lb__live-label {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(160 160 170);
+  }
+  .lb__live-total {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display, Georgia, serif);
+    font-size: 1.75rem;
+    font-weight: 500;
+    color: #e8c97a;
+  }
+  .lb__live-lines {
+    margin: 0.5rem 0 0;
+    padding: 0 0 0 1.1rem;
+    font-size: 0.85rem;
+    color: rgb(170 170 180);
+  }
+  .lb__live-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: #c9a962;
+  }
+  .lb__msg {
+    margin: 0.35rem 0 0;
+    font-size: 0.88rem;
+    color: #e8c97a;
+  }
+  .lb__empty {
+    color: rgb(140 140 150);
+  }
+  .lb__cap strong {
+    color: #f0f0f2;
+  }
+  .lb__card-lic {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: transparent;
+    color: #e8c97a;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+</style>

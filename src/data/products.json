@@ -9,12 +9,20 @@
     "images": [
       "/images/products/pack-ambient-loops-vol-1.svg"
     ],
-    "tags": ["ambient", "loops", "wav"],
+    "tags": [
+      "ambient",
+      "loops",
+      "wav"
+    ],
     "licenseType": "commercial",
-    "formats": ["WAV", "STEMS"],
+    "formats": [
+      "WAV",
+      "STEMS"
+    ],
     "previewAudio": null,
     "price": null,
-    "featured": true
+    "featured": true,
+    "provisional": true
   },
   {
     "slug": "preset-pack-analog-warmth",
@@ -26,12 +34,19 @@
     "images": [
       "/images/products/preset-pack-analog-warmth.svg"
     ],
-    "tags": ["presets", "synth"],
+    "tags": [
+      "presets",
+      "synth"
+    ],
     "licenseType": "personal",
-    "formats": ["FXP", "VST"],
+    "formats": [
+      "FXP",
+      "VST"
+    ],
     "previewAudio": null,
     "price": null,
-    "featured": true
+    "featured": true,
+    "provisional": true
   },
   {
     "slug": "bundle-creator-starter",
@@ -43,12 +58,18 @@
     "images": [
       "/images/products/bundle-creator-starter.svg"
     ],
-    "tags": ["bundle"],
+    "tags": [
+      "bundle"
+    ],
     "licenseType": "commercial",
-    "formats": ["WAV", "PDF"],
+    "formats": [
+      "WAV",
+      "PDF"
+    ],
     "previewAudio": null,
     "price": null,
-    "featured": false
+    "featured": false,
+    "provisional": true
   },
   {
     "slug": "licencia-exclusiva-custom",
@@ -60,11 +81,17 @@
     "images": [
       "/images/products/licencia-exclusiva-custom.svg"
     ],
-    "tags": ["licencia", "exclusivo"],
+    "tags": [
+      "licencia",
+      "exclusivo"
+    ],
     "licenseType": "exclusive",
-    "formats": ["Contrato"],
+    "formats": [
+      "Contrato"
+    ],
     "previewAudio": null,
     "price": null,
-    "featured": false
+    "featured": false,
+    "provisional": true
   }
 ]

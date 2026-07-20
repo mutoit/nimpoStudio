@@ -1,6 +1,11 @@
 ---
 import Layout from "../../components/Layout.astro";
 import { site } from "../../lib/site";
+import {
+  buildLicenseMailto,
+  getPublishedReleases,
+  getReleaseLicense,
+} from "../../lib/music";
 import type { Locale } from "../../i18n/translations";
 import { useTranslations } from "../../lib/locale";
 
@@ -10,6 +15,24 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = useTranslations(lang);
+
+/** Prefill maps for static hosting (query params read client-side). */
+const licensePrefill: Record<
+  string,
+  { name: string; mailto: string; tiers: Record<string, string> }
+> = {};
+
+for (const release of getPublishedReleases()) {
+  const tiers: Record<string, string> = {};
+  for (const tier of getReleaseLicense(release).tiers) {
+    tiers[tier.id] = buildLicenseMailto(site.email, release, lang, tier.id);
+  }
+  licensePrefill[release.slug] = {
+    name: release.name,
+    mailto: buildLicenseMailto(site.email, release, lang),
+    tiers,
+  };
+}
 ---
 
 <Layout title={t("contactTitle")} description={`Contacta con ${site.name}`} lang={lang}>
@@ -17,11 +40,21 @@ const t = useTranslations(lang);
     <p class="eyebrow">{t("contactEyebrow")}</p>
     <h1 class="title">{t("contactTitle")}</h1>
 
+    <aside class="license-hint" id="license-hint" hidden role="note">
+      <p>
+        <strong>{t("musicLicenseTitle")}:</strong>
+        <span id="license-hint-name"></span>
+      </p>
+      <a id="license-hint-cta" class="license-hint__cta" href={`mailto:${site.email}`}>
+        {t("musicLicenseCta")}
+      </a>
+    </aside>
+
     <div class="cards">
       <section class="card">
         <h2>{t("contactEmail")}</h2>
         <p>
-          <a href={`mailto:${site.email}`}>{site.email}</a>
+          <a id="contact-email" href={`mailto:${site.email}`}>{site.email}</a>
         </p>
       </section>
 
@@ -59,6 +92,32 @@ const t = useTranslations(lang);
   </div>
 </Layout>
 
+<script define:vars={{ licensePrefill }}>
+  const applyLicensePrefill = () => {
+    const params = new URLSearchParams(window.location.search);
+    const work = (params.get("work") || "").trim();
+    const tier = (params.get("tier") || "").trim();
+    if (!work || !licensePrefill[work]) return;
+
+    const entry = licensePrefill[work];
+    const mailto = (tier && entry.tiers[tier]) || entry.mailto;
+    const label = tier ? `${entry.name} · ${tier}` : entry.name;
+
+    const hint = document.getElementById("license-hint");
+    const nameEl = document.getElementById("license-hint-name");
+    const cta = document.getElementById("license-hint-cta");
+    const email = document.getElementById("contact-email");
+
+    if (nameEl) nameEl.textContent = label;
+    if (cta instanceof HTMLAnchorElement) cta.href = mailto;
+    if (email instanceof HTMLAnchorElement) email.href = mailto;
+    if (hint) hint.hidden = false;
+  };
+
+  document.addEventListener("DOMContentLoaded", applyLicensePrefill);
+  document.addEventListener("astro:page-load", applyLicensePrefill);
+</script>
+
 <style>
   .page {
     max-width: 42rem;
@@ -78,6 +137,41 @@ const t = useTranslations(lang);
     font-family: var(--font-display);
     font-size: clamp(2rem, 4vw, 2.75rem);
     font-weight: 600;
+  }
+
+  .license-hint {
+    margin-top: 1.5rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--radius);
+    border: 1px solid rgb(201 169 98 / 0.28);
+    background: var(--color-accent-light);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+  }
+
+  .license-hint p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--color-accent);
+  }
+
+  .license-hint__cta {
+    display: inline-flex;
+    padding: 0.5rem 0.95rem;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: #0a0a0c;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .license-hint__cta:hover {
+    filter: brightness(1.08);
   }
 
   .cards {

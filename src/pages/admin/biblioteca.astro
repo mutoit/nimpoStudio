@@ -1,0 +1,353 @@
+---
+/**
+ * Panel de subida (solo tú). Protegido con ?key= o localStorage + ADMIN_LIBRARY_KEY.
+ * No sube archivos al servidor: genera el JSON para pegar en src/data/library.json
+ * y te dice dónde copiar los ficheros en public/library/.
+ */
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Admin biblioteca" description="Subida privada de biblioteca" lang="es">
+  <div class="container admin">
+    <h1>Subida biblioteca</h1>
+    <p class="lead">
+      Solo visible/usable con clave. Elige canal, rellena metadatos y descarga el bloque JSON.
+      Copia archivos a <code>public/library/</code> y pega el ítem en <code>src/data/library.json</code>.
+    </p>
+
+    <div class="gate" data-gate>
+      <label>
+        Clave admin
+        <input type="password" data-admin-key autocomplete="current-password" />
+      </label>
+      <button type="button" class="btn" data-unlock>Entrar</button>
+      <p class="err" data-gate-err hidden>Clave incorrecta</p>
+    </div>
+
+    <div class="workspace" data-workspace hidden>
+      <div class="channels">
+        <button type="button" class="chip is-active" data-channel="video">Canal vídeo (1:1 / 9:16)</button>
+        <button type="button" class="chip" data-channel="stems">Canal stems</button>
+      </div>
+
+      <form class="form" data-admin-form>
+        <label>
+          Título *
+          <input name="title" required />
+        </label>
+        <label>
+          Slug (url)
+          <input name="slug" placeholder="auto-desde-titulo" />
+        </label>
+
+        <div data-video-fields>
+          <label>
+            Aspecto
+            <select name="aspect">
+              <option value="1:1">1:1</option>
+              <option value="9:16">9:16</option>
+              <option value="16:9">16:9</option>
+            </select>
+          </label>
+          <label>
+            Nombre archivo vídeo (en public/library/)
+            <input name="videoFile" placeholder="mi-clip.mp4" />
+          </label>
+          <label>
+            Cover (opcional)
+            <input name="coverFile" placeholder="mi-clip.jpg" />
+          </label>
+        </div>
+
+        <div data-stems-fields hidden>
+          <label>
+            Cover
+            <input name="stemsCover" placeholder="umbral.jpg" />
+          </label>
+          <label>
+            Stems (una línea: id | etiqueta | archivo.wav)
+            <textarea
+              name="stemsLines"
+              rows="5"
+              placeholder="pads | Pads & Ambiente | umbral-pads.wav
+bass | Bajo | umbral-bass.wav"></textarea>
+          </label>
+        </div>
+
+        <label>
+          Moods (coma)
+          <input name="moods" placeholder="oscuro, orgánico" />
+        </label>
+        <label>
+          Tags (coma)
+          <input name="tags" placeholder="ambient, cinematic" />
+        </label>
+        <label>
+          Descripción
+          <textarea name="description" rows="2"></textarea>
+        </label>
+        <label>
+          Notas / comentarios (panel lateral público)
+          <textarea name="notes" rows="2" placeholder="Lo que verá el cliente en el panel"></textarea>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada (formulario)
+        </label>
+        <label class="check">
+          <input type="checkbox" name="provisional" checked /> Provisional / demo
+        </label>
+        <label>
+          Año
+          <input name="year" type="number" value="2026" />
+        </label>
+
+        <button type="submit" class="btn btn--gold">Generar JSON + instrucciones</button>
+      </form>
+
+      <pre class="out" data-out hidden></pre>
+      <button type="button" class="btn" data-copy hidden>Copiar JSON</button>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const EXPECTED = "nimpo-admin-library"; // cambia en deploy si quieres; o define window
+
+  const gate = document.querySelector("[data-gate]");
+  const workspace = document.querySelector("[data-workspace]");
+  const keyInput = document.querySelector("[data-admin-key]");
+  const err = document.querySelector("[data-gate-err]");
+
+  const unlock = () => {
+    const v = keyInput instanceof HTMLInputElement ? keyInput.value.trim() : "";
+    const ok =
+      v === EXPECTED ||
+      v === localStorage.getItem("nimpo_admin_library_key") ||
+      (import.meta as any).env?.PUBLIC_ADMIN_LIBRARY_KEY === v;
+    // Also accept from meta if build-time public key set
+    const pub = (document.querySelector('meta[name="admin-library-key"]') as HTMLMetaElement | null)
+      ?.content;
+    if (v && (v === EXPECTED || (pub && v === pub))) {
+      localStorage.setItem("nimpo_admin_library_key", v);
+      gate?.setAttribute("hidden", "");
+      workspace?.removeAttribute("hidden");
+      err?.setAttribute("hidden", "");
+    } else {
+      err?.removeAttribute("hidden");
+    }
+  };
+
+  document.querySelector("[data-unlock]")?.addEventListener("click", unlock);
+  if (localStorage.getItem("nimpo_admin_library_key") === EXPECTED) {
+    gate?.setAttribute("hidden", "");
+    workspace?.removeAttribute("hidden");
+  }
+
+  let channel: "video" | "stems" = "video";
+  document.querySelectorAll("[data-channel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      channel = ((btn as HTMLElement).dataset.channel as "video" | "stems") || "video";
+      document.querySelectorAll("[data-channel]").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      const vf = document.querySelector("[data-video-fields]");
+      const sf = document.querySelector("[data-stems-fields]");
+      if (vf instanceof HTMLElement) vf.hidden = channel !== "video";
+      if (sf instanceof HTMLElement) sf.hidden = channel !== "stems";
+    });
+  });
+
+  const slugify = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+  document.querySelector("[data-admin-form]")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const fd = new FormData(form);
+    const title = String(fd.get("title") || "").trim();
+    const slug = String(fd.get("slug") || "").trim() || slugify(title);
+    const moods = String(fd.get("moods") || "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const tags = String(fd.get("tags") || "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    const item: Record<string, unknown> = {
+      id: `lib-${slug}`,
+      slug,
+      title,
+      kind: channel === "stems" ? "stems" : "video",
+      aspect: channel === "stems" ? "1:1" : String(fd.get("aspect") || "1:1"),
+      tags,
+      moods,
+      description: String(fd.get("description") || ""),
+      notes: String(fd.get("notes") || ""),
+      year: Number(fd.get("year") || 2026),
+      provisional: fd.get("provisional") === "on",
+      licenseEnabled: fd.get("licenseEnabled") === "on",
+    };
+
+    const files: string[] = [];
+    if (channel === "video") {
+      const vf = String(fd.get("videoFile") || "").trim();
+      const cf = String(fd.get("coverFile") || "").trim();
+      if (vf) {
+        item.video = `/library/${vf}`;
+        files.push(`public/library/${vf}`);
+      }
+      if (cf) {
+        item.cover = `/library/${cf}`;
+        files.push(`public/library/${cf}`);
+      } else if (vf) {
+        item.cover = null;
+      }
+    } else {
+      const cf = String(fd.get("stemsCover") || "").trim();
+      if (cf) {
+        item.cover = `/library/${cf}`;
+        files.push(`public/library/${cf}`);
+      }
+      const lines = String(fd.get("stemsLines") || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      item.stems = lines.map((line) => {
+        const [id, label, file] = line.split("|").map((x) => x.trim());
+        if (file) files.push(`public/library/${file}`);
+        return {
+          id: id || "stem",
+          label: label || id || "Stem",
+          src: file ? `/library/${file}` : "",
+        };
+      });
+    }
+
+    const json = JSON.stringify(item, null, 2);
+    const out = document.querySelector("[data-out]");
+    const copy = document.querySelector("[data-copy]");
+    if (out instanceof HTMLElement) {
+      out.hidden = false;
+      out.textContent =
+        `// 1) Copia archivos a:\n${files.map((f) => "  " + f).join("\n") || "  (ninguno)"}\n\n` +
+        `// 2) Añade este objeto al array en src/data/library.json:\n` +
+        json;
+    }
+    if (copy instanceof HTMLElement) {
+      copy.hidden = false;
+      copy.onclick = () => navigator.clipboard.writeText(json);
+    }
+  });
+</script>
+
+<style>
+  .admin {
+    max-width: 36rem;
+  }
+
+  .lead {
+    color: var(--color-muted);
+    line-height: 1.6;
+  }
+
+  .gate,
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    font-weight: 400;
+    color: var(--color-fg);
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn {
+    align-self: flex-start;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn--gold {
+    background: var(--color-accent);
+    color: #0a0a0c;
+    border-color: transparent;
+  }
+
+  .channels {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  .chip {
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .chip.is-active {
+    color: var(--color-accent);
+    border-color: rgb(201 169 98 / 0.45);
+  }
+
+  .out {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: rgb(0 0 0 / 0.35);
+    font-size: 0.75rem;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+
+  .err {
+    color: #e88;
+    font-size: 0.85rem;
+  }
+
+  code {
+    font-size: 0.85em;
+  }
+</style>

@@ -2,6 +2,7 @@
 import {
   getCategoryLabels,
   getLicenseLabels,
+  isProvisionalProduct,
   type Product,
 } from "../lib/products";
 import type { Locale } from "../i18n/translations";
@@ -13,11 +14,12 @@ const { product, lang = "es" } = Astro.props;
 const t = useTranslations(lang);
 const categoryLabels = getCategoryLabels(lang);
 const licenseLabels = getLicenseLabels(lang);
+const provisional = isProvisionalProduct(product);
 
 const detailHref = localizePath(`/catalogo/${product.slug}`, lang);
 ---
 
-<article class="card" data-category={product.category}>
+<article class:list={["card", { "card--provisional": provisional }]} data-category={product.category}>
   <a href={detailHref} class="card__media">
     <img
       src={product.images[0]}
@@ -27,10 +29,13 @@ const detailHref = localizePath(`/catalogo/${product.slug}`, lang);
       loading="lazy"
     />
     <span class="card__overlay" aria-hidden="true"></span>
-    {product.status === "coming-soon" && (
+    {provisional && (
+      <span class="card__badge card__badge--provisional">{t("badgeProvisional")}</span>
+    )}
+    {!provisional && product.status === "coming-soon" && (
       <span class="card__badge">{t("badgeComingSoon")}</span>
     )}
-    {product.featured && product.status !== "coming-soon" && (
+    {!provisional && product.featured && product.status !== "coming-soon" && (
       <span class="card__badge card__badge--featured">{t("badgeFeatured")}</span>
     )}
   </a>
@@ -91,6 +96,14 @@ const detailHref = localizePath(`/catalogo/${product.slug}`, lang);
     pointer-events: none;
   }
 
+  .card--provisional .card__media {
+    border-color: rgb(220 120 80 / 0.45);
+  }
+
+  .card--provisional .card__media img {
+    filter: saturate(0.75) brightness(0.92);
+  }
+
   .card__badge {
     position: absolute;
     top: 0.85rem;
@@ -106,11 +119,20 @@ const detailHref = localizePath(`/catalogo/${product.slug}`, lang);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     backdrop-filter: blur(8px);
+    max-width: calc(100% - 1.5rem);
+    line-height: 1.3;
   }
 
   .card__badge--featured {
     color: var(--color-accent);
     border-color: rgb(201 169 98 / 0.3);
+  }
+
+  .card__badge--provisional {
+    color: #ffb38a;
+    border-color: rgb(255 140 80 / 0.55);
+    background: rgb(60 28 12 / 0.92);
+    box-shadow: 0 0 0 1px rgb(255 140 80 / 0.15);
   }
 
   .card__body {

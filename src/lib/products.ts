@@ -26,7 +26,13 @@ export type Product = {
   previewAudio: string | null;
   price: number | null;
   featured?: boolean;
+  /** Contenido de relleno / demo (no catálogo real). Default true hasta producto real. */
+  provisional?: boolean;
 };
+
+export function isProvisionalProduct(product: Product): boolean {
+  return product.provisional !== false;
+}
 
 import type { Locale } from "../i18n/translations";
 import { getTranslation } from "../i18n/translations";

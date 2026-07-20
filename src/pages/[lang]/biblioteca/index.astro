@@ -1,0 +1,55 @@
+---
+import Layout from "../../../components/Layout.astro";
+import LibraryBrowser from "../../../components/LibraryBrowser.astro";
+import { getLibraryItems } from "../../../lib/library";
+import type { Locale } from "../../../i18n/translations";
+import { useTranslations } from "../../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
+const items = getLibraryItems();
+---
+
+<Layout title={t("libTitle")} description={t("libDesc")} lang={lang}>
+  <div class="container">
+    <header class="hero">
+      <p class="hero__eyebrow">{t("libEyebrow")}</p>
+      <h1 class="hero__title">{t("libTitle")}</h1>
+      <p class="hero__desc">{t("libDesc")}</p>
+    </header>
+    <LibraryBrowser items={items} lang={lang} />
+  </div>
+</Layout>
+
+<style>
+  .hero {
+    max-width: 40rem;
+    margin-bottom: 2rem;
+  }
+
+  .hero__eyebrow {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-warm);
+  }
+
+  .hero__title {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 500;
+  }
+
+  .hero__desc {
+    margin: 0.75rem 0 0;
+    color: var(--color-muted);
+    line-height: 1.65;
+  }
+</style>

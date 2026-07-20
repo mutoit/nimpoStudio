@@ -9,8 +9,34 @@
     "description": "Un viaje a través de texturas densas, sonidos de bosque procesados y una estructura que se abre y se cierra como la luz entre los árboles. Ideal para visuales y escucha profunda.",
     "cover": "/images/music/deep-in-the-forest.jpg",
     "video": "/previews/music/dp.mp4",
-    "tags": ["ambient", "cinematic", "forest", "immersive"],
+    "tags": [
+      "ambient",
+      "cinematic",
+      "forest",
+      "immersive"
+    ],
     "featured": true,
+    "license": {
+      "contactOnly": true,
+      "tiers": [
+        {
+          "id": "personal",
+          "requestOnly": true,
+          "pricing": "request",
+          "priceFrom": null
+        },
+        {
+          "id": "commercial",
+          "pricing": "fixed",
+          "priceFrom": "179 €"
+        },
+        {
+          "id": "exclusive",
+          "pricing": "from",
+          "priceFrom": "890 €"
+        }
+      ]
+    },
     "tracks": [
       {
         "slug": "deep-in-the-forest",
@@ -19,15 +45,40 @@
         "previewAudio": "/previews/music/DP BOSQUE.wav",
         "description": "Versión completa con stems disponibles.",
         "stems": [
-          { "id": "bosque", "label": "Ambiente & Bosque", "src": "/previews/music/DP BOSQUE.wav" },
-          { "id": "flauta", "label": "Flauta & Melodía", "src": "/previews/music/DP FLAUTA.wav" },
-          { "id": "bass", "label": "Bajo", "src": "/previews/music/DP BASS.wav" },
-          { "id": "cuerdas", "label": "Cuerdas & Strings", "src": "/previews/music/DP CUERDAS STRINGS.wav" },
-          { "id": "fantasma", "label": "Texturas Fantasma", "src": "/previews/music/DP FANTASMA.wav" },
-          { "id": "syntes", "label": "Synths", "src": "/previews/music/DP SYNTES.wav" }
+          {
+            "id": "bosque",
+            "label": "Ambiente & Bosque",
+            "src": "/previews/music/DP BOSQUE.wav"
+          },
+          {
+            "id": "flauta",
+            "label": "Flauta & Melodía",
+            "src": "/previews/music/DP FLAUTA.wav"
+          },
+          {
+            "id": "bass",
+            "label": "Bajo",
+            "src": "/previews/music/DP BASS.wav"
+          },
+          {
+            "id": "cuerdas",
+            "label": "Cuerdas & Strings",
+            "src": "/previews/music/DP CUERDAS STRINGS.wav"
+          },
+          {
+            "id": "fantasma",
+            "label": "Texturas Fantasma",
+            "src": "/previews/music/DP FANTASMA.wav"
+          },
+          {
+            "id": "syntes",
+            "label": "Synths",
+            "src": "/previews/music/DP SYNTES.wav"
+          }
         ]
       }
-    ]
+    ],
+    "provisional": false
   },
   {
     "slug": "nocturna-ep",
@@ -38,8 +89,33 @@
     "shortDescription": "Cuatro piezas nocturnas entre ambiente y cinemática.",
     "description": "Nocturna nace de sesiones nocturnas en el estudio: texturas lentas, armonías suspendidas y ritmos que aparecen y se desvanecen. Pensado para vídeo, instalaciones y escucha profunda.",
     "cover": "/images/music/nocturna-ep.svg",
-    "tags": ["ambient", "cinematic", "nocturno"],
+    "tags": [
+      "ambient",
+      "cinematic",
+      "nocturno"
+    ],
     "featured": true,
+    "license": {
+      "contactOnly": true,
+      "tiers": [
+        {
+          "id": "personal",
+          "requestOnly": true,
+          "pricing": "request",
+          "priceFrom": null
+        },
+        {
+          "id": "commercial",
+          "pricing": "fixed",
+          "priceFrom": "179 €"
+        },
+        {
+          "id": "exclusive",
+          "pricing": "from",
+          "priceFrom": "890 €"
+        }
+      ]
+    },
     "tracks": [
       {
         "slug": "umbral",
@@ -48,10 +124,26 @@
         "previewAudio": "/previews/music/nocturna-umbral.mp3",
         "description": "Apertura etérea con pads en capas y percusión mínima.",
         "stems": [
-          { "id": "pads", "label": "Pads & Ambiente", "src": "/previews/music/nocturna-umbral.mp3" },
-          { "id": "melody", "label": "Melodía Principal", "src": "/previews/music/nocturna-luz-tenue.mp3" },
-          { "id": "perc", "label": "Percusión", "src": "/previews/music/nocturna-deriva.mp3" },
-          { "id": "fx", "label": "Texturas & Cuerdas", "src": "/previews/music/nocturna-ultima-hora.mp3" }
+          {
+            "id": "pads",
+            "label": "Pads & Ambiente",
+            "src": "/previews/music/nocturna-umbral.mp3"
+          },
+          {
+            "id": "melody",
+            "label": "Melodía Principal",
+            "src": "/previews/music/nocturna-luz-tenue.mp3"
+          },
+          {
+            "id": "perc",
+            "label": "Percusión",
+            "src": "/previews/music/nocturna-deriva.mp3"
+          },
+          {
+            "id": "fx",
+            "label": "Texturas & Cuerdas",
+            "src": "/previews/music/nocturna-ultima-hora.mp3"
+          }
         ]
       },
       {
@@ -75,7 +167,8 @@
         "previewAudio": "/previews/music/nocturna-ultima-hora.mp3",
         "description": "Cierre expansivo con cuerdas sintéticas y reverberación larga."
       }
-    ]
+    ],
+    "provisional": true
   },
   {
     "slug": "pulso-single",
@@ -86,8 +179,32 @@
     "shortDescription": "Single electrónico con groove seco y línea de bajo protagonista.",
     "description": "Pulso condensa la energía de una sesión en directo: bajo sintético, golpes precisos y un arreglo que crece hasta el drop final. Ideal para motion y contenido dinámico.",
     "cover": "/images/music/pulso-single.svg",
-    "tags": ["electronic", "groove"],
+    "tags": [
+      "electronic",
+      "groove"
+    ],
     "featured": true,
+    "license": {
+      "contactOnly": true,
+      "tiers": [
+        {
+          "id": "personal",
+          "requestOnly": true,
+          "pricing": "request",
+          "priceFrom": null
+        },
+        {
+          "id": "commercial",
+          "pricing": "fixed",
+          "priceFrom": "179 €"
+        },
+        {
+          "id": "exclusive",
+          "pricing": "from",
+          "priceFrom": "890 €"
+        }
+      ]
+    },
     "tracks": [
       {
         "slug": "pulso",
@@ -96,7 +213,8 @@
         "previewAudio": "/previews/music/pulso.mp3",
         "description": "Versión completa del single — preview de 60 segundos."
       }
-    ]
+    ],
+    "provisional": true
   },
   {
     "slug": "resonancias-pack",
@@ -107,8 +225,33 @@
     "shortDescription": "Colección de temas inéditos para licencia comercial.",
     "description": "Pack de composiciones originales listas para sincronización. Cada tema incluirá stems y documentación de licencia. Disponible próximamente.",
     "cover": "/images/music/resonancias-pack.svg",
-    "tags": ["licencia", "sync", "stems"],
+    "tags": [
+      "licencia",
+      "sync",
+      "stems"
+    ],
     "featured": false,
+    "license": {
+      "contactOnly": true,
+      "tiers": [
+        {
+          "id": "personal",
+          "requestOnly": true,
+          "pricing": "request",
+          "priceFrom": null
+        },
+        {
+          "id": "commercial",
+          "pricing": "fixed",
+          "priceFrom": "179 €"
+        },
+        {
+          "id": "exclusive",
+          "pricing": "from",
+          "priceFrom": "890 €"
+        }
+      ]
+    },
     "tracks": [
       {
         "slug": "resonancia-i",
@@ -117,6 +260,7 @@
         "previewAudio": null,
         "description": "Preview disponible al publicar el pack."
       }
-    ]
+    ],
+    "provisional": true
   }
 ]

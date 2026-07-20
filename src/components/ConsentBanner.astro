@@ -1,5 +1,4 @@
 ---
-import { getAnalyticsConfig, hasGa4, hasMetaPixel, hasClarity } from "../lib/analytics";
 import type { Locale } from "../i18n/translations";
 import { useTranslations, localizePath } from "../lib/locale";
 
@@ -10,76 +9,139 @@ type Props = {
 const { lang = "es" } = Astro.props;
 const t = useTranslations(lang);
 
-const config = getAnalyticsConfig();
-const needsConsent = hasGa4(config) || hasMetaPixel(config) || hasClarity(config);
 const privacyHref = localizePath("/privacidad", lang);
+// Siempre disponible: preferencia de cookies (analítica marketing si hay IDs en build).
 ---
 
-{
-  needsConsent && (
-    <div class="consent" data-consent-banner hidden>
-      <p class="consent__text">
-        {t("consentText")}{" "}
-        <a href={privacyHref}>{t("consentPrivacy")}</a>
-      </p>
-      <div class="consent__actions">
-        <button type="button" class="consent__btn consent__btn--ghost" data-consent-reject>
-          {t("consentReject")}
-        </button>
-        <button type="button" class="consent__btn consent__btn--primary" data-consent-accept>
-          {t("consentAccept")}
-        </button>
-      </div>
-    </div>
-  )
-}
+<div
+  class="consent"
+  id="nimpo-consent-banner"
+  data-consent-banner
+  role="dialog"
+  aria-live="polite"
+  aria-label={t("consentText")}
+  hidden
+>
+  <p class="consent__text">
+    {t("consentText")}{" "}
+    <a href={privacyHref}>{t("consentPrivacy")}</a>
+  </p>
+  <div class="consent__actions">
+    <button type="button" class="consent__btn consent__btn--ghost" data-consent-reject>
+      {t("consentReject")}
+    </button>
+    <button type="button" class="consent__btn consent__btn--primary" data-consent-accept>
+      {t("consentAccept")}
+    </button>
+  </div>
+</div>
 
 <script>
-  import { registerAnalyticsClient, track } from "../lib/analytics/client";
+  import {
+    registerAnalyticsClient,
+    track,
+    initMarketingAnalytics,
+  } from "../lib/analytics/client";
   import { readConsent, writeConsent } from "../lib/analytics/consent";
 
   registerAnalyticsClient();
 
-  const banner = document.querySelector("[data-consent-banner]");
-  const accept = document.querySelector("[data-consent-accept]");
-  const reject = document.querySelector("[data-consent-reject]");
+  function getBanner() {
+    return document.querySelector<HTMLElement>("[data-consent-banner]");
+  }
 
-  const sendPageView = () => {
+  function hideBanner() {
+    const banner = getBanner();
+    if (banner) {
+      banner.hidden = true;
+      banner.setAttribute("hidden", "");
+      banner.style.display = "none";
+    }
+  }
+
+  function showBanner() {
+    const banner = getBanner();
+    if (banner) {
+      banner.hidden = false;
+      banner.removeAttribute("hidden");
+      banner.style.display = "";
+    }
+  }
+
+  function sendPageView() {
     track({
       name: "page_view",
       payload: { path: window.location.pathname, title: document.title },
     });
-  };
-
-  const hideBanner = () => {
-    banner?.setAttribute("hidden", "");
-  };
-
-  const showBanner = () => {
-    banner?.removeAttribute("hidden");
-  };
-
-  if (readConsent() === "analytics") {
-    hideBanner();
-    sendPageView();
-  } else if (banner) {
-    showBanner();
   }
 
-  accept?.addEventListener("click", () => {
-    writeConsent("analytics");
+  function applyConsent(level: "analytics" | "none") {
+    try {
+      writeConsent(level);
+    } catch (e) {
+      console.warn("[consent] storage failed", e);
+    }
     hideBanner();
-    sendPageView();
-  });
+    if (level === "analytics") {
+      initMarketingAnalytics();
+      sendPageView();
+    }
+  }
 
-  reject?.addEventListener("click", () => {
-    writeConsent("none");
-    hideBanner();
-  });
+  function syncBanner() {
+    try {
+      if (readConsent() === "analytics") {
+        hideBanner();
+        initMarketingAnalytics();
+        sendPageView();
+      } else {
+        // none o sin preferencia → mostrar banner
+        const stored = localStorage.getItem("nimpo_consent");
+        if (stored === "none") {
+          hideBanner();
+        } else {
+          showBanner();
+        }
+      }
+    } catch {
+      showBanner();
+    }
+  }
 
-  document.addEventListener("astro:page-load", () => {
-    if (readConsent() === "analytics") sendPageView();
-  });
+  // Delegación: funciona aunque el DOM se reemplace (view transitions)
+  if (!(window as unknown as { __nimpoConsentBound?: boolean }).__nimpoConsentBound) {
+    (window as unknown as { __nimpoConsentBound?: boolean }).__nimpoConsentBound = true;
+
+    document.addEventListener(
+      "click",
+      (ev) => {
+        const el = ev.target;
+        if (!(el instanceof Element)) return;
+        if (el.closest("[data-consent-accept]")) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          applyConsent("analytics");
+          return;
+        }
+        if (el.closest("[data-consent-reject]")) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          applyConsent("none");
+        }
+      },
+      true,
+    );
+
+    document.addEventListener("DOMContentLoaded", syncBanner);
+    document.addEventListener("astro:page-load", syncBanner);
+  }
+
+  // Primera carga (módulo puede cargar tras DOMContentLoaded)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncBanner, { once: true });
+  } else {
+    syncBanner();
+  }
 </script>
 
 <style>
@@ -88,7 +150,7 @@ const privacyHref = localizePath("/privacidad", lang);
     bottom: 1rem;
     left: 1rem;
     right: 1rem;
-    z-index: 60;
+    z-index: 10000;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -96,10 +158,15 @@ const privacyHref = localizePath("/privacidad", lang);
     gap: 1rem;
     padding: 1rem 1.25rem;
     border-radius: var(--radius-lg);
-    border: 1px solid rgb(201 169 98 / 0.25);
-    background: rgb(8 8 10 / 0.94);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(8 8 10 / 0.97);
     backdrop-filter: blur(12px);
     box-shadow: var(--shadow);
+    pointer-events: auto;
+  }
+
+  .consent[hidden] {
+    display: none !important;
   }
 
   @media (min-width: 640px) {
@@ -111,6 +178,7 @@ const privacyHref = localizePath("/privacidad", lang);
 
   .consent__text {
     margin: 0;
+    flex: 1 1 12rem;
     font-size: 0.85rem;
     line-height: 1.5;
     color: var(--color-muted);
@@ -128,10 +196,14 @@ const privacyHref = localizePath("/privacidad", lang);
   .consent__actions {
     display: flex;
     gap: 0.5rem;
+    flex-shrink: 0;
+    pointer-events: auto;
   }
 
   .consent__btn {
-    padding: 0.45rem 0.9rem;
+    position: relative;
+    z-index: 1;
+    padding: 0.55rem 1rem;
     border-radius: var(--radius);
     font-family: inherit;
     font-size: 0.78rem;
@@ -139,7 +211,11 @@ const privacyHref = localizePath("/privacidad", lang);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    pointer-events: auto;
+    touch-action: manipulation;
+    transition:
+      background 0.2s,
+      border-color 0.2s;
   }
 
   .consent__btn--ghost {
@@ -154,12 +230,12 @@ const privacyHref = localizePath("/privacidad", lang);
   }
 
   .consent__btn--primary {
-    border: 1px solid rgb(201 169 98 / 0.35);
-    background: var(--color-accent-light);
-    color: var(--color-accent);
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: var(--color-accent);
+    color: #0a0a0c;
   }
 
   .consent__btn--primary:hover {
-    background: rgb(201 169 98 / 0.2);
+    filter: brightness(1.08);
   }
 </style>

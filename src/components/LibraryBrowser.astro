@@ -100,7 +100,22 @@ const payload = {
           <h2 class="lb__ptitle" data-lb-title></h2>
           <p class="lb__prov-badge" data-lb-prov hidden></p>
           <div class="lb__media" data-lb-media></div>
-          <button type="button" class="lb__btn" data-lb-preview-play>{t("libPlay")}</button>
+          <div class="lb__transport" data-lb-transport>
+            <button type="button" class="lb__btn" data-lb-preview-play>{t("libPlay")}</button>
+            <div class="lb__progress" data-lb-progress>
+              <input
+                type="range"
+                class="lb__seek"
+                data-lb-seek
+                min="0"
+                max="1000"
+                value="0"
+                step="1"
+                aria-label="Progreso"
+              />
+              <span class="lb__time" data-lb-time>0:00 / --:--</span>
+            </div>
+          </div>
           <p class="lb__label">{t("libDescription")}</p>
           <p class="lb__text" data-lb-desc></p>
           <p class="lb__label">{t("libNotes")}</p>
@@ -302,16 +317,124 @@ const payload = {
       let typeFilter = "all";
       let moodFilter: string | null = null;
       let active: Item | null = null;
-      let stemAudios: HTMLAudioElement[] = [];
+      /** Capas cargadas (no se recrean al mute); src crudo del JSON */
+      let stemLayers: { src: string; audio: HTMLAudioElement }[] = [];
+      let stemItemId: string | null = null;
       let gridVideo: HTMLVideoElement | null = null;
       let playingId: string | null = null;
+      let progressRaf = 0;
+      let seeking = false;
+
+      const fmtTime = (sec: number) => {
+        if (!Number.isFinite(sec) || sec < 0) return "0:00";
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s.toString().padStart(2, "0")}`;
+      };
+
+      const mediaSrc = (src: string) => {
+        try {
+          return encodeURI(src);
+        } catch {
+          return src;
+        }
+      };
+
+      const clockEl = (): HTMLMediaElement | null => {
+        if (stemLayers.length) {
+          const live = stemLayers.find((l) => !l.audio.muted && !l.audio.paused);
+          return (live || stemLayers[0]).audio;
+        }
+        if (gridVideo && !gridVideo.paused) return gridVideo;
+        const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+        if (modalVid && !modalVid.paused) return modalVid;
+        return gridVideo || modalVid || null;
+      };
+
+      const updateProgressUI = () => {
+        const el = clockEl();
+        const seek = root.querySelector<HTMLInputElement>("[data-lb-seek]");
+        const timeEl = root.querySelector("[data-lb-time]");
+        const dur = el && Number.isFinite(el.duration) ? el.duration : 0;
+        const cur = el ? el.currentTime : 0;
+        if (seek && !seeking) {
+          seek.value = dur > 0 ? String(Math.round((cur / dur) * 1000)) : "0";
+        }
+        if (timeEl) {
+          timeEl.textContent = `${fmtTime(cur)} / ${dur > 0 ? fmtTime(dur) : "--:--"}`;
+        }
+        // Barra mini en miniatura activa
+        root.querySelectorAll("[data-thumb-progress]").forEach((bar) => {
+          if (!(bar instanceof HTMLElement)) return;
+          const id = bar.dataset.thumbProgress || "";
+          if (id === playingId && dur > 0) {
+            bar.hidden = false;
+            bar.style.setProperty("--p", `${Math.min(100, (cur / dur) * 100)}%`);
+          } else {
+            bar.hidden = true;
+            bar.style.setProperty("--p", "0%");
+          }
+        });
+      };
+
+      const stopProgressLoop = () => {
+        if (progressRaf) cancelAnimationFrame(progressRaf);
+        progressRaf = 0;
+      };
+
+      const startProgressLoop = () => {
+        stopProgressLoop();
+        const tick = () => {
+          updateProgressUI();
+          const el = clockEl();
+          if (el && !el.paused && !el.ended) {
+            progressRaf = requestAnimationFrame(tick);
+          } else {
+            progressRaf = 0;
+            updateProgressUI();
+          }
+        };
+        progressRaf = requestAnimationFrame(tick);
+      };
+
+      const resetPlayButtons = () => {
+        root.querySelectorAll("[data-thumb-play]").forEach((b) => {
+          b.textContent = "▶";
+          b.setAttribute("aria-pressed", "false");
+        });
+        const prev = root.querySelector("[data-lb-preview-play]");
+        if (prev) prev.textContent = L.play;
+      };
+
+      const markPlayingButtons = (id: string) => {
+        resetPlayButtons();
+        const thumb = root.querySelector(`[data-thumb-play="${id}"]`);
+        if (thumb) {
+          thumb.textContent = L.stop;
+          thumb.setAttribute("aria-pressed", "true");
+        }
+        if (active && (id === active.id || id === "modal-" + active.id)) {
+          const prev = root.querySelector("[data-lb-preview-play]");
+          if (prev) prev.textContent = L.stop;
+        }
+      };
+
+      const disposeStemLayers = () => {
+        stemLayers.forEach((l) => {
+          l.audio.pause();
+          l.audio.removeAttribute("src");
+          l.audio.load();
+        });
+        stemLayers = [];
+        stemItemId = null;
+      };
 
       const stopAll = () => {
-        stemAudios.forEach((a) => {
-          a.pause();
-          a.currentTime = 0;
+        stopProgressLoop();
+        stemLayers.forEach((l) => {
+          l.audio.pause();
+          l.audio.currentTime = 0;
         });
-        stemAudios = [];
         if (gridVideo) {
           gridVideo.pause();
           gridVideo.currentTime = 0;
@@ -323,12 +446,148 @@ const payload = {
           modalVid.currentTime = 0;
         }
         playingId = null;
-        root.querySelectorAll("[data-thumb-play]").forEach((b) => {
-          b.textContent = "▶";
-          b.setAttribute("aria-pressed", "false");
+        resetPlayButtons();
+        updateProgressUI();
+      };
+
+      /** Carga capas una vez por ítem; no recrea al mute. */
+      const ensureStemLayers = (item: Item) => {
+        if (!item.stems?.length) return false;
+        if (stemItemId === item.id && stemLayers.length === item.stems.length) return true;
+        disposeStemLayers();
+        stemLayers = item.stems.map((s) => {
+          const audio = new Audio();
+          audio.preload = "auto";
+          audio.loop = true;
+          audio.src = mediaSrc(s.src);
+          return { src: s.src, audio };
         });
-        const prev = root.querySelector("[data-lb-preview-play]");
-        if (prev) prev.textContent = L.play;
+        stemItemId = item.id;
+        return true;
+      };
+
+      /** Mute según checkboxes del mixer solo si el modal del mismo ítem está abierto. */
+      const applyStemMix = () => {
+        const modalOpen =
+          overlay instanceof HTMLElement &&
+          !overlay.hidden &&
+          !!active &&
+          stemItemId === active.id;
+        if (!modalOpen) {
+          stemLayers.forEach((l) => {
+            l.audio.muted = false;
+          });
+          return;
+        }
+        const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]");
+        const on = new Set(
+          [...checks]
+            .filter((c) => c.checked)
+            .map((c) => c.dataset.stemSrc || "")
+            .filter(Boolean),
+        );
+        // Si no hay ninguno marcado, no silenciar todas de golpe al abrir: forzar all on
+        const anyChecked = on.size > 0;
+        stemLayers.forEach((l) => {
+          l.audio.muted = anyChecked ? !on.has(l.src) : false;
+        });
+      };
+
+      const syncStemTime = (t: number) => {
+        stemLayers.forEach((l) => {
+          try {
+            if (Number.isFinite(l.audio.duration) && l.audio.duration > 0) {
+              l.audio.currentTime = Math.min(t, Math.max(0, l.audio.duration - 0.05));
+            } else {
+              l.audio.currentTime = t;
+            }
+          } catch {
+            /* metadata aún no lista */
+          }
+        });
+      };
+
+      const playStems = async (item: Item, playId: string) => {
+        if (!ensureStemLayers(item)) return;
+        applyStemMix();
+        // Alinear capas a la misma posición (sin saltar a 0 si ya había progreso)
+        const t = stemLayers[0]?.audio.currentTime || 0;
+        syncStemTime(t);
+        const plays = stemLayers.map((l) =>
+          l.audio.muted
+            ? Promise.resolve()
+            : l.audio.play().catch((err) => {
+                console.warn("[lb] stem play fail", l.src, err);
+              }),
+        );
+        await Promise.all(plays);
+        // Reintento si el browser bloqueó el primer play
+        if (!stemLayers.some((l) => !l.audio.paused && !l.audio.muted)) {
+          for (const l of stemLayers) {
+            if (l.audio.muted) continue;
+            try {
+              await l.audio.play();
+            } catch (e) {
+              console.warn("[lb] stem retry fail", l.src, e);
+            }
+          }
+        }
+        playingId = playId;
+        markPlayingButtons(playId.startsWith("modal-") ? item.id : playId);
+        if (playId.startsWith("modal-") || active?.id === item.id) {
+          const prev = root.querySelector("[data-lb-preview-play]");
+          if (prev) prev.textContent = L.stop;
+        }
+        startProgressLoop();
+        updateProgressUI();
+      };
+
+      /** Solo mute/unmute — no reinicia el play. */
+      const onStemMixChange = () => {
+        if (!stemLayers.length || !active?.stems?.length) return;
+        applyStemMix();
+        const modalPlayId = "modal-" + active.id;
+        const isThis =
+          playingId === modalPlayId || playingId === active.id || stemItemId === active.id;
+        if (!isThis) return;
+        // Si suena y hay alguna capa on, sigue; si todas off, pausa sin reset
+        const anyOn = stemLayers.some((l) => !l.audio.muted);
+        if (!anyOn) {
+          stemLayers.forEach((l) => l.audio.pause());
+          stopProgressLoop();
+          return;
+        }
+        // Reanudar capas on en la misma posición del reloj
+        const clock = stemLayers.find((l) => !l.audio.muted)?.audio || stemLayers[0].audio;
+        const t = clock.currentTime;
+        syncStemTime(t);
+        stemLayers.forEach((l) => {
+          if (!l.audio.muted && l.audio.paused) {
+            l.audio.play().catch(() => {});
+          } else if (l.audio.muted) {
+            l.audio.pause();
+          }
+        });
+        if (playingId) startProgressLoop();
+      };
+
+      const playVideoThumb = async (item: Item, v: HTMLVideoElement) => {
+        v.muted = false;
+        gridVideo = v;
+        try {
+          await v.play();
+        } catch {
+          v.muted = true;
+          try {
+            await v.play();
+          } catch (e) {
+            console.warn("[lb] video play fail", e);
+            return;
+          }
+        }
+        playingId = item.id;
+        markPlayingButtons(item.id);
+        startProgressLoop();
       };
 
       const isProv = (i: Item) => i.provisional !== false && i.slug !== "deep-in-the-forest";
@@ -402,46 +661,6 @@ const payload = {
         renderGrid();
       };
 
-      /** Reproduce stems según checkboxes del mixer (modal) o todos si no hay checks. */
-      const playStems = (item: Item, btn: Element | null, playId?: string) => {
-        const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]:checked");
-        let srcs = [...checks].map((c) => c.dataset.stemSrc).filter(Boolean) as string[];
-        // Sin mixer (thumb en grid) o sin ninguno marcado: todos los stems
-        if (!srcs.length) srcs = (item.stems || []).map((s) => s.src);
-        if (!srcs.length) return;
-        // Parar solo capas de audio, no el id visual si reiniciamos el mix
-        stemAudios.forEach((a) => {
-          a.pause();
-          a.currentTime = 0;
-        });
-        stemAudios = srcs.map((src) => {
-          const a = new Audio(src);
-          a.loop = true;
-          return a;
-        });
-        Promise.all(stemAudios.map((a) => a.play().catch(() => {}))).then(() => {
-          playingId = playId || item.id;
-          if (btn) {
-            btn.textContent = L.stop;
-            btn.setAttribute("aria-pressed", "true");
-          }
-        });
-      };
-
-      /** Si ya suena el modal, al cambiar capas re-mezcla al vuelo. */
-      const onStemMixChange = () => {
-        if (!active?.stems?.length) return;
-        const modalPlayId = "modal-" + active.id;
-        if (playingId !== modalPlayId && playingId !== active.id) return;
-        const btn = root.querySelector("[data-lb-preview-play]");
-        const anyOn = root.querySelector<HTMLInputElement>("[data-stem-src]:checked");
-        if (!anyOn) {
-          stopAll();
-          return;
-        }
-        playStems(active, btn, modalPlayId);
-      };
-
       const renderGrid = () => {
         if (!grid) return;
         const list = filtered();
@@ -470,7 +689,14 @@ const payload = {
             const lic = canLic
               ? `<button type="button" class="lb__card-lic" data-open-lic="${item.id}">${L.license}</button>`
               : "";
-            const playBtn = `<button type="button" class="lb__play-fab" data-thumb-play="${item.id}" aria-label="${L.play}" aria-pressed="false">▶</button>`;
+            const canPlay = !!(item.stems?.length || item.video);
+            const isPlayingHere = playingId === item.id;
+            const playBtn = canPlay
+              ? `<button type="button" class="lb__play-fab" data-thumb-play="${item.id}" aria-label="${L.play}" aria-pressed="${isPlayingHere ? "true" : "false"}">${isPlayingHere ? L.stop : "▶"}</button>`
+              : "";
+            const prog = canPlay
+              ? `<div class="lb__thumb-progress" data-thumb-progress="${item.id}" ${isPlayingHere ? "" : "hidden"} style="--p:0%"></div>`
+              : "";
 
             return `<article class="lb__card ${active?.id === item.id ? "is-on" : ""}" data-card="${item.id}">
               <div class="lb__thumb-wrap">
@@ -480,6 +706,7 @@ const payload = {
                   <span class="lb__ratio">${item.aspect}</span>
                 </button>
                 ${playBtn}
+                ${prog}
               </div>
               <div class="lb__cap">
                 <strong>${item.title}</strong>
@@ -509,6 +736,7 @@ const payload = {
 
         grid.querySelectorAll("[data-thumb-play]").forEach((btn) => {
           btn.addEventListener("click", (e) => {
+            e.preventDefault();
             e.stopPropagation();
             const id = (btn as HTMLElement).dataset.thumbPlay || "";
             const item = items.find((x) => x.id === id);
@@ -518,28 +746,25 @@ const payload = {
               stopAll();
               return;
             }
-            stopAll();
-
-            if (item.video) {
-              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${id}"]`);
-              if (v) {
-                v.muted = false;
-                gridVideo = v;
-                v.play()
-                  .then(() => {
-                    playingId = id;
-                    btn.textContent = L.stop;
-                    btn.setAttribute("aria-pressed", "true");
-                  })
-                  .catch(() => {
-                    v.muted = true;
-                    v.play().catch(() => {});
-                    playingId = id;
-                    btn.textContent = L.stop;
-                  });
+            // Cambiar de ítem: para todo y arranca de nuevo
+            const keepStems = stemItemId === item.id && !!item.stems?.length;
+            if (!keepStems) {
+              stopAll();
+            } else {
+              // Mismo ítem re-play tras stop parcial
+              if (gridVideo) {
+                gridVideo.pause();
+                gridVideo = null;
               }
-            } else if (item.stems?.length) {
-              playStems(item, btn);
+              stemLayers.forEach((l) => l.audio.pause());
+            }
+
+            // Preferir stems (audio real); vídeo solo si no hay stems
+            if (item.stems?.length) {
+              void playStems(item, id);
+            } else if (item.video) {
+              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);
+              if (v) void playVideoThumb(item, v);
             }
           });
         });
@@ -647,35 +872,77 @@ const payload = {
 
       root.querySelector("[data-lb-preview-play]")?.addEventListener("click", () => {
         if (!active) return;
-        const btn = root.querySelector("[data-lb-preview-play]");
         const modalPlayId = "modal-" + active.id;
         if (playingId === modalPlayId || playingId === active.id) {
-          stopAll();
+          // Pausa sin perder posición (stopAll resetea a 0)
+          stemLayers.forEach((l) => l.audio.pause());
+          const mv = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+          if (mv) mv.pause();
+          if (gridVideo) gridVideo.pause();
+          playingId = null;
+          resetPlayButtons();
+          stopProgressLoop();
+          updateProgressUI();
           return;
         }
-        stopAll();
-        // Preferir stems (mixer) si hay capas; si no, vídeo
         if (active.stems?.length) {
-          playStems(active, btn, modalPlayId);
+          // No dispose si ya cargado el mismo ítem
+          if (stemItemId !== active.id) {
+            if (gridVideo) {
+              gridVideo.pause();
+              gridVideo = null;
+            }
+            disposeStemLayers();
+          }
+          void playStems(active, modalPlayId);
         } else {
           const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (v) {
             v.play()
               .then(() => {
                 playingId = modalPlayId;
-                if (btn) btn.textContent = L.stop;
+                markPlayingButtons(active!.id);
+                startProgressLoop();
               })
               .catch(() => {});
           }
         }
       });
 
-      // Checkboxes del mixer: al marcar/desmarcar, re-aplica la mezcla si suena
+      // Checkboxes del mixer: mute sin reiniciar
       root.addEventListener("change", (e) => {
         const t = e.target;
         if (t instanceof HTMLInputElement && t.hasAttribute("data-stem-src")) {
           onStemMixChange();
         }
+      });
+
+      const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
+      seekInput?.addEventListener("pointerdown", () => {
+        seeking = true;
+      });
+      seekInput?.addEventListener("pointerup", () => {
+        seeking = false;
+      });
+      seekInput?.addEventListener("input", () => {
+        if (!seekInput) return;
+        const el = clockEl() || stemLayers[0]?.audio || null;
+        if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+        const t = (Number(seekInput.value) / 1000) * el.duration;
+        if (stemLayers.length) {
+          syncStemTime(t);
+        } else {
+          try {
+            el.currentTime = t;
+          } catch {
+            /* ignore */
+          }
+        }
+        updateProgressUI();
+      });
+      seekInput?.addEventListener("change", () => {
+        seeking = false;
+        updateProgressUI();
       });
 
       root.querySelectorAll("[data-type]").forEach((btn) => {
@@ -877,6 +1144,54 @@ const payload = {
   }
   .lb__play-fab:hover {
     filter: brightness(1.08);
+  }
+  .lb__play-fab[aria-pressed="true"] {
+    background: rgb(240 220 160 / 0.98);
+  }
+
+  .lb__thumb-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    height: 3px;
+    background: rgb(255 255 255 / 0.12);
+    pointer-events: none;
+  }
+  .lb__thumb-progress::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: var(--p, 0%);
+    background: var(--color-accent, #c9a962);
+    transition: width 0.08s linear;
+  }
+
+  .lb__transport {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0.65rem 0 0.25rem;
+  }
+  .lb__progress {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+  .lb__seek {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--color-accent, #c9a962);
+    cursor: pointer;
+  }
+  .lb__time {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    color: rgb(150 150 160);
+    min-width: 5.5rem;
+    text-align: right;
   }
 
   .lb__badge {

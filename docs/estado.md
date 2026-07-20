@@ -142,6 +142,7 @@ No editar `library.json` a mano salvo semilla local o fallback.
 |------|----------|
 | **`docs/estado.md`** | **Este handoff** |
 | `docs/admin-acceso.md` | Login + publish un clic + R2 |
+| `docs/PUBLICIDAD-ORGANICA-SEO.md` | Plan gratis: SEO, Search Console, keywords |
 | `docs/licencias/` | Precios, plan, plantillas |
 | `docs/configuracion.md` | DNS, Cloudflare, email |
 | `docs/analytics-publi.md` | SEO / analíticas |

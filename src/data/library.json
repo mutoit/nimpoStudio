@@ -65,14 +65,14 @@
     "tags": ["ambient", "pads"],
     "moods": ["etérea", "apertura"],
     "description": "Ejemplo de pista con stems en biblioteca densa (sin ficha propia).",
-    "notes": "Provisional. Los stems actuales reutilizan previews de Nocturna.",
+    "notes": "Provisional. Stems de demo reutilizan capas de Deep in the forest (previews reales).",
     "year": 2026,
     "provisional": true,
     "licenseEnabled": true,
     "stems": [
-      { "id": "pads", "label": "Pads & Ambiente", "src": "/previews/music/nocturna-umbral.mp3" },
-      { "id": "melody", "label": "Melodía", "src": "/previews/music/nocturna-luz-tenue.mp3" },
-      { "id": "perc", "label": "Percusión", "src": "/previews/music/nocturna-deriva.mp3" }
+      { "id": "pads", "label": "Pads / Ambiente", "src": "/previews/music/DP BOSQUE.wav" },
+      { "id": "melody", "label": "Melodía", "src": "/previews/music/DP FLAUTA.wav" },
+      { "id": "perc", "label": "Bajo / cuerpo", "src": "/previews/music/DP BASS.wav" }
     ]
   }
 ]

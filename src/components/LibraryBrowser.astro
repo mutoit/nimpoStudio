@@ -343,8 +343,14 @@ const payload = {
 
       const clockEl = (): HTMLMediaElement | null => {
         if (stemLayers.length) {
-          const live = stemLayers.find((l) => !l.audio.muted && !l.audio.paused);
-          return (live || stemLayers[0]).audio;
+          // Preferir capa con volume>0 en play; si no, la que más tiempo lleve
+          const live = stemLayers.find((l) => !l.audio.paused && l.audio.volume > 0);
+          if (live) return live.audio;
+          const any = stemLayers.find((l) => !l.audio.paused);
+          if (any) return any.audio;
+          return stemLayers.reduce((a, b) =>
+            a.audio.currentTime >= b.audio.currentTime ? a : b,
+          ).audio;
         }
         if (gridVideo && !gridVideo.paused) return gridVideo;
         const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
@@ -467,7 +473,18 @@ const payload = {
         return true;
       };
 
-      /** Mute según checkboxes del mixer solo si el modal del mismo ítem está abierto. */
+      const normSrc = (s: string) => {
+        try {
+          return decodeURIComponent(s).replace(/\\/g, "/");
+        } catch {
+          return s.replace(/\\/g, "/");
+        }
+      };
+
+      /**
+       * Capas siempre cargadas; off = volume 0 (siguen en el mismo reloj).
+       * Nunca pause/seek al cambiar checkboxes → no reinicia.
+       */
       const applyStemMix = () => {
         const modalOpen =
           overlay instanceof HTMLElement &&
@@ -476,6 +493,7 @@ const payload = {
           stemItemId === active.id;
         if (!modalOpen) {
           stemLayers.forEach((l) => {
+            l.audio.volume = 1;
             l.audio.muted = false;
           });
           return;
@@ -484,21 +502,24 @@ const payload = {
         const on = new Set(
           [...checks]
             .filter((c) => c.checked)
-            .map((c) => c.dataset.stemSrc || "")
+            .map((c) => normSrc(c.dataset.stemSrc || ""))
             .filter(Boolean),
         );
-        // Si no hay ninguno marcado, no silenciar todas de golpe al abrir: forzar all on
         const anyChecked = on.size > 0;
         stemLayers.forEach((l) => {
-          l.audio.muted = anyChecked ? !on.has(l.src) : false;
+          const enabled = !anyChecked || on.has(normSrc(l.src));
+          l.audio.volume = enabled ? 1 : 0;
+          l.audio.muted = !enabled;
         });
       };
 
       const syncStemTime = (t: number) => {
+        if (!Number.isFinite(t) || t < 0) return;
         stemLayers.forEach((l) => {
           try {
-            if (Number.isFinite(l.audio.duration) && l.audio.duration > 0) {
-              l.audio.currentTime = Math.min(t, Math.max(0, l.audio.duration - 0.05));
+            const dur = l.audio.duration;
+            if (Number.isFinite(dur) && dur > 0) {
+              l.audio.currentTime = Math.min(t, Math.max(0, dur - 0.05));
             } else {
               l.audio.currentTime = t;
             }
@@ -511,21 +532,15 @@ const payload = {
       const playStems = async (item: Item, playId: string) => {
         if (!ensureStemLayers(item)) return;
         applyStemMix();
-        // Alinear capas a la misma posición (sin saltar a 0 si ya había progreso)
-        const t = stemLayers[0]?.audio.currentTime || 0;
-        syncStemTime(t);
+        // Todas las capas suenan (las off a volume 0) para no desincronizar
         const plays = stemLayers.map((l) =>
-          l.audio.muted
-            ? Promise.resolve()
-            : l.audio.play().catch((err) => {
-                console.warn("[lb] stem play fail", l.src, err);
-              }),
+          l.audio.play().catch((err) => {
+            console.warn("[lb] stem play fail", l.src, err);
+          }),
         );
         await Promise.all(plays);
-        // Reintento si el browser bloqueó el primer play
-        if (!stemLayers.some((l) => !l.audio.paused && !l.audio.muted)) {
+        if (!stemLayers.some((l) => !l.audio.paused)) {
           for (const l of stemLayers) {
-            if (l.audio.muted) continue;
             try {
               await l.audio.play();
             } catch (e) {
@@ -543,33 +558,22 @@ const payload = {
         updateProgressUI();
       };
 
-      /** Solo mute/unmute — no reinicia el play. */
+      /** Solo volume on/off — no pause, no seek, no reinicio. */
       const onStemMixChange = () => {
         if (!stemLayers.length || !active?.stems?.length) return;
         applyStemMix();
-        const modalPlayId = "modal-" + active.id;
         const isThis =
-          playingId === modalPlayId || playingId === active.id || stemItemId === active.id;
-        if (!isThis) return;
-        // Si suena y hay alguna capa on, sigue; si todas off, pausa sin reset
-        const anyOn = stemLayers.some((l) => !l.audio.muted);
-        if (!anyOn) {
-          stemLayers.forEach((l) => l.audio.pause());
-          stopProgressLoop();
-          return;
-        }
-        // Reanudar capas on en la misma posición del reloj
-        const clock = stemLayers.find((l) => !l.audio.muted)?.audio || stemLayers[0].audio;
-        const t = clock.currentTime;
-        syncStemTime(t);
+          playingId === "modal-" + active.id ||
+          playingId === active.id ||
+          stemItemId === active.id;
+        if (!isThis || !playingId) return;
+        // Mantener todas reproduciendo (silenciadas si volume 0)
         stemLayers.forEach((l) => {
-          if (!l.audio.muted && l.audio.paused) {
+          if (l.audio.paused) {
             l.audio.play().catch(() => {});
-          } else if (l.audio.muted) {
-            l.audio.pause();
           }
         });
-        if (playingId) startProgressLoop();
+        startProgressLoop();
       };
 
       const playVideoThumb = async (item: Item, v: HTMLVideoElement) => {

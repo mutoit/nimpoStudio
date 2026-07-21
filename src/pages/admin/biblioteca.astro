@@ -524,11 +524,12 @@ import Layout from "../../components/Layout.astro";
       !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
       !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
-    if (localVideo) setLight("video", "pending", "Listo para subir");
-    if (localCover) setLight("cover", "pending", "Listo para subir");
-    if (localStems) setLight("stems", "pending", `${localStems} local(es)`);
+    // Naranja = en el PC, aún no en R2. Verde solo tras publicar con éxito.
+    if (localVideo) setLight("video", "pending", "En PC · falta publicar");
+    if (localCover) setLight("cover", "pending", "En PC · falta publicar");
+    if (localStems) setLight("stems", "pending", `${localStems} en PC · falta publicar`);
     if (localVideo || localCover || localStems) {
-      setLight("upload", "pending", "Pulsa publicar");
+      setLight("upload", "pending", "→ Dale a Publicar");
     }
   };
 
@@ -913,19 +914,20 @@ import Layout from "../../components/Layout.astro";
       !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
 
-    if (localVideo) setLight("video", "pending", "Listo para subir");
+    if (localVideo) setLight("video", "pending", "En PC · falta publicar");
     else if (videoUrl) setLight("video", "ok", videoName.slice(0, 28));
     else setLight("video", "err", "Sin vídeo");
 
-    if (localCover) setLight("cover", "pending", "Listo para subir");
+    if (localCover) setLight("cover", "pending", "En PC · falta publicar");
     else if (coverUrl) setLight("cover", "ok", coverName.slice(0, 28));
     else setLight("cover", "idle", "Opcional");
 
-    if (localStems) setLight("stems", "pending", `${localStems} local(es)`);
+    if (localStems) setLight("stems", "pending", `${localStems} en PC · falta publicar`);
     else if (stemNames.length) setLight("stems", "ok", `${stemNames.length} en servidor`);
     else setLight("stems", channel === "stems" ? "err" : "idle", channel === "stems" ? "Faltan" : "—");
 
-    setLight("upload", "ok", "En catálogo");
+    if (localVideo || localCover || localStems) setLight("upload", "pending", "→ Dale a Publicar");
+    else setLight("upload", "ok", "En catálogo");
 
     // Canal vídeo
     if (videoUrl) {

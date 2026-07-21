@@ -44,6 +44,7 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 | Marca, email, redes | `src/config/site.json` |
 | Textos legales | `src/content/legal/` o páginas `[lang]/` |
 | Estilos globales | `src/styles/` |
+| UX biblioteca (stems Ctrl+clic, form licencias) | `docs/estado.md` § UX biblioteca · `src/lib/library-browser/bind.ts` |
 | SEO / meta / analíticas | `src/lib/analytics/`, variables `PUBLIC_*` |
 | API analíticas | `functions/api/track.ts` |
 | Redirects | `astro.config.mjs` + `public/_redirects` |

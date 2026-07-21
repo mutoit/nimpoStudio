@@ -1,6 +1,6 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-07-21  
+Última actualización: 2026-07-21 (UX móvil + stems Ctrl+clic)  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
@@ -29,6 +29,8 @@ Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago autom
 - [x] Nav pública: **Biblioteca · Sobre · Contacto** (música/catálogo fuera del menú principal)
 - [x] `/es/biblioteca/` — grid, miniaturas, play, stems (mute sin reiniciar), seek vía `StemTransport` (Web Audio; Pages no hace Range seek fiable en WAV)
 - [x] Modal detalle + formulario de licencia (usage, plazos, extras, precio)
+- [x] **UX formulario (desktop + móvil):** tipo de uso y plazo como desplegables densos (filas + **etiqueta dorada** de precio); extras en lista compacta título|precio; móvil con densidades y menú hamburguesa
+- [x] **Mixer stems:** clic normal = on/off capa; **Ctrl+clic** (Mac: ⌘+clic) = solo esa capa / otra vez = todas; nota bajo el mixer. Mismo patrón en `StemPlayer` (páginas música)
 - [x] Precios conservadores en `src/lib/license-quote.ts` + mirror `functions/lib/license-quote.ts`
 - [x] `POST /api/quote` — cotización + email estudio (rate limit, CORS restringido)
 - [x] Catálogo **vivo** en R2: `catalog/library.json`
@@ -98,7 +100,7 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] Ruido de preview incrustado al publicar (admin); no slider público
 - [x] Proxy `/api/media/*` same-origin (CORS stems Web Audio)
 - [x] Moods/tags personalizados en admin
-- [ ] QA visual mobile modal full-screen
+- [x] UX móvil modal/formulario (densidad, desplegables, safe-area, hamburguesa) — re-QA en dispositivo real si hace falta
 - [ ] Bloque **testimonios / valoraciones** (cuando haya casos reales; ver ESTRATEGIA-LANZAMIENTO)
 
 ### Fase 2 — Venta / entrega automática
@@ -170,8 +172,24 @@ No editar `library.json` a mano salvo semilla local o fallback.
 
 ---
 
+## UX biblioteca — stems y cotizador (referencia)
+
+| Acción | Comportamiento |
+|--------|----------------|
+| Clic en checkbox de capa | Activa / silencia **esa** capa |
+| **Ctrl+clic** (⌘+clic en Mac) en una capa | **Solo esa** capa (oculta las demás). Si todas estaban off, enciende solo esa |
+| **Ctrl+clic** otra vez en la **misma** capa (estando en solo) | Vuelve a activar **todas** |
+| Clic derecho | **No** se usa (menú contextual del SO) |
+| Tipo de uso / plazo | Desplegable plegable; filas densas + badge dorado de precio (desktop y móvil) |
+| Extras | Lista compacta título + precio dorado |
+
+Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `MusicLicense.astro` (form), `StemPlayer.astro`.
+
+---
+
 ## Historial reciente (producto)
 
+- **UX:** móvil (nav hamburguesa, form denso); uso/plazo con badge dorado en desktop; **Ctrl+clic stems** + nota de ayuda  
 - Biblioteca: **live-first** (sin flash de demos borrados); moods globales R2; ratio 9:16 quitado de thumbs  
 - Admin: moods UI simple (dorado = seleccionado); re-bake ruido desde cleanSrc al guardar; empresa en quote  
 - Precios 2026 + exclusiva fuerte / buyout alto; doc founder/testimonios  

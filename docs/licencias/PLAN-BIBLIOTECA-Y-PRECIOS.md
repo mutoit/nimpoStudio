@@ -98,22 +98,24 @@ availability: "available" | "reserved" | "sold_exclusive" | "off_catalog"
 
 **Izquierda — preview**
 
-- [ ] Frame según aspect real (1:1 / 9:16 / 16:9)  
-- [ ] Vídeo o cover  
-- [ ] Play/pause unificado  
-- [ ] Si hay stems: mixer + play (solo una fuente de audio a la vez)  
-- [ ] Descripción, moods, tags, notas  
+- [x] Frame según aspect real (1:1 / 9:16 / 16:9)  
+- [x] Vídeo o cover  
+- [x] Play/pause unificado  
+- [x] Si hay stems: mixer + play (solo una fuente de audio a la vez)  
+- [x] Mixer: clic = mute/unmute capa; **Ctrl+clic** (⌘ Mac) = solo esa capa / otra vez = todas; nota UI bajo el mixer  
+- [x] Descripción, moods, tags, notas  
 
 **Derecha — formulario completo** (el “especial” de música)
 
-- [ ] Nombre, email  
-- [ ] Tipo de uso (catálogo completo: cine, ads, app…)  
-- [ ] Territorio, plazo  
-- [ ] Proyecto / uso concreto  
-- [ ] Extras con precio (ver §4)  
-- [ ] Especial / fuera de estándar  
-- [ ] **Precio en vivo** (calculadora)  
-- [ ] Enviar → `POST /api/quote`  
+- [x] Nombre, email  
+- [x] Tipo de uso (catálogo completo: cine, ads, app…) — desplegable denso + badge precio  
+- [x] Territorio, plazo — plazo con el mismo patrón de desplegable + badge  
+- [x] Proyecto / uso concreto  
+- [x] Extras con precio (lista compacta título|€; ver §4)  
+- [x] Especial / fuera de estándar  
+- [x] **Precio en vivo** (calculadora)  
+- [x] Enviar → `POST /api/quote`  
+- [x] UX móvil: densidades, modal full-bleed, sin hinchar escala UI M/L
 
 ### 3.3 No hacer
 
@@ -151,27 +153,40 @@ Actualizar:
 
 ## 5. Miniaturas: play / pause
 
-- [ ] Botón **play** centrado (o esquina) en cada `.lb__frame`  
-- [ ] 1ª pulsación: play vídeo o stems preview  
-- [ ] 2ª si está sonando: **pause/stop**  
-- [ ] Solo **una** reproducción global a la vez (parar la anterior)  
-- [ ] Icono cambia play ↔ pause  
-- [ ] Hover opcional; **el control es el botón**, no solo hover  
+- [x] Botón **play** centrado (o esquina) en cada `.lb__frame`  
+- [x] 1ª pulsación: play vídeo o stems preview  
+- [x] 2ª si está sonando: **pause/stop**  
+- [x] Solo **una** reproducción global a la vez (parar la anterior)  
+- [x] Icono cambia play ↔ pause  
+- [x] Hover opcional; **el control es el botón**, no solo hover  
 
 ---
 
 ## 6. Preview dentro del modal
 
-- [ ] Al abrir, preview listo (vídeo poster o primer frame)  
-- [ ] Play en modal independiente del grid  
-- [ ] Al cerrar modal: **parar** todo audio/vídeo  
+- [x] Al abrir, preview listo (vídeo poster o primer frame)  
+- [x] Play en modal independiente del grid  
+- [x] Al cerrar modal: **parar** todo audio/vídeo  
 
 ---
 
 ## 7. Frame de miniaturas (no olvidar)
 
-- [ ] Frame **uniforme 1:1** (o 4:5) en el grid  
-- [ ] `object-fit: cover` dentro  
+- [x] Frame **uniforme 1:1** (o 4:5) en el grid  
+- [x] `object-fit: cover` dentro  
+
+---
+
+## 8. Mixer stems (comportamiento UX)
+
+| Input | Resultado |
+|-------|-----------|
+| Clic en checkbox | On/off **esa** capa (sin reiniciar playback) |
+| **Ctrl+clic** / **⌘+clic** | Solo esa capa (resto off). Si todas off → enciende solo esa |
+| **Ctrl+clic** de nuevo en la misma (modo solo) | Restaura **todas** on |
+| Clic derecho | No usado (menú contextual del navegador) |
+
+Nota visible bajo el mixer en biblioteca y en `StemPlayer`. Implementación: `bind.ts` + `StemPlayer.astro`.
 - [ ] Badge de aspect real  
 - [ ] CSS **`is:global`** (innerHTML no recibe scope de Astro)  
 - [ ] Verificar en producción que el CSS no lleve `[data-astro-cid-…]` en reglas `.lb__*`  

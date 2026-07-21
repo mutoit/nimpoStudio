@@ -4,3 +4,8 @@ export { readConsent, writeConsent, hasAnalyticsConsent } from "./consent";
 export type { ConsentLevel } from "./consent";
 export type { AnalyticsEvent, AnalyticsEventName, AnalyticsEventPayload } from "./events";
 export { initMarketingAnalytics, registerAnalyticsClient, track } from "./client";
+export {
+  isAnalyticsOptedOut,
+  setAnalyticsOptOut,
+  applyAnalyticsOptOutFromUrl,
+} from "./opt-out";

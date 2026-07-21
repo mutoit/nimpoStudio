@@ -39,6 +39,18 @@ Tras añadir variables: **nuevo deploy** (`git push` o redeploy manual).
 
 ---
 
+## 0. No contar mis visitas (estudio)
+
+| Método | Qué hace |
+|--------|----------|
+| Abrir **una vez** `https://www.nimpo3dstudio.com/?nimpo_no_stats=1` | Guarda opt-out en ese navegador (localStorage). No envía a `/api/track`, GA, Clarity, Meta. |
+| Reactivar | `?nimpo_stats=1` |
+| Rutas `/admin/` | Siempre excluidas del collector propio |
+
+**Cloudflare Web Analytics** (beacon automático del panel CF) no lee nuestro localStorage. Para no contarte ahí: filtro de IP en el panel de CF si está disponible, o un navegador / perfil aparte solo para mirar stats. Lo que sí controlamos al 100 % es el collector first-party y los scripts de marketing.
+
+---
+
 ## 1. Cloudflare Web Analytics ✅ (activo)
 
 **Configuración aplicada:** Cloudflare → **Web Analytics** → Add a site → `nimpo3dstudio.com`.

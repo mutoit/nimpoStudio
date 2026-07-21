@@ -1,6 +1,10 @@
 import { getAnalyticsConfig, hasGa4, hasMetaPixel, hasClarity } from "./config";
 import type { AnalyticsEvent } from "./events";
 import { hasAnalyticsConsent } from "./consent";
+import {
+  applyAnalyticsOptOutFromUrl,
+  isAnalyticsOptedOut,
+} from "./opt-out";
 
 declare global {
   interface Window {
@@ -95,6 +99,7 @@ function sendToOwnCollector(event: AnalyticsEvent): void {
 }
 
 export function initMarketingAnalytics(): void {
+  if (isAnalyticsOptedOut()) return;
   if (!hasAnalyticsConsent()) return;
 
   const config = getAnalyticsConfig();
@@ -104,7 +109,10 @@ export function initMarketingAnalytics(): void {
 }
 
 export function track(event: AnalyticsEvent): void {
-  // 1. ALWAYS send to our own first-party collector (max free data, even if cookies rejected)
+  // Estudio / opt-out: no contamos en collector ni terceros
+  if (isAnalyticsOptedOut()) return;
+
+  // 1. First-party collector (incluso sin cookies de marketing)
   sendToOwnCollector(event);
 
   // 2. Third-party marketing only if consent
@@ -138,6 +146,7 @@ export function track(event: AnalyticsEvent): void {
 
 export function registerAnalyticsClient(): void {
   if (typeof window === "undefined") return;
+  applyAnalyticsOptOutFromUrl();
   window.nimpoTrack = track;
   initMarketingAnalytics();
   window.addEventListener("nimpo:consent", () => initMarketingAnalytics());

@@ -37,7 +37,12 @@ type Env = AdminEnv & {
     put: (
       key: string,
       value: ArrayBuffer | string,
-      opts?: { httpMetadata?: { contentType?: string } },
+      opts?: {
+        httpMetadata?: {
+          contentType?: string;
+          cacheControl?: string;
+        };
+      },
     ) => Promise<unknown>;
     list?: CatalogBucket["list"];
     delete?: CatalogBucket["delete"];
@@ -134,6 +139,7 @@ export async function onRequest(context: {
   const uploaded: Uploaded[] = [];
   let totalBytes = 0;
 
+  /** Cada subida = clave única (evita oír WAV/vídeo viejo por caché del mismo path). */
   const putFile = async (
     role: string,
     file: File,
@@ -150,11 +156,15 @@ export async function onRequest(context: {
     const ext = resolveExt(file.name, mediaRole);
     if (!ext) throw new Error(`bad_extension:${mediaRole}:${file.name}`);
 
-    const fileName = `${fileBase}.${ext}`;
+    const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const fileName = `${fileBase}-${stamp}.${ext}`;
     const key = `library/${slug}/${fileName}`;
     const buf = await file.arrayBuffer();
     await env.LIBRARY_BUCKET!.put(key, buf, {
-      httpMetadata: { contentType: contentTypeForExt(ext) },
+      httpMetadata: {
+        contentType: contentTypeForExt(ext),
+        cacheControl: "private, max-age=0, must-revalidate",
+      },
     });
     const url = `${publicBase}/${key}`;
     uploaded.push({ role, key, url, name: fileName });

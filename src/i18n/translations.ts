@@ -166,9 +166,15 @@ export const translations = {
     musicLicenseTierExclusive: "Exclusiva / media",
     musicLicenseTierExclusiveDesc:
       "Nadie más licencia en el alcance pactado. Desde 1.200 € (2 años media/territorio). Opción retirar del catálogo (+250 €).",
+    musicLicenseTierExclusiveStrong: "Exclusiva fuerte / multi",
+    musicLicenseTierExclusiveStrongDesc:
+      "Multi-medio, mundial, 2+ años. Suelo 3.000 € (rango típico 3.000–6.000 €+). Contrato y firma.",
     musicLicenseTierBuyout: "Buyout / fuera de catálogo",
     musicLicenseTierBuyoutDesc:
-      "Derechos fuertes y retirada indefinida del catálogo. Desde 2.990 € según obra y alcance.",
+      "Retirada indefinida del catálogo. Desde 2.990 € (suelo del rango 2.990–5.500).",
+    musicLicenseTierBuyoutHigh: "Buyout alto / a medida",
+    musicLicenseTierBuyoutHighDesc:
+      "Forever premium o alcance amplio. Desde 5.500 €; por encima, revisión y contrato.",
     musicLicensePriceOnRequest: "Presupuesto",
     musicLicensePriceRequestOnly: "Bajo petición",
     musicLicensePriceFrom: "Desde",
@@ -434,9 +440,15 @@ export const translations = {
     musicLicenseTierExclusive: "Exclusive / media",
     musicLicenseTierExclusiveDesc:
       "No one else licenses within the agreed scope. From €1,200 (2-year media/territory). Optional catalog removal (+€250).",
+    musicLicenseTierExclusiveStrong: "Strong exclusive / multi",
+    musicLicenseTierExclusiveStrongDesc:
+      "Multi-media, worldwide, 2+ years. Floor €3,000 (typical €3,000–6,000+). Contract and signature.",
     musicLicenseTierBuyout: "Buyout / leave catalog",
     musicLicenseTierBuyoutDesc:
-      "Strong rights and indefinite catalog removal. From €2,990 depending on work and scope.",
+      "Indefinite catalog removal. From €2,990 (floor of the €2,990–5,500 range).",
+    musicLicenseTierBuyoutHigh: "High buyout / custom",
+    musicLicenseTierBuyoutHighDesc:
+      "Premium forever or wide scope. From €5,500; above that, review and contract.",
     musicLicensePriceOnRequest: "Quote",
     musicLicensePriceRequestOnly: "On request",
     musicLicensePriceFrom: "From",
@@ -693,9 +705,15 @@ export const translations = {
     musicLicenseTierExclusive: "Exclusif / média",
     musicLicenseTierExclusiveDesc:
       "Personne d'autre ne licence dans le périmètre. Dès 1 200 € (2 ans média/territoire). Retrait catalogue optionnel (+250 €).",
+    musicLicenseTierExclusiveStrong: "Exclusif fort / multi",
+    musicLicenseTierExclusiveStrongDesc:
+      "Multi-supports, mondial, 2+ ans. Plancher 3 000 € (typique 3 000–6 000 €+). Contrat et signature.",
     musicLicenseTierBuyout: "Buyout / hors catalogue",
     musicLicenseTierBuyoutDesc:
-      "Droits forts et retrait indéfini du catalogue. Dès 2 990 € selon l'œuvre et le périmètre.",
+      "Retrait indéfini du catalogue. Dès 2 990 € (plancher de la fourchette 2 990–5 500).",
+    musicLicenseTierBuyoutHigh: "Buyout haut / sur mesure",
+    musicLicenseTierBuyoutHighDesc:
+      "Forever premium ou périmètre large. Dès 5 500 € ; au-delà, revue et contrat.",
     musicLicensePriceOnRequest: "Devis",
     musicLicensePriceRequestOnly: "Sur demande",
     musicLicensePriceFrom: "À partir de",

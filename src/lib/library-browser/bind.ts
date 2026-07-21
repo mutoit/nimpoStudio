@@ -457,12 +457,16 @@ export function bindLibraryBrowser() {
           if (hintEl) hintEl.textContent = L.select;
           return;
         }
+        const exclusiveStrong = fd.get("exclusiveStrong") === "1";
+        const buyoutHigh = fd.get("buyoutHigh") === "1";
         const q = calculateLicenseQuote({
           usage: usage as LicenseUsageCode,
           stems: fd.get("stems") === "1",
           editShort: fd.get("editShort") === "1",
-          exclusive: fd.get("exclusive") === "1",
-          buyout: fd.get("buyout") === "1",
+          exclusive: fd.get("exclusive") === "1" || exclusiveStrong,
+          exclusiveStrong,
+          buyout: fd.get("buyout") === "1" || buyoutHigh,
+          buyoutHigh,
           needSpecialReview: fd.get("needSpecialReview") === "1",
           specialNotes: String(fd.get("specialNotes") || ""),
           term: String(fd.get("term") || "2y") as
@@ -929,8 +933,10 @@ export function bindLibraryBrowser() {
               project: String(fd.get("project") || ""),
               stems: fd.get("stems") === "1",
               editShort: fd.get("editShort") === "1",
-              exclusive: fd.get("exclusive") === "1",
-              buyout: fd.get("buyout") === "1",
+              exclusive: fd.get("exclusive") === "1" || fd.get("exclusiveStrong") === "1",
+              exclusiveStrong: fd.get("exclusiveStrong") === "1",
+              buyout: fd.get("buyout") === "1" || fd.get("buyoutHigh") === "1",
+              buyoutHigh: fd.get("buyoutHigh") === "1",
               needSpecialReview: fd.get("needSpecialReview") === "1",
               specialNotes: String(fd.get("specialNotes") || ""),
               termPlus1y: fd.get("termPlus1y") === "1",

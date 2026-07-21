@@ -46,7 +46,11 @@ export type LicenseQuoteInput = {
   stems?: boolean;
   editShort?: boolean;
   exclusive?: boolean;
+  /** Exclusiva multi-medio / fuerte (suelo 3.000 €) */
+  exclusiveStrong?: boolean;
   buyout?: boolean;
+  /** Buyout alto / a medida (suelo 5.500 €, revisión si hace falta) */
+  buyoutHigh?: boolean;
   needSpecialReview?: boolean;
   specialNotes?: string;
   term?: LicenseTermCode;
@@ -102,6 +106,8 @@ export const LICENSE_PRICES = {
   /** Custom / ½ día composición (+ sync fee si aplica) */
   moreComposition: 199,
   buyoutFrom: 2990,
+  /** Buyout alto / forever premium (techo del rango crítica) */
+  buyoutHighFrom: 5500,
   personalMax: 49,
   /** 2.º+ tema mismo proyecto (−20 %; rango mercado −15–25 %) */
   extraTrackFactor: 0.8,
@@ -109,6 +115,8 @@ export const LICENSE_PRICES = {
   indieProFrom: 390,
   broadcastFrom: 890,
   saasAnnualFrom: 590,
+  /** Exclusiva fuerte multi-medio mundial (suelo crítica 3.000–6.000) */
+  exclusiveStrongFrom: 3000,
 } as const;
 
 export type UsageOptionMeta = {
@@ -330,11 +338,37 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
 
   // —— Buyout ——
   if (wantsBuyout) {
-    let total = LICENSE_PRICES.buyoutFrom;
+    const high = !!input.buyoutHigh;
+    if (high && input.needSpecialReview) {
+      // Buyout a medida por encima del suelo alto
+      return {
+        mode: "review",
+        currency: "EUR",
+        total: null,
+        fromAmount: LICENSE_PRICES.buyoutHighFrom,
+        lineItems: [
+          {
+            code: "buyout_high_review",
+            label: "Buyout alto / a medida (referencia)",
+            amount: LICENSE_PRICES.buyoutHighFrom,
+          },
+        ],
+        summaryKey: "quoteResultReview",
+        summaryEs: `Buyout alto / a medida: referencia desde ${LICENSE_PRICES.buyoutHighFrom} €; confirmación por email.`,
+        scopeEs: [
+          ...scopeEs,
+          "Retirada indefinida de catálogo. Alcance y fee final a pactar.",
+        ],
+      };
+    }
+    const base = high ? LICENSE_PRICES.buyoutHighFrom : LICENSE_PRICES.buyoutFrom;
+    let total = base;
     lineItems.push({
-      code: "buyout",
-      label: "Buyout / fuera de catálogo indefinido",
-      amount: LICENSE_PRICES.buyoutFrom,
+      code: high ? "buyout_high" : "buyout",
+      label: high
+        ? "Buyout alto / forever premium"
+        : "Buyout / fuera de catálogo indefinido",
+      amount: base,
     });
     total = addExtras(input, lineItems, total, true);
     return {
@@ -344,7 +378,9 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
       fromAmount: null,
       lineItems,
       summaryKey: "quoteResultBuyout",
-      summaryEs: `Buyout de catálogo: ${total} € (IVA no incluido). La obra deja de ofrecerse a terceros.`,
+      summaryEs: high
+        ? `Buyout alto: ${total} € (IVA no incluido). Fuera de catálogo indefinido.`
+        : `Buyout de catálogo: ${total} € (IVA no incluido). La obra deja de ofrecerse a terceros.`,
       scopeEs: [
         ...scopeEs,
         "Retirada de catálogo y no re-licencia en el alcance del buyout.",
@@ -354,12 +390,16 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
 
   // —— Exclusiva ——
   if (wantsExclusive) {
+    const strong = !!input.exclusiveStrong;
     const ex = exclusivePriceForTerm(term === "custom" ? "2y" : term);
-    let total = ex.amount;
+    const amount = strong ? LICENSE_PRICES.exclusiveStrongFrom : ex.amount;
+    let total = amount;
     lineItems.push({
-      code: "exclusive",
-      label: ex.label,
-      amount: ex.amount,
+      code: strong ? "exclusive_strong" : "exclusive",
+      label: strong
+        ? "Exclusiva fuerte multi-medio (suelo)"
+        : ex.label,
+      amount,
     });
     total = addExtras(input, lineItems, total, true);
     const remove = !!input.removeFromCatalog;
@@ -370,12 +410,16 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
       fromAmount: null,
       lineItems,
       summaryKey: "quoteResultExclusive",
-      summaryEs: remove
-        ? `Exclusiva (${termLabel(term)}) + no disponible en catálogo: ${total} €.`
-        : `Exclusiva (${termLabel(term)}): ${total} €.`,
+      summaryEs: strong
+        ? `Exclusiva fuerte multi-medio: ${total} €. Casos 3.000–6.000+ se revisan si el alcance lo exige.`
+        : remove
+          ? `Exclusiva (${termLabel(term)}) + no disponible en catálogo: ${total} €.`
+          : `Exclusiva (${termLabel(term)}): ${total} €.`,
       scopeEs: [
         ...scopeEs,
-        `Exclusividad en el alcance pactado · plazo: ${termLabel(term)}.`,
+        strong
+          ? "Exclusividad multi-medio / fuerte en el alcance pactado."
+          : `Exclusividad en el alcance pactado · plazo: ${termLabel(term)}.`,
         remove
           ? "Retirada o marcaje no disponible en catálogo público durante la exclusiva."
           : "Puede permanecer visible como no disponible / exclusiva.",

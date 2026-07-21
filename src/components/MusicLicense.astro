@@ -47,7 +47,15 @@ const tierCopy: Record<
     title: t("musicLicenseTierExclusive"),
     desc: t("musicLicenseTierExclusiveDesc"),
   },
+  exclusiveStrong: {
+    title: t("musicLicenseTierExclusiveStrong"),
+    desc: t("musicLicenseTierExclusiveStrongDesc"),
+  },
   buyout: { title: t("musicLicenseTierBuyout"), desc: t("musicLicenseTierBuyoutDesc") },
+  buyoutHigh: {
+    title: t("musicLicenseTierBuyoutHigh"),
+    desc: t("musicLicenseTierBuyoutHighDesc"),
+  },
 };
 
 const tiersPayload = license.tiers.map((tier) => {
@@ -223,6 +231,11 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           }{t("quoteExclusive")} (desde {LICENSE_PRICES.exclusiveFrom} €)</label
         >
         <label
+          ><input type="checkbox" name="exclusiveStrong" value="1" data-quote-flag />{
+            " "
+          }Exclusiva fuerte multi-medio (desde {LICENSE_PRICES.exclusiveStrongFrom} €)</label
+        >
+        <label
           ><input type="checkbox" name="removeFromCatalog" value="1" data-quote-flag />{
             " "
           }No disponible / retirar del catálogo (+{LICENSE_PRICES.removeFromCatalog} €, con
@@ -232,6 +245,11 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           ><input type="checkbox" name="buyout" value="1" data-quote-flag />{
             " "
           }{t("quoteBuyout")} (desde {LICENSE_PRICES.buyoutFrom} €)</label
+        >
+        <label
+          ><input type="checkbox" name="buyoutHigh" value="1" data-quote-flag />{
+            " "
+          }Buyout alto / a medida (desde {LICENSE_PRICES.buyoutHighFrom} €)</label
         >
       </fieldset>
 
@@ -352,7 +370,9 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           stems: fd.get("stems") === "1",
           editShort: fd.get("editShort") === "1",
           exclusive: fd.get("exclusive") === "1",
+          exclusiveStrong: fd.get("exclusiveStrong") === "1",
           buyout: fd.get("buyout") === "1",
+          buyoutHigh: fd.get("buyoutHigh") === "1",
           needSpecialReview: fd.get("needSpecialReview") === "1",
           specialNotes: String(fd.get("specialNotes") || ""),
           term: String(fd.get("term") || "2y") as
@@ -381,8 +401,10 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           usage: input.usage,
           stems: input.stems,
           editShort: input.editShort,
-          exclusive: input.exclusive,
-          buyout: input.buyout,
+          exclusive: input.exclusive || input.exclusiveStrong,
+          exclusiveStrong: input.exclusiveStrong,
+          buyout: input.buyout || input.buyoutHigh,
+          buyoutHigh: input.buyoutHigh,
           needSpecialReview: input.needSpecialReview,
           specialNotes: input.specialNotes,
           term: input.term,
@@ -444,8 +466,10 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           project: String(fd.get("project") || "").trim(),
           stems: input.stems,
           editShort: input.editShort,
-          exclusive: input.exclusive,
-          buyout: input.buyout,
+          exclusive: input.exclusive || input.exclusiveStrong,
+          exclusiveStrong: input.exclusiveStrong,
+          buyout: input.buyout || input.buyoutHigh,
+          buyoutHigh: input.buyoutHigh,
           needSpecialReview: input.needSpecialReview,
           specialNotes: String(fd.get("specialNotes") || "").trim(),
           termPlus1y: input.termPlus1y,

@@ -46,9 +46,19 @@
           "priceFrom": "1.200 €"
         },
         {
+          "id": "exclusiveStrong",
+          "pricing": "from",
+          "priceFrom": "3.000 €"
+        },
+        {
           "id": "buyout",
           "pricing": "from",
           "priceFrom": "2.990 €"
+        },
+        {
+          "id": "buyoutHigh",
+          "pricing": "from",
+          "priceFrom": "5.500 €"
         }
       ]
     },
@@ -140,9 +150,19 @@
           "priceFrom": "1.200 €"
         },
         {
+          "id": "exclusiveStrong",
+          "pricing": "from",
+          "priceFrom": "3.000 €"
+        },
+        {
           "id": "buyout",
           "pricing": "from",
           "priceFrom": "2.990 €"
+        },
+        {
+          "id": "buyoutHigh",
+          "pricing": "from",
+          "priceFrom": "5.500 €"
         }
       ]
     },
@@ -244,9 +264,19 @@
           "priceFrom": "1.200 €"
         },
         {
+          "id": "exclusiveStrong",
+          "pricing": "from",
+          "priceFrom": "3.000 €"
+        },
+        {
           "id": "buyout",
           "pricing": "from",
           "priceFrom": "2.990 €"
+        },
+        {
+          "id": "buyoutHigh",
+          "pricing": "from",
+          "priceFrom": "5.500 €"
         }
       ]
     },
@@ -306,9 +336,19 @@
           "priceFrom": "1.200 €"
         },
         {
+          "id": "exclusiveStrong",
+          "pricing": "from",
+          "priceFrom": "3.000 €"
+        },
+        {
           "id": "buyout",
           "pricing": "from",
           "priceFrom": "2.990 €"
+        },
+        {
+          "id": "buyoutHigh",
+          "pricing": "from",
+          "priceFrom": "5.500 €"
         }
       ]
     },

@@ -54,6 +54,29 @@ import Layout from "../../components/Layout.astro";
           </select>
         </label>
 
+        <div class="media-lights" data-media-lights aria-label="Estado de archivos">
+          <div class="ml" data-ml="video" data-state="idle">
+            <span class="ml__dot" aria-hidden="true"></span>
+            <span class="ml__name">Vídeo</span>
+            <span class="ml__txt" data-ml-txt>—</span>
+          </div>
+          <div class="ml" data-ml="cover" data-state="idle">
+            <span class="ml__dot" aria-hidden="true"></span>
+            <span class="ml__name">Cover</span>
+            <span class="ml__txt" data-ml-txt>—</span>
+          </div>
+          <div class="ml" data-ml="stems" data-state="idle">
+            <span class="ml__dot" aria-hidden="true"></span>
+            <span class="ml__name">Stems</span>
+            <span class="ml__txt" data-ml-txt>—</span>
+          </div>
+          <div class="ml" data-ml="upload" data-state="idle">
+            <span class="ml__dot" aria-hidden="true"></span>
+            <span class="ml__name">Subida</span>
+            <span class="ml__txt" data-ml-txt>—</span>
+          </div>
+        </div>
+
         <div data-video-fields>
           <div class="media-status" data-status-video hidden role="status"></div>
           <label class="file-label">
@@ -450,6 +473,14 @@ import Layout from "../../components/Layout.astro";
   bindPreview("[data-cover-file]", "[data-cover-preview]", "img");
   bindPreview("[data-stems-video]", "[data-stems-video-preview]", "video");
   bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
+  for (const sel of [
+    "[data-video-file]",
+    "[data-cover-file]",
+    "[data-stems-video]",
+    "[data-stems-cover]",
+  ]) {
+    document.querySelector(sel)?.addEventListener("change", () => refreshLocalPendingLights());
+  }
 
   let toastTimer = 0;
   const showToast = (msg: string, ms = 14000) => {
@@ -476,6 +507,31 @@ import Layout from "../../components/Layout.astro";
     }
   };
 
+  type MediaLightState = "idle" | "ok" | "loading" | "err" | "pending";
+  const setLight = (key: string, state: MediaLightState, text: string) => {
+    const row = document.querySelector(`[data-ml="${key}"]`);
+    if (!(row instanceof HTMLElement)) return;
+    row.dataset.state = state;
+    const txt = row.querySelector("[data-ml-txt]");
+    if (txt) txt.textContent = text;
+  };
+
+  const refreshLocalPendingLights = () => {
+    const localVideo =
+      !!(document.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0] ||
+      !!(document.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
+    const localCover =
+      !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
+      !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+    const localStems = stemRows.filter((r) => r.file).length;
+    if (localVideo) setLight("video", "pending", "Listo para subir");
+    if (localCover) setLight("cover", "pending", "Listo para subir");
+    if (localStems) setLight("stems", "pending", `${localStems} local(es)`);
+    if (localVideo || localCover || localStems) {
+      setLight("upload", "pending", "Pulsa publicar");
+    }
+  };
+
   const stemsList = document.querySelector("[data-stems-list]");
   const isAudioFile = (f: File) => {
     const n = f.name.toLowerCase();
@@ -498,12 +554,14 @@ import Layout from "../../components/Layout.astro";
     }
     renderStems();
     setStatus(`${list.length} stem(s) añadido(s). Puedes renombrar o quitar filas.`);
+    refreshLocalPendingLights();
   };
 
   const renderStems = () => {
     if (!stemsList) return;
     if (!stemRows.length) {
       stemsList.innerHTML = `<p class="stems-empty">Aún no hay capas. Arrastra archivos arriba.</p>`;
+      refreshLocalPendingLights();
       return;
     }
     stemsList.innerHTML = stemRows
@@ -526,6 +584,7 @@ import Layout from "../../components/Layout.astro";
         renderStems();
       });
     });
+    refreshLocalPendingLights();
   };
 
   const drop = document.querySelector("[data-stems-drop]");
@@ -797,7 +856,7 @@ import Layout from "../../components/Layout.astro";
 
   const setMediaBanner = (
     sel: string,
-    ok: boolean,
+    state: boolean | "ok" | "bad" | "loading",
     html: string,
     show: boolean,
   ) => {
@@ -806,21 +865,32 @@ import Layout from "../../components/Layout.astro";
     if (!show) {
       el.hidden = true;
       el.textContent = "";
-      el.classList.remove("is-ok", "is-bad");
+      el.classList.remove("is-ok", "is-bad", "is-loading");
       return;
     }
     el.hidden = false;
-    el.classList.toggle("is-ok", ok);
-    el.classList.toggle("is-bad", !ok);
+    const kind =
+      state === true || state === "ok"
+        ? "ok"
+        : state === "loading"
+          ? "loading"
+          : "bad";
+    el.classList.toggle("is-ok", kind === "ok");
+    el.classList.toggle("is-bad", kind === "bad");
+    el.classList.toggle("is-loading", kind === "loading");
     el.innerHTML = html;
   };
 
-  /** Avisos verdes/rojos junto a cada zona de archivos al editar. */
+  /** Avisos + bolitas verdes/naranjas/rojas junto a cada zona de archivos. */
   const paintMediaStatus = (item: Record<string, unknown> | null) => {
     if (!item) {
       setMediaBanner("[data-status-video]", true, "", false);
       setMediaBanner("[data-status-stems]", true, "", false);
       setMediaBanner("[data-status-stems-visual]", true, "", false);
+      setLight("video", "idle", "—");
+      setLight("cover", "idle", "—");
+      setLight("stems", "idle", "—");
+      setLight("upload", "idle", "—");
       return;
     }
 
@@ -835,22 +905,42 @@ import Layout from "../../components/Layout.astro";
       )
       .filter(Boolean);
 
+    const localVideo =
+      !!(document.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0] ||
+      !!(document.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
+    const localCover =
+      !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
+      !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+    const localStems = stemRows.filter((r) => r.file).length;
+
+    if (localVideo) setLight("video", "pending", "Listo para subir");
+    else if (videoUrl) setLight("video", "ok", videoName.slice(0, 28));
+    else setLight("video", "err", "Sin vídeo");
+
+    if (localCover) setLight("cover", "pending", "Listo para subir");
+    else if (coverUrl) setLight("cover", "ok", coverName.slice(0, 28));
+    else setLight("cover", "idle", "Opcional");
+
+    if (localStems) setLight("stems", "pending", `${localStems} local(es)`);
+    else if (stemNames.length) setLight("stems", "ok", `${stemNames.length} en servidor`);
+    else setLight("stems", channel === "stems" ? "err" : "idle", channel === "stems" ? "Faltan" : "—");
+
+    setLight("upload", "ok", "En catálogo");
+
     // Canal vídeo
     if (videoUrl) {
       setMediaBanner(
         "[data-status-video]",
-        true,
+        "ok",
         `<strong>✓ Vídeo en servidor</strong><br/><span>${videoName}</span>` +
-          (coverName
-            ? `<br/><span>Cover: ${coverName}</span>`
-            : "") +
-          `<br/><span class="media-status__note">No hace falta re-subir para guardar tags. Solo elige archivo si quieres reemplazarlo.</span>`,
+          (coverName ? `<br/><span>Cover: ${coverName}</span>` : "") +
+          `<br/><span class="media-status__note">Cada re-subida crea URL nueva (no reutiliza caché del audio/vídeo viejo).</span>`,
         true,
       );
     } else {
       setMediaBanner(
         "[data-status-video]",
-        false,
+        "bad",
         `<strong>✗ No hay vídeo en servidor</strong><br/><span>Elige un archivo mp4/webm o la ficha no tendrá vídeo.</span>`,
         true,
       );
@@ -860,7 +950,7 @@ import Layout from "../../components/Layout.astro";
     if (videoUrl || coverName) {
       setMediaBanner(
         "[data-status-stems-visual]",
-        true,
+        "ok",
         `<strong>✓ Visual en servidor</strong><br/><span>${
           videoName ? `Vídeo: ${videoName}` : ""
         }${videoName && coverName ? " · " : ""}${coverName ? `Cover: ${coverName}` : ""}</span>`,
@@ -869,7 +959,7 @@ import Layout from "../../components/Layout.astro";
     } else {
       setMediaBanner(
         "[data-status-stems-visual]",
-        false,
+        "bad",
         `<strong>Sin vídeo/cover en servidor</strong><br/><span>Opcional: puedes subir visual ahora o dejarlo vacío.</span>`,
         true,
       );
@@ -883,19 +973,19 @@ import Layout from "../../components/Layout.astro";
         cleanCount === stemNames.length
           ? `Play del admin usa stems limpios (${cleanCount}). Visitantes oyen la versión con ruido.`
           : cleanCount > 0
-            ? `Solo ${cleanCount}/${stemNames.length} tienen copia limpia. Arrastra de nuevo los que falten para re-mezclar sin ruido doble.`
-            : `⚠ Sin copia limpia (publicación antigua). Arrastra los stems limpios una vez y guarda: el Play dejará de oír ruido doble.`;
+            ? `Solo ${cleanCount}/${stemNames.length} tienen copia limpia. Arrastra de nuevo los que falten.`
+            : `⚠ Sin copia limpia. Arrastra stems limpios y guarda (URL nueva cada vez).`;
       setMediaBanner(
         "[data-status-stems]",
-        true,
+        cleanCount > 0 ? "ok" : "bad",
         `<strong>✓ ${stemNames.length} stem(s) en servidor</strong><br/><span>${stemNames.join(" · ")}</span>` +
           `<br/><span class="media-status__note">${cleanNote}</span>`,
-        cleanCount > 0,
+        true,
       );
     } else {
       setMediaBanner(
         "[data-status-stems]",
-        false,
+        "bad",
         `<strong>✗ No hay stems en servidor</strong><br/><span>Arrastra al menos un audio o no se podrá publicar esta ficha stems.</span>`,
         true,
       );
@@ -1168,6 +1258,7 @@ import Layout from "../../components/Layout.astro";
 
       // Solo metadatos / tags: POST update (no requiere re-subir stems)
       if (editingSlug && !hasAnyNewMedia) {
+        setLight("upload", "loading", "Guardando meta…");
         setStatus("Guardando cambios (media se conserva)…");
         const res = await fetch("/admin/items", {
           method: "POST",
@@ -1245,12 +1336,15 @@ import Layout from "../../components/Layout.astro";
         // En edición sin stems nuevos: servidor conserva stems
         if (withFile.length) {
           mixPreview.stop();
+          setLight("stems", "loading", `Bake ${withFile.length}…`);
+          setLight("upload", "loading", "Procesando ruido…");
           setStatus(
             `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
           );
           let n = 0;
           for (const row of withFile) {
             if (!row.file) continue;
+            setLight("stems", "loading", `${n + 1}/${withFile.length} bake`);
             // Original limpio → admin preview / re-mezcla futura
             body.set(`stem_${n}_clean`, row.file, row.file.name);
             let baked = row.file;
@@ -1258,6 +1352,7 @@ import Layout from "../../components/Layout.astro";
               baked = await bakePreviewNoise(row.file, noise01, music01);
             } catch (err) {
               console.warn("[bake noise]", err);
+              setLight("stems", "err", "Bake falló (sube original)");
             }
             // Con ruido → catálogo público
             body.set(`stem_${n}_file`, baked, baked.name);
@@ -1268,7 +1363,11 @@ import Layout from "../../components/Layout.astro";
       }
 
       mixPreview.stop();
-      setStatus(editingSlug ? "Guardando cambios…" : "Publicando… (subida + catálogo)");
+      if (hasVideoFile) setLight("video", "loading", "Subiendo…");
+      if (hasCoverFile) setLight("cover", "loading", "Subiendo…");
+      if (hasStemFiles) setLight("stems", "loading", "Subiendo…");
+      setLight("upload", "loading", "Publicando en R2…");
+      setStatus(editingSlug ? "Subiendo archivos (URL nueva cada vez)…" : "Publicando… (subida + catálogo)");
       const res = await fetch("/admin/publish", {
         method: "POST",
         body,
@@ -1276,6 +1375,9 @@ import Layout from "../../components/Layout.astro";
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
+        setLight("upload", "err", "Error");
+        if (hasVideoFile) setLight("video", "err", "Falló");
+        if (hasStemFiles) setLight("stems", "err", "Falló");
         const err = String(data.error || "");
         if (err === "bad_extension") {
           throw new Error(
@@ -1301,6 +1403,7 @@ import Layout from "../../components/Layout.astro";
       const msg =
         data.message ||
         `✅ ${editingSlug ? "Guardado" : "Publicado"} «${data.item?.title || title}»`;
+      setLight("upload", "ok", "Listo");
       setStatus(`✅ ${msg}`);
       showToast(`✅ ${msg}`, 18000);
       const out = document.querySelector("[data-out]");
@@ -1344,6 +1447,7 @@ import Layout from "../../components/Layout.astro";
         renderStems();
       }
     } catch (err) {
+      setLight("upload", "err", "Error");
       setStatus(err instanceof Error ? err.message : "Error al publicar", false);
     } finally {
       if (btn instanceof HTMLButtonElement) btn.disabled = false;
@@ -1602,6 +1706,12 @@ import Layout from "../../components/Layout.astro";
     color: #ffb4ac;
     box-shadow: 0 0 20px rgb(231 76 60 / 0.22);
   }
+  .media-status.is-loading {
+    border: 2px solid #f39c12;
+    background: rgb(243 156 18 / 0.16);
+    color: #ffd58a;
+    box-shadow: 0 0 18px rgb(243 156 18 / 0.22);
+  }
   .media-status strong {
     font-size: 1.05rem;
   }
@@ -1611,6 +1721,66 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.82rem;
     font-weight: 500;
     opacity: 0.9;
+  }
+  .media-lights {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+    margin: 0 0 0.85rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 10px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: rgb(0 0 0 / 0.25);
+  }
+  @media (min-width: 640px) {
+    .media-lights {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  .ml {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .ml__dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #666;
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.06);
+  }
+  .ml[data-state="ok"] .ml__dot {
+    background: #2ecc71;
+    box-shadow: 0 0 10px rgb(46 204 113 / 0.55);
+  }
+  .ml[data-state="loading"] .ml__dot,
+  .ml[data-state="pending"] .ml__dot {
+    background: #f39c12;
+    box-shadow: 0 0 10px rgb(243 156 18 / 0.55);
+    animation: ml-pulse 1s ease-in-out infinite;
+  }
+  .ml[data-state="err"] .ml__dot {
+    background: #e74c3c;
+    box-shadow: 0 0 10px rgb(231 76 60 / 0.55);
+  }
+  .ml__name {
+    font-weight: 700;
+    color: #cfcfcf;
+  }
+  .ml__txt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  @keyframes ml-pulse {
+    50% {
+      opacity: 0.45;
+    }
   }
   .mix-slider {
     display: flex;

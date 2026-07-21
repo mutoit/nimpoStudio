@@ -21,7 +21,9 @@ Documentos para **vender ya**, sin “consultar por todo”.
 | Ads pack (2 años) | **299 €** (169 + 130) |
 | Stems / edit | **+59 / +49 €** |
 | Exclusiva media/territorio | **Desde 1.200 €** |
+| Exclusiva fuerte multi-medio | **Desde 3.000 €** |
 | Buyout | **Desde 2.990 €** |
+| Buyout alto / a medida | **Desde 5.500 €** |
 
 **Criterios:** baja entrada (volumen vs stock 30–60 €) · premium real en TV/cine/ads · dto volumen −15–25 % desde 2.º track · add-ons fijos · calculadora dinámica por uso (no precio plano).
 

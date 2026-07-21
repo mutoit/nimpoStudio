@@ -26,7 +26,9 @@ export type MusicLicenseTierId =
   | "commercial"
   | "ads"
   | "exclusive"
-  | "buyout";
+  | "exclusiveStrong"
+  | "buyout"
+  | "buyoutHigh";
 
 export type MusicLicensePricing = "fixed" | "from" | "request";
 
@@ -92,7 +94,9 @@ const DEFAULT_LICENSE: MusicLicense = {
     { id: "commercial", priceFrom: "169 €", pricing: "fixed" },
     { id: "ads", priceFrom: "299 €", pricing: "fixed" },
     { id: "exclusive", priceFrom: "1.200 €", pricing: "from" },
+    { id: "exclusiveStrong", priceFrom: "3.000 €", pricing: "from" },
     { id: "buyout", priceFrom: "2.990 €", pricing: "from" },
+    { id: "buyoutHigh", priceFrom: "5.500 €", pricing: "from" },
   ],
 };
 
@@ -101,7 +105,13 @@ function normalizeTier(tier: MusicLicenseTier): MusicLicenseTier {
   let pricing = tier.pricing;
   if (!pricing) {
     if (requestOnly || tier.id === "personal") pricing = "request";
-    else if (tier.id === "exclusive" || tier.id === "buyout") pricing = "from";
+    else if (
+      tier.id === "exclusive" ||
+      tier.id === "exclusiveStrong" ||
+      tier.id === "buyout" ||
+      tier.id === "buyoutHigh"
+    )
+      pricing = "from";
     else if (tier.priceFrom) pricing = "fixed";
     else pricing = "from";
   }

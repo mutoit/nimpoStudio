@@ -1,0 +1,78 @@
+[
+  {
+    "id": "lib-deep-in-the-forest",
+    "slug": "deep-in-the-forest",
+    "title": "Deep in the forest",
+    "kind": "stems",
+    "aspect": "9:16",
+    "cover": "/images/music/deep-in-the-forest.jpg",
+    "video": "/previews/music/dp.mp4",
+    "tags": ["ambient", "cinematic", "forest", "immersive"],
+    "moods": ["oscuro", "orgánico", "inmersivo"],
+    "description": "Composición inmersiva con capas orgánicas y atmósfera selvática. Ideal para visuales y escucha profunda.",
+    "notes": "Obra real del estudio. MIDI original, sin IA. Stems demo en web; master de calidad tras licencia.",
+    "year": 2026,
+    "provisional": false,
+    "licenseEnabled": true,
+    "stems": [
+      { "id": "bosque", "label": "Ambiente & Bosque", "src": "/previews/music/DP BOSQUE.mp3" },
+      { "id": "flauta", "label": "Flauta & Melodía", "src": "/previews/music/DP FLAUTA.mp3" },
+      { "id": "bass", "label": "Bajo", "src": "/previews/music/DP BASS.mp3" },
+      { "id": "cuerdas", "label": "Cuerdas & Strings", "src": "/previews/music/DP CUERDAS STRINGS.mp3" },
+      { "id": "fantasma", "label": "Texturas Fantasma", "src": "/previews/music/DP FANTASMA.mp3" },
+      { "id": "syntes", "label": "Synths", "src": "/previews/music/DP SYNTES.mp3" }
+    ]
+  },
+  {
+    "id": "lib-nocturna-visual",
+    "slug": "nocturna-visual-demo",
+    "title": "Nocturna — visual demo",
+    "kind": "video",
+    "aspect": "1:1",
+    "cover": "/images/music/nocturna-ep.svg",
+    "video": null,
+    "tags": ["ambient", "nocturno"],
+    "moods": ["nocturno", "lento"],
+    "description": "Placeholder visual 1:1 para el catálogo.",
+    "notes": "Contenido provisional. Sustituir por vídeo real en public/library/.",
+    "year": 2026,
+    "provisional": true,
+    "licenseEnabled": false
+  },
+  {
+    "id": "lib-pulso-reel",
+    "slug": "pulso-reel-demo",
+    "title": "Pulso — reel demo",
+    "kind": "video",
+    "aspect": "9:16",
+    "cover": "/images/music/pulso-single.svg",
+    "video": null,
+    "tags": ["electronic", "groove"],
+    "moods": ["energético"],
+    "description": "Placeholder vertical 9:16 (stories / reels).",
+    "notes": "Demo. Sube el mp4 a public/library/ y actualiza el campo video.",
+    "year": 2025,
+    "provisional": true,
+    "licenseEnabled": false
+  },
+  {
+    "id": "lib-umbral-stems-demo",
+    "slug": "umbral-stems-demo",
+    "title": "Umbral — stems demo",
+    "kind": "stems",
+    "aspect": "1:1",
+    "cover": "/images/music/nocturna-ep.svg",
+    "tags": ["ambient", "pads"],
+    "moods": ["etérea", "apertura"],
+    "description": "Ejemplo de pista con stems en biblioteca densa (sin ficha propia).",
+    "notes": "Provisional. Stems de demo reutilizan capas de Deep in the forest (previews reales).",
+    "year": 2026,
+    "provisional": true,
+    "licenseEnabled": true,
+    "stems": [
+      { "id": "pads", "label": "Pads / Ambiente", "src": "/previews/music/DP BOSQUE.mp3" },
+      { "id": "melody", "label": "Melodía", "src": "/previews/music/DP FLAUTA.mp3" },
+      { "id": "perc", "label": "Bajo / cuerpo", "src": "/previews/music/DP BASS.mp3" }
+    ]
+  }
+]

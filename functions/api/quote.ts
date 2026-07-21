@@ -34,7 +34,9 @@ type QuoteBody = {
   stems?: boolean;
   editShort?: boolean;
   exclusive?: boolean;
+  exclusiveStrong?: boolean;
   buyout?: boolean;
+  buyoutHigh?: boolean;
   needSpecialReview?: boolean;
   specialNotes?: string;
   termPlus1y?: boolean;
@@ -109,8 +111,8 @@ function buildStudioText(
     "",
     `Stems: ${body.stems ? "sí" : "no"}`,
     `Edit corto: ${body.editShort ? "sí" : "no"}`,
-    `Exclusiva: ${body.exclusive ? "sí" : "no"}`,
-    `Buyout: ${body.buyout ? "sí" : "no"}`,
+    `Exclusiva: ${body.exclusive ? "sí" : "no"}${body.exclusiveStrong ? " (fuerte)" : ""}`,
+    `Buyout: ${body.buyout ? "sí" : "no"}${body.buyoutHigh ? " (alto)" : ""}`,
     `+1 año: ${body.termPlus1y ? "sí" : "no"}`,
     `Retirar/no disponible catálogo: ${body.removeFromCatalog ? "sí" : "no"}`,
     `Ampliar territorio/medios: ${body.territoryExpand ? "sí" : "no"}`,
@@ -428,8 +430,10 @@ export async function onRequest(context: {
     usage,
     stems: Boolean(body.stems),
     editShort: Boolean(body.editShort),
-    exclusive: Boolean(body.exclusive),
-    buyout: Boolean(body.buyout),
+    exclusive: Boolean(body.exclusive) || Boolean(body.exclusiveStrong),
+    exclusiveStrong: Boolean(body.exclusiveStrong),
+    buyout: Boolean(body.buyout) || Boolean(body.buyoutHigh),
+    buyoutHigh: Boolean(body.buyoutHigh),
     needSpecialReview: Boolean(body.needSpecialReview),
     specialNotes: String(body.specialNotes || "")
       .replace(/\u0000/g, "")

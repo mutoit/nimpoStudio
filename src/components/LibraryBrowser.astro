@@ -231,6 +231,10 @@ const payload = {
                 {t("quoteExclusive")} (desde {P.exclusiveFrom} €)</label
               >
               <label class="lb__check"
+                ><input type="checkbox" name="exclusiveStrong" value="1" data-lb-flag />
+                Exclusiva fuerte multi-medio (desde {P.exclusiveStrongFrom} €)</label
+              >
+              <label class="lb__check"
                 ><input type="checkbox" name="removeFromCatalog" value="1" data-lb-flag />
                 No disponible / retirar del catálogo público (+{P.removeFromCatalog} €, con
                 exclusiva)</label
@@ -238,6 +242,10 @@ const payload = {
               <label class="lb__check"
                 ><input type="checkbox" name="buyout" value="1" data-lb-flag />
                 {t("quoteBuyout")} (desde {P.buyoutFrom} €)</label
+              >
+              <label class="lb__check"
+                ><input type="checkbox" name="buyoutHigh" value="1" data-lb-flag />
+                Buyout alto / a medida (desde {P.buyoutHighFrom} €)</label
               >
             </fieldset>
 

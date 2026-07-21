@@ -23,8 +23,10 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 | Más composición / custom ½ día | **+199 €** |
 | Exclusiva media/territorio (desde, 2 años) | **1.200 €** |
 | Exclusiva un solo uso / 1 año (suelos) | **890 €** / **1.100 €** |
+| Exclusiva fuerte multi-medio | **desde 3.000 €** (rango 3–6k+) |
 | + retirar / no disponible catálogo | **+250 €** |
-| Buyout catálogo (desde) | **2.990 €** |
+| Buyout catálogo (suelo) | **2.990 €** |
+| Buyout alto / a medida | **desde 5.500 €** |
 | Personal | petición (**0–49 €** o → comercial) |
 | Tema extra mismo proyecto | **~80 %** (−20 %; rango −15–25 %) |
 | Indie pro / feature / serie multi (suelo revisión) | **desde 390 €** |

@@ -830,11 +830,13 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
 
     soloBtn.addEventListener('click', toggleSolo);
 
-    // Clic derecho en la fila: solo esta capa / restaurar todas
-    layerEl.title = layerEl.title || "Clic derecho: solo esta capa · otra vez: todas";
-    layerEl.addEventListener('contextmenu', (e) => {
+    // Ctrl+clic (⌘ en Mac) en la fila: solo esta capa / restaurar todas
+    layerEl.title = layerEl.title || "Ctrl+clic: solo esta capa · otra vez: todas";
+    layerEl.addEventListener('click', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
       if (e.target instanceof Element && e.target.closest('button, input')) return;
       e.preventDefault();
+      e.stopPropagation();
       toggleSolo();
     });
 
@@ -844,6 +846,16 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
       updateVolumes();
     });
   });
+
+  // Nota bajo las capas
+  const layersEl = container.querySelector('.layers');
+  if (layersEl && !container.querySelector('.stem-mix-hint')) {
+    const hint = document.createElement('p');
+    hint.className = 'stem-mix-hint';
+    hint.textContent =
+      'Ctrl+clic en una capa: oculta las demás. Ctrl+clic otra vez en la misma: muestra todas.';
+    layersEl.insertAdjacentElement('afterend', hint);
+  }
 
   // Keyboard support
   document.addEventListener('keydown', (e) => {

@@ -57,22 +57,17 @@ export function bindLibraryBrowser() {
       const tagsBar = root.querySelector("[data-lb-tags]");
 
       const collectFilters = (list: Item[]) => {
-        // Unificado: filterMoods + filterTags legacy + fallback a moods/tags de obra
+        // Todos los moods (y tags legacy) del catálogo → chips de filtro.
+        // Clic en un mood = mostrar solo obras que lo tienen.
         const m = new Set<string>();
         for (const i of list) {
-          const fm = Array.isArray(i.filterMoods) ? i.filterMoods : [];
-          const ft = Array.isArray(i.filterTags) ? i.filterTags : [];
-          for (const x of fm) if (x) m.add(String(x));
-          for (const x of ft) if (x) m.add(String(x));
+          for (const x of i.moods || []) if (x) m.add(String(x).trim());
+          for (const x of i.tags || []) if (x) m.add(String(x).trim());
+          for (const x of i.filterMoods || []) if (x) m.add(String(x).trim());
+          for (const x of i.filterTags || []) if (x) m.add(String(x).trim());
         }
-        if (!m.size) {
-          for (const i of list) {
-            for (const x of i.moods || []) if (x) m.add(String(x));
-            for (const x of i.tags || []) if (x) m.add(String(x));
-          }
-        }
-        filterMoods = [...m].sort((a, b) => a.localeCompare(b, "es"));
-        filterTags = []; // tags unificados en moods
+        filterMoods = [...m].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
+        filterTags = [];
       };
 
       const paintChipBar = (

@@ -186,27 +186,18 @@ import Layout from "../../components/Layout.astro";
         <fieldset class="chips-field">
           <legend>Moods</legend>
           <p class="hint">
-            <strong>1)</strong> Etiquetas de esta obra (clic para marcar).
-            <strong>2)</strong> En la lista de abajo, marca cuáles salen como filtro en la biblioteca
-            pública.
+            Clic en una etiqueta para marcarla en <strong>esta obra</strong> (azul = seleccionada).
+            Las marcadas también salen como filtro en la biblioteca pública.
           </p>
-          <p class="mood-section-label">Esta obra</p>
-          <div class="mood-tags" data-mood-tags role="group" aria-label="Moods de la obra">
-            <!-- pills pequeños: solo selección de la canción -->
-          </div>
+          <div class="mood-tags" data-mood-tags role="group" aria-label="Moods de la obra"></div>
           <div class="add-chip">
-            <input type="text" placeholder="Nuevo mood… (ej. esperanza)" data-mood-custom maxlength="40" />
+            <input type="text" placeholder="Nuevo mood…" data-mood-custom maxlength="40" />
             <button type="button" class="btn btn--sm" data-mood-add>Añadir</button>
           </div>
-          <details class="mood-filter-box" open>
-            <summary>Filtros en la biblioteca pública</summary>
-            <p class="hint">
-              Lista de moods del catálogo. El check = se puede filtrar por él en la web (solo tiene
-              sentido si también está marcado arriba en “Esta obra”).
-            </p>
-            <ol class="mood-filter-list" data-mood-filters>
-              <!-- 1. oscuro [ ]  2. … -->
-            </ol>
+          <details class="mood-manage">
+            <summary>Gestionar moods (borrar del catálogo local)</summary>
+            <p class="hint">Solo para quitar etiquetas que ya no quieras ver en la lista.</p>
+            <ul class="mood-manage-list" data-mood-manage></ul>
           </details>
           <p class="hint" data-mood-hint hidden></p>
         </fieldset>
@@ -705,208 +696,161 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
-  // Moods: (A) pills obra  (B) lista numerada = filtros públicos
+  // Moods simples: pill azul = en la obra + filtro biblioteca. Menú plegado = borrar.
   const MOOD_LS_KEY = "nimpo-admin-moods-v1";
+  const MOOD_DENY_KEY = "nimpo-admin-moods-deny-v1";
   const DEFAULT_MOODS = [
-    "oscuro",
-    "orgánico",
-    "inmersivo",
-    "nocturno",
-    "lento",
-    "energético",
-    "etérea",
-    "apertura",
-    "cinematic",
-    "minimal",
-    "esperanza",
-    "ambient",
-    "forest",
-    "electronic",
-    "groove",
-    "pads",
-    "strings",
-    "synth",
+    "oscuro", "orgánico", "inmersivo", "nocturno", "lento", "energético",
+    "etérea", "apertura", "cinematic", "minimal", "esperanza",
+    "ambient", "forest", "electronic", "groove", "pads", "strings", "synth",
   ];
 
   const normalizeMood = (raw: string) =>
-    String(raw || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .slice(0, 40);
+    String(raw || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 40);
 
   const loadStoredMoods = (): string[] => {
     try {
       const raw = JSON.parse(localStorage.getItem(MOOD_LS_KEY) || "[]");
       return Array.isArray(raw) ? raw.map(normalizeMood).filter(Boolean) : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   };
-
-  const rememberMood = (v: string) => {
-    const n = normalizeMood(v);
-    if (!n) return;
-    const set = new Set(loadStoredMoods());
-    set.add(n);
+  const loadDeniedMoods = (): Set<string> => {
+    try {
+      return new Set((JSON.parse(localStorage.getItem(MOOD_DENY_KEY) || "[]") as string[]).map(normalizeMood));
+    } catch { return new Set(); }
+  };
+  const saveStoredMoods = (list: string[]) => {
     try {
       localStorage.setItem(
         MOOD_LS_KEY,
-        JSON.stringify([...set].sort((a, b) => a.localeCompare(b, "es"))),
+        JSON.stringify([...new Set(list.map(normalizeMood).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"))),
       );
-    } catch {
-      /* */
-    }
+    } catch { /* */ }
+  };
+  const rememberMood = (v: string) => {
+    const n = normalizeMood(v);
+    if (!n) return;
+    // si estaba en denylist, revivir
+    try {
+      const deny = loadDeniedMoods();
+      if (deny.has(n)) {
+        deny.delete(n);
+        localStorage.setItem(MOOD_DENY_KEY, JSON.stringify([...deny]));
+      }
+    } catch { /* */ }
+    const set = new Set(loadStoredMoods());
+    set.add(n);
+    saveStoredMoods([...set]);
+  };
+  const forgetMood = (v: string) => {
+    const n = normalizeMood(v);
+    saveStoredMoods(loadStoredMoods().filter((m) => m !== n));
+    try {
+      const deny = loadDeniedMoods();
+      deny.add(n);
+      localStorage.setItem(MOOD_DENY_KEY, JSON.stringify([...deny]));
+    } catch { /* */ }
   };
 
   const moodVocabulary = (): string[] => {
+    const deny = loadDeniedMoods();
     const s = new Set(DEFAULT_MOODS.map(normalizeMood));
     for (const m of loadStoredMoods()) s.add(m);
     for (const p of publications) {
       for (const m of (p.moods as string[]) || []) s.add(normalizeMood(m));
       for (const t of (p.tags as string[]) || []) s.add(normalizeMood(t));
     }
-    return [...s].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
+    return [...s].filter((m) => m && !deny.has(m)).sort((a, b) => a.localeCompare(b, "es"));
   };
 
-  /** Lee selección actual del DOM (o vacía). */
-  const readMoodSelection = () => {
-    const selected = new Set<string>();
-    const filters = new Set<string>();
-    document
-      .querySelectorAll<HTMLInputElement>('[name="moodPick"]:checked')
-      .forEach((el) => selected.add(normalizeMood(el.value)));
-    document
-      .querySelectorAll<HTMLInputElement>('[name="moodFilter"]:checked')
-      .forEach((el) => filters.add(normalizeMood(el.value)));
-    // pills también llevan data-selected
-    document.querySelectorAll<HTMLElement>("[data-mood-tag].is-on").forEach((el) => {
-      selected.add(normalizeMood(el.dataset.mood || ""));
-    });
-    return { selected, filters };
+  const readSelectedMoods = (): string[] => {
+    const tagsEl = document.querySelector("[data-mood-tags]");
+    if (!(tagsEl instanceof HTMLElement)) return [];
+    return [...tagsEl.querySelectorAll<HTMLElement>("[data-mood-tag].is-on")]
+      .map((el) => normalizeMood(el.dataset.mood || ""))
+      .filter(Boolean);
   };
 
   const rebuildMoodPick = (opts?: { selected?: string[]; filters?: string[] }) => {
     const tagsEl = document.querySelector("[data-mood-tags]");
-    const listEl = document.querySelector("[data-mood-filters]");
-    if (!(tagsEl instanceof HTMLElement) || !(listEl instanceof HTMLElement)) return;
+    const manageEl = document.querySelector("[data-mood-manage]");
+    if (!(tagsEl instanceof HTMLElement)) return;
 
+    // selected = moods de la obra = también filtros públicos
     let selected = new Set<string>();
-    let filters = new Set<string>();
-    if (opts?.selected) {
-      for (const m of opts.selected) selected.add(normalizeMood(m));
+    if (opts?.selected || opts?.filters) {
+      for (const m of opts.selected || []) selected.add(normalizeMood(m));
+      for (const m of opts.filters || []) selected.add(normalizeMood(m));
     } else {
-      selected = readMoodSelection().selected;
-    }
-    if (opts?.filters) {
-      for (const m of opts.filters) filters.add(normalizeMood(m));
-    } else {
-      filters = readMoodSelection().filters;
-    }
-    // Filtro solo si también está en la obra
-    for (const f of [...filters]) {
-      if (!selected.has(f)) filters.delete(f);
+      for (const m of readSelectedMoods()) selected.add(m);
     }
     for (const m of selected) rememberMood(m);
 
     const vocab = moodVocabulary();
     tagsEl.innerHTML = "";
-    listEl.innerHTML = "";
-
-    // Hidden inputs for form submit (moodPick / moodFilter)
-    const hiddenHost = tagsEl;
-
-    vocab.forEach((m, i) => {
-      const onWork = selected.has(m);
-      const onFilter = filters.has(m);
-
-      // --- pill pequeña (obra) ---
+    for (const m of vocab) {
+      const on = selected.has(m);
       const pill = document.createElement("button");
       pill.type = "button";
-      pill.className = "mood-tag" + (onWork ? " is-on" : "");
+      pill.className = "mood-tag" + (on ? " is-on" : "");
       pill.dataset.moodTag = "1";
       pill.dataset.mood = m;
-      pill.setAttribute("aria-pressed", onWork ? "true" : "false");
+      pill.setAttribute("aria-pressed", on ? "true" : "false");
       pill.textContent = m;
-      pill.title = onWork ? "Quitar de esta obra" : "Añadir a esta obra";
+      pill.title = on ? "Seleccionada · clic para quitar" : "Clic para marcar en esta obra";
       pill.addEventListener("click", () => {
-        const cur = readMoodSelection();
-        if (cur.selected.has(m)) {
-          cur.selected.delete(m);
-          cur.filters.delete(m);
-        } else {
-          cur.selected.add(m);
-        }
-        rebuildMoodPick({
-          selected: [...cur.selected],
-          filters: [...cur.filters],
-        });
+        const next = new Set(readSelectedMoods());
+        if (next.has(m)) next.delete(m);
+        else next.add(m);
+        rebuildMoodPick({ selected: [...next] });
       });
       tagsEl.appendChild(pill);
-
-      // hidden moodPick if on work
-      if (onWork) {
+      if (on) {
         const hi = document.createElement("input");
         hi.type = "checkbox";
         hi.name = "moodPick";
         hi.value = m;
         hi.checked = true;
         hi.hidden = true;
-        hi.dataset.chipMain = "1";
-        hiddenHost.appendChild(hi);
+        tagsEl.appendChild(hi);
+        const hf = document.createElement("input");
+        hf.type = "checkbox";
+        hf.name = "moodFilter";
+        hf.value = m;
+        hf.checked = true;
+        hf.hidden = true;
+        tagsEl.appendChild(hf);
       }
+    }
 
-      // --- fila lista filtros ---
-      const li = document.createElement("li");
-      li.className = "mood-filter-row" + (onWork ? " is-on-work" : "");
-      const lab = document.createElement("label");
-      lab.className = "mood-filter-lab";
-      const num = document.createElement("span");
-      num.className = "mood-filter-num";
-      num.textContent = String(i + 1) + ".";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.name = "moodFilter";
-      cb.value = m;
-      cb.checked = onFilter;
-      cb.dataset.chipFilter = "1";
-      cb.disabled = !onWork;
-      cb.title = onWork
-        ? "Mostrar este mood en filtros de la biblioteca"
-        : "Primero márcalo arriba en “Esta obra”";
-      const name = document.createElement("span");
-      name.className = "mood-filter-name";
-      name.textContent = m;
-      const badge = document.createElement("span");
-      badge.className = "mood-filter-badge";
-      badge.textContent = onWork ? "en obra" : "—";
-      cb.addEventListener("change", () => {
-        const selected = new Set<string>();
-        document.querySelectorAll<HTMLElement>("[data-mood-tag].is-on").forEach((el) => {
-          selected.add(normalizeMood(el.dataset.mood || ""));
+    if (manageEl instanceof HTMLElement) {
+      manageEl.innerHTML = "";
+      for (const m of vocab) {
+        const li = document.createElement("li");
+        li.className = "mood-manage-row";
+        const span = document.createElement("span");
+        span.textContent = m;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn btn--sm btn--danger";
+        del.textContent = "Borrar";
+        del.addEventListener("click", () => {
+          if (!confirm("¿Quitar «" + m + "» de la lista de etiquetas?")) return;
+          forgetMood(m);
+          rebuildMoodPick({ selected: readSelectedMoods().filter((x) => x !== m) });
+          setStatus("Mood «" + m + "» quitado de la lista.");
         });
-        if (cb.checked) selected.add(m);
-        const nextFilters = new Set<string>();
-        listEl.querySelectorAll<HTMLInputElement>('input[name="moodFilter"]').forEach((el) => {
-          if (el.checked) nextFilters.add(normalizeMood(el.value));
-        });
-        rebuildMoodPick({
-          selected: [...selected],
-          filters: [...nextFilters],
-        });
-      });
-      lab.appendChild(cb);
-      lab.appendChild(num);
-      lab.appendChild(name);
-      li.appendChild(lab);
-      li.appendChild(badge);
-      listEl.appendChild(li);
-    });
+        li.appendChild(span);
+        li.appendChild(del);
+        manageEl.appendChild(li);
+      }
+    }
 
     const hint = document.querySelector("[data-mood-hint]");
     if (hint instanceof HTMLElement) {
       hint.hidden = false;
-      hint.textContent = `${selected.size} en esta obra · ${filters.size} como filtro público · ${vocab.length} en el catálogo`;
+      hint.textContent =
+        selected.size + " marcados (obra + filtro web) · " + vocab.length + " etiquetas";
     }
   };
 
@@ -919,14 +863,11 @@ import Layout from "../../components/Layout.astro";
       return;
     }
     rememberMood(v);
-    const cur = readMoodSelection();
-    cur.selected.add(v);
-    rebuildMoodPick({
-      selected: [...cur.selected],
-      filters: [...cur.filters],
-    });
+    const next = new Set(readSelectedMoods());
+    next.add(v);
+    rebuildMoodPick({ selected: [...next] });
     input.value = "";
-    setStatus(`Mood «${v}» añadido y marcado en la obra.`);
+    setStatus("Mood «" + v + "» añadido y marcado (azul).");
   };
 
   document.querySelector("[data-mood-add]")?.addEventListener("click", (e) => {
@@ -2191,131 +2132,82 @@ import Layout from "../../components/Layout.astro";
     padding: 0.65rem 0.75rem;
     margin: 0;
   }
-  .mood-section-label {
-    margin: 0.35rem 0 0.35rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-  }
   .mood-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-bottom: 0.45rem;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
   }
   .mood-tag {
     appearance: none;
     margin: 0;
-    padding: 0.2rem 0.55rem;
+    padding: 0.28rem 0.7rem;
     border-radius: 999px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-elevated);
-    color: var(--color-muted);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    background: rgb(20 20 24);
+    color: #9a9a9a;
     font: inherit;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
-    line-height: 1.3;
+    line-height: 1.35;
+    transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
   }
   .mood-tag:hover {
-    border-color: rgb(201 169 98 / 0.4);
-    color: var(--color-fg);
+    border-color: rgb(201 169 98 / 0.45);
+    color: #ddd;
   }
+  /* Azul claro bien visible al seleccionar */
   .mood-tag.is-on {
-    border-color: rgb(201 169 98 / 0.65);
-    background: rgb(201 169 98 / 0.16);
-    color: var(--color-accent);
-    font-weight: 600;
+    border-color: #5b9fd4;
+    background: rgb(60 140 210 / 0.35);
+    color: #e8f4ff;
+    font-weight: 700;
+    box-shadow: 0 0 0 1px rgb(91 159 212 / 0.5), 0 0 14px rgb(60 140 210 / 0.35);
   }
-  .mood-filter-box {
-    margin-top: 0.55rem;
+  .mood-manage {
+    margin-top: 0.5rem;
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    padding: 0.35rem 0.55rem 0.55rem;
-    background: rgb(0 0 0 / 0.2);
+    padding: 0.3rem 0.55rem 0.45rem;
+    background: rgb(0 0 0 / 0.18);
   }
-  .mood-filter-box > summary {
+  .mood-manage > summary {
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: var(--color-fg);
-    padding: 0.25rem 0;
+    color: var(--color-muted);
+    padding: 0.2rem 0;
     list-style: none;
   }
-  .mood-filter-box > summary::-webkit-details-marker {
+  .mood-manage > summary::-webkit-details-marker {
     display: none;
   }
-  .mood-filter-box > summary::before {
+  .mood-manage > summary::before {
     content: "▸ ";
     color: var(--color-accent);
   }
-  .mood-filter-box[open] > summary::before {
+  .mood-manage[open] > summary::before {
     content: "▾ ";
   }
-  .mood-filter-list {
+  .mood-manage-list {
     margin: 0.35rem 0 0;
     padding: 0;
     list-style: none;
-    max-height: 12rem;
+    max-height: 11rem;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
   }
-  .mood-filter-row {
+  .mood-manage-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 0.28rem 0.4rem;
-    border-radius: 6px;
+    padding: 0.28rem 0.2rem;
+    border-bottom: 1px solid rgb(255 255 255 / 0.05);
     font-size: 0.8rem;
   }
-  .mood-filter-row:nth-child(odd) {
-    background: rgb(255 255 255 / 0.03);
-  }
-  .mood-filter-row.is-on-work {
-    background: rgb(201 169 98 / 0.08);
-  }
-  .mood-filter-lab {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-width: 0;
-    cursor: pointer;
-    flex: 1;
-  }
-  .mood-filter-lab input {
-    width: 0.95rem;
-    height: 0.95rem;
-    margin: 0;
-    accent-color: var(--color-accent);
-    flex-shrink: 0;
-  }
-  .mood-filter-lab input:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  .mood-filter-num {
-    font-variant-numeric: tabular-nums;
-    color: var(--color-muted);
-    font-size: 0.72rem;
-    min-width: 1.4rem;
-  }
-  .mood-filter-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .mood-filter-badge {
-    font-size: 0.65rem;
-    color: var(--color-muted);
-    flex-shrink: 0;
-  }
-  .mood-filter-row.is-on-work .mood-filter-badge {
-    color: var(--color-accent);
+  .mood-manage-row:last-child {
+    border-bottom: none;
   }
   .btn {
     display: inline-flex;

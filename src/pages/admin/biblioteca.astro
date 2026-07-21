@@ -791,13 +791,23 @@ import Layout from "../../components/Layout.astro";
       const on = selected.has(m);
       const pill = document.createElement("button");
       pill.type = "button";
-      pill.className = "mood-tag" + (on ? " is-on" : "");
+      pill.className = on ? "mood-tag is-on" : "mood-tag";
       pill.dataset.moodTag = "1";
       pill.dataset.mood = m;
       pill.setAttribute("aria-pressed", on ? "true" : "false");
       pill.textContent = m;
       pill.title = on ? "Seleccionada · clic para quitar" : "Clic para marcar en esta obra";
-      pill.addEventListener("click", () => {
+      // Estilo inline de respaldo (por si el CSS scope falla otra vez)
+      if (on) {
+        pill.style.background = "#c9a962";
+        pill.style.borderColor = "#c9a962";
+        pill.style.color = "#0c0a06";
+        pill.style.fontWeight = "700";
+        pill.style.boxShadow = "0 0 0 2px rgba(201,169,98,0.5)";
+      }
+      pill.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
         const next = new Set(readSelectedMoods());
         if (next.has(m)) next.delete(m);
         else next.add(m);
@@ -2136,42 +2146,44 @@ import Layout from "../../components/Layout.astro";
     padding: 0.65rem 0.75rem;
     margin: 0;
   }
-  .mood-tags {
+  /*
+   * :global — las pills se crean en JS y Astro no les pone data-astro-cid,
+   * así que sin :global el .is-on NUNCA se veía (bug de scope).
+   */
+  :global(.mood-tags) {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     margin-bottom: 0.5rem;
   }
-  .mood-tag {
+  :global(button.mood-tag) {
     appearance: none;
+    -webkit-appearance: none;
     margin: 0;
     padding: 0.22rem 0.65rem;
     border-radius: 999px;
     border: 1px solid rgb(255 255 255 / 0.14);
     background: #121214;
-    color: #777;
+    color: #888;
     font: inherit;
     font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
     line-height: 1.35;
-    transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
   }
-  .mood-tag:hover {
+  :global(button.mood-tag:hover) {
     border-color: rgb(201 169 98 / 0.45);
-    color: #bbb;
+    color: #ccc;
   }
-  /* Seleccionada: relleno dorado + texto oscuro — contraste fuerte */
-  .mood-tag.is-on,
-  button.mood-tag.is-on {
-    border-color: #e0c070 !important;
-    background: #c9a962 !important;
-    background-image: none !important;
-    color: #0c0a06 !important;
-    font-weight: 700 !important;
-    box-shadow: 0 0 0 2px rgb(201 169 98 / 0.45), 0 0 16px rgb(201 169 98 / 0.4) !important;
+  :global(button.mood-tag.is-on),
+  :global(button.mood-tag[aria-pressed="true"]) {
+    border-color: #c9a962;
+    background: #c9a962;
+    color: #0c0a06;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgb(201 169 98 / 0.5), 0 0 14px rgb(201 169 98 / 0.45);
   }
-  .mood-manage {
+  :global(.mood-manage) {
     margin-top: 0.4rem;
     border: 1px solid rgb(255 255 255 / 0.08);
     border-radius: 6px;
@@ -2179,27 +2191,26 @@ import Layout from "../../components/Layout.astro";
     background: rgb(0 0 0 / 0.25);
     max-width: 14rem;
   }
-  .mood-manage > summary {
+  :global(.mood-manage > summary) {
     cursor: pointer;
     font-size: 0.68rem;
     font-weight: 600;
-    color: var(--color-muted);
+    color: #999;
     padding: 0.12rem 0;
     list-style: none;
   }
-  .mood-manage > summary::-webkit-details-marker {
+  :global(.mood-manage > summary::-webkit-details-marker) {
     display: none;
   }
-  .mood-manage > summary::before {
+  :global(.mood-manage > summary::before) {
     content: "▸ ";
-    color: var(--color-accent);
+    color: #c9a962;
     font-size: 0.62rem;
   }
-  .mood-manage[open] > summary::before {
+  :global(.mood-manage[open] > summary::before) {
     content: "▾ ";
   }
-  /* Una columna: [🗑] [nombre] — papeleras alineadas, nombres alineados */
-  .mood-manage-list {
+  :global(.mood-manage-list) {
     margin: 0.25rem 0 0;
     padding: 0;
     list-style: none;
@@ -2207,9 +2218,8 @@ import Layout from "../../components/Layout.astro";
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0;
   }
-  .mood-manage-row {
+  :global(.mood-manage-row) {
     display: grid;
     grid-template-columns: 1.25rem 1fr;
     align-items: center;
@@ -2218,17 +2228,16 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.7rem;
     border-bottom: 1px solid rgb(255 255 255 / 0.04);
   }
-  .mood-manage-row:last-child {
+  :global(.mood-manage-row:last-child) {
     border-bottom: none;
   }
-  .mood-manage-name {
+  :global(.mood-manage-name) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #b0b0b0;
-    line-height: 1.2;
   }
-  .mood-trash {
+  :global(.mood-trash) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2241,7 +2250,7 @@ import Layout from "../../components/Layout.astro";
     color: #b86868;
     cursor: pointer;
   }
-  .mood-trash:hover {
+  :global(.mood-trash:hover) {
     background: rgb(200 80 80 / 0.18);
     color: #f0a0a0;
   }

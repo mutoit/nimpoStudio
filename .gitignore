@@ -27,3 +27,13 @@ Thumbs.db
 wrangler.toml.bak
 *.bak
 
+
+# Local / temp
+.wrangler/
+body.json
+headers.txt
+lib-check.json
+lib-live.json
+lib-page.html
+lib.html
+music-page.html

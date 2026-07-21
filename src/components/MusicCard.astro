@@ -38,12 +38,6 @@ const href = localizePath(`/musica/${release.slug}`, lang);
     <h2 class="card__title">
       <a href={href}>{release.name}</a>
     </h2>
-    {/* Mock score en grid — conectar a media real luego */}
-    <p class="card__rating" aria-label={t("reviewsScoreAria").replace("{avg}", "4.6").replace("{n}", "11")}>
-      <span class="card__rating-stars" aria-hidden="true">★★★★☆</span>
-      <span class="card__rating-num">4.6</span>
-      <span class="card__rating-count">11</span>
-    </p>
     <p class="card__desc">{release.shortDescription}</p>
     {
       release.tags.length > 0 && (
@@ -160,34 +154,6 @@ const href = localizePath(`/musica/${release.slug}`, lang);
 
   .card__title a:hover {
     color: var(--color-accent);
-  }
-
-  .card__rating {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0.45rem 0 0;
-    font-size: 0.8rem;
-  }
-
-  .card__rating-stars {
-    color: var(--color-accent);
-    letter-spacing: 0.04em;
-    font-size: 0.82rem;
-  }
-
-  .card__rating-num {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .card__rating-count {
-    color: var(--color-muted);
-    font-size: 0.75rem;
-  }
-
-  .card__rating-count::before {
-    content: "· ";
   }
 
   .card__desc {

@@ -111,65 +111,20 @@ export function bindLibraryBrowser() {
       /** Evita que un paintFilters viejo (semilla) pise al del catálogo vivo */
       let filtersPaintGen = 0;
 
-      /** Mock estable por slug (visual; sin backend) */
-      const mockReviewsFor = (slug: string) => {
-        let h = 0;
-        for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-        const count = 5 + (h % 12);
-        const average = Math.round((3.8 + (h % 12) / 10) * 10) / 10;
-        const full = Math.min(5, Math.round(average));
-        const starsDisplay = "★★★★★"
-          .split("")
-          .map((_, i) => (i < full ? "★" : "☆"))
-          .join("");
-        const comments = [
-          {
-            name: "Marta V.",
-            stars: 5,
-            use: L.reviewsUseProject || "Proyecto",
-            text:
-              lang === "en"
-                ? "Great under picture; stems made the mix easy."
-                : lang === "fr"
-                  ? "Parfait sous image ; les stems aident le mix."
-                  : "Muy bien bajo imagen; los stems facilitan el mix.",
-          },
-          {
-            name: "Leo K.",
-            stars: 5,
-            use: L.reviewsUseClient || "Cliente",
-            text:
-              lang === "en"
-                ? "Licensed for a brand film. Clean master after deal."
-                : lang === "fr"
-                  ? "Licencié pour un brand film. Master propre après accord."
-                  : "Licenciado para brand film. Master limpio tras acuerdo.",
-          },
-          {
-            name: "Ana R.",
-            stars: 4,
-            use: L.reviewsUsePersonal || "Personal",
-            text:
-              lang === "en"
-                ? "Protected preview, but the mood comes through."
-                : lang === "fr"
-                  ? "Preview protégé, mais le mood passe bien."
-                  : "Preview protegido, pero se nota el mood.",
-          },
-          {
-            name: "Studio North",
-            stars: 5,
-            use: L.reviewsUseClient || "Cliente",
-            text:
-              lang === "en"
-                ? "Organic layers, no AI sheen."
-                : lang === "fr"
-                  ? "Couches organiques, sans vernis IA."
-                  : "Capas orgánicas, sin barniz de IA.",
-          },
-        ];
-        return { average, count, starsDisplay, comments };
+      /**
+       * Lista común de valoraciones (misma en es/en/fr; textos tal cual).
+       * Vacía hasta API real — no inventar comentarios.
+       * Clave: slug de la obra.
+       */
+      type ReviewEntry = {
+        name: string;
+        stars: number;
+        text: string;
+        use?: string;
+        date?: string;
       };
+      /** SSoT en memoria (futuro: GET/POST /api/reviews). Una lista por obra, no por idioma. */
+      const reviewsBySlug: Record<string, ReviewEntry[]> = {};
 
       const starRow = (n: number) =>
         "★★★★★"
@@ -178,35 +133,50 @@ export function bindLibraryBrowser() {
           .join("");
 
       const paintItemReviews = (item: Item) => {
-        const mock = mockReviewsFor(item.slug || item.id || "x");
+        const slug = item.slug || item.id || "";
+        const list = reviewsBySlug[slug] || [];
+        const count = list.length;
+        const average =
+          count > 0 ? list.reduce((s, r) => s + r.stars, 0) / count : null;
+        const full = average != null ? Math.min(5, Math.round(average)) : 0;
+        const starsDisplay = starRow(full);
+
         const avgEl = root.querySelector("[data-lb-reviews-avg]");
         const starsEl = root.querySelector("[data-lb-reviews-stars]");
         const countElR = root.querySelector("[data-lb-reviews-count]");
-        if (avgEl) avgEl.textContent = mock.average.toFixed(1);
-        if (starsEl) starsEl.textContent = mock.starsDisplay;
+        if (avgEl) avgEl.textContent = average != null ? average.toFixed(1) : "—";
+        if (starsEl) starsEl.textContent = average != null ? starsDisplay : "☆☆☆☆☆";
         if (countElR) {
           const tpl = L.reviewsCount || "{n} valoraciones";
-          countElR.textContent = tpl.replace("{n}", String(mock.count));
+          countElR.textContent = tpl.replace("{n}", String(count));
         }
-        const list = root.querySelector("[data-lb-reviews-list]");
-        if (list) {
-          list.innerHTML = mock.comments
-            .map(
-              (c) =>
-                `<article class="lb__review-item"><div class="lb__review-top"><span class="lb__review-name">${escapeHtml(c.name)}</span><span class="lb__review-stars" aria-hidden="true">${starRow(c.stars)}</span><span class="lb__review-use">${escapeHtml(c.use)}</span></div><p class="lb__review-text">${escapeHtml(c.text)}</p></article>`,
-            )
-            .join("");
+        const listEl = root.querySelector("[data-lb-reviews-list]");
+        if (listEl) {
+          if (!list.length) {
+            listEl.innerHTML = `<p class="lb__reviews-empty">${escapeHtml(L.reviewsEmpty || "Sin comentarios aún.")}</p>`;
+          } else {
+            // Comentarios en su idioma original (lista común, no se traduce)
+            listEl.innerHTML = list
+              .map(
+                (c) =>
+                  `<article class="lb__review-item"><div class="lb__review-top"><span class="lb__review-name">${escapeHtml(c.name)}</span><span class="lb__review-stars" aria-hidden="true">${starRow(c.stars)}</span>${c.use ? `<span class="lb__review-use">${escapeHtml(c.use)}</span>` : ""}</div><p class="lb__review-text">${escapeHtml(c.text)}</p></article>`,
+              )
+              .join("");
+          }
         }
-        // Reset rate UI
         root.querySelectorAll("[data-lb-reviews-rate] [data-rate]").forEach((btn) => {
           btn.classList.remove("is-on");
           btn.setAttribute("aria-pressed", "false");
         });
         const ratingInput = root.querySelector("[data-lb-reviews-rating]");
         if (ratingInput instanceof HTMLInputElement) ratingInput.value = "";
+        const nameIn = root.querySelector<HTMLInputElement>("[data-lb-reviews-form] input[name=name]");
+        const commentIn = root.querySelector<HTMLTextAreaElement>("[data-lb-reviews-form] textarea[name=comment]");
+        if (nameIn) nameIn.value = "";
+        if (commentIn) commentIn.value = "";
       };
 
-      // Estrellas + form mock (una vez)
+      // Estrellas + form (UI; persistencia cuando haya API)
       const reviewsRate = root.querySelector("[data-lb-reviews-rate]");
       if (reviewsRate && reviewsRate.getAttribute("data-bound") !== "1") {
         reviewsRate.setAttribute("data-bound", "1");

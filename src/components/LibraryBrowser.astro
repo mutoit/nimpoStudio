@@ -123,20 +123,13 @@ const payload = {
     unavailable: t("libUnavailable"),
     noLicense: t("libNoLicense"),
     reviewsTitle: t("reviewsTitle"),
-    reviewsDemoNote: t("reviewsDemoNote"),
     reviewsCount: t("reviewsCount"),
-    reviewsFormTitle: t("reviewsFormTitle"),
+    reviewsEmpty: t("reviewsEmpty"),
     reviewsYourRating: t("reviewsYourRating"),
-    reviewsName: t("reviewsName"),
     reviewsNamePh: t("reviewsNamePh"),
-    reviewsComment: t("reviewsComment"),
     reviewsCommentPh: t("reviewsCommentPh"),
     reviewsSubmit: t("reviewsSubmit"),
     reviewsSubmitNote: t("reviewsSubmitNote"),
-    reviewsComments: t("reviewsComments"),
-    reviewsUsePersonal: t("reviewsUsePersonal"),
-    reviewsUseProject: t("reviewsUseProject"),
-    reviewsUseClient: t("reviewsUseClient"),
   },
 };
 ---
@@ -185,17 +178,14 @@ const payload = {
           </div>
           <p class="lb__protect" role="note">{t("libPreviewProtect")}</p>
 
-          {/* Valoraciones junto al player — al abrir el sonido */}
+          {/* Valoraciones: UI es/en/fr; lista de comentarios 1 sola (común, sin fakes) */}
           <section class="lb__reviews" data-lb-reviews aria-label={t("reviewsTitle")}>
             <div class="lb__reviews-head">
-              <div>
-                <p class="lb__label lb__label--tight">{t("reviewsTitle")}</p>
-                <p class="lb__reviews-demo" data-lb-reviews-demo>{t("reviewsDemoNote")}</p>
-              </div>
+              <p class="lb__label lb__label--tight">{t("reviewsTitle")}</p>
               <div class="lb__reviews-score" data-lb-reviews-score>
-                <span class="lb__reviews-num" data-lb-reviews-avg>4.6</span>
-                <span class="lb__reviews-stars" data-lb-reviews-stars aria-hidden="true">★★★★☆</span>
-                <span class="lb__reviews-count" data-lb-reviews-count></span>
+                <span class="lb__reviews-num" data-lb-reviews-avg>—</span>
+                <span class="lb__reviews-stars" data-lb-reviews-stars aria-hidden="true">☆☆☆☆☆</span>
+                <span class="lb__reviews-count" data-lb-reviews-count>{t("reviewsCount").replace("{n}", "0")}</span>
               </div>
             </div>
             <div class="lb__reviews-rate" data-lb-reviews-rate role="group" aria-label={t("reviewsYourRating")}>
@@ -205,7 +195,9 @@ const payload = {
               <button type="button" class="lb__star-btn" data-rate="4" aria-label="4">★</button>
               <button type="button" class="lb__star-btn" data-rate="5" aria-label="5">★</button>
             </div>
-            <div class="lb__reviews-scroll" data-lb-reviews-list tabindex="0"></div>
+            <div class="lb__reviews-scroll" data-lb-reviews-list tabindex="0">
+              <p class="lb__reviews-empty">{t("reviewsEmpty")}</p>
+            </div>
             <form class="lb__reviews-form" data-lb-reviews-form>
               <input type="hidden" name="rating" value="" data-lb-reviews-rating />
               <input type="text" name="name" maxlength="40" placeholder={t("reviewsNamePh")} autocomplete="nickname" />
@@ -892,12 +884,12 @@ const payload = {
   .lb__label--tight {
     margin-bottom: 0.25rem;
   }
-  .lb__reviews-demo {
+  .lb__reviews-empty {
     margin: 0;
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: #c9a962;
-    opacity: 0.9;
+    padding: 0.5rem 0.15rem;
+    font-size: 0.8rem;
+    color: rgb(120 120 130);
+    line-height: 1.4;
   }
   .lb__reviews-score {
     display: flex;

@@ -378,11 +378,11 @@ const licenseExtras: { name: string; title: string; hint: string; price: string 
         <legend>{t("quoteExtras")}</legend>
         {
           licenseExtras.map((ex) => (
-            <label class="quote__opt" title={ex.hint}>
+            <label class="quote__opt">
               <input type="checkbox" name={ex.name} value="1" data-quote-flag />
               <span class="quote__opt-title">
                 {ex.title}
-                <span class="quote__opt-help" aria-hidden="true" title={ex.hint}>?</span>
+                <span class="quote__opt-help" data-tip={ex.hint} role="img" aria-label={ex.hint}>?</span>
               </span>
               <span class="quote__opt-price">{ex.price}</span>
             </label>
@@ -1115,6 +1115,7 @@ const licenseExtras: { name: string; title: string; hint: string; price: string 
   }
 
   .quote__opt-help {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1129,6 +1130,36 @@ const licenseExtras: { name: string; title: string; hint: string; price: string 
     line-height: 1;
     vertical-align: middle;
     cursor: help;
+  }
+  .quote__opt-help::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 2px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 40;
+    width: max-content;
+    max-width: min(16rem, 70vw);
+    padding: 0.45rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: var(--color-surface, #1a1a20);
+    color: var(--color-fg, #e8e8ec);
+    font-size: 0.72rem;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    white-space: normal;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+  }
+  .quote__opt-help:hover::after,
+  .quote__opt-help:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
   }
 
   .quote__opt-title {

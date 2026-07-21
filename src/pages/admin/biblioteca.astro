@@ -186,8 +186,8 @@ import Layout from "../../components/Layout.astro";
         <fieldset class="chips-field">
           <legend>Moods</legend>
           <p class="hint">
-            Clic en una etiqueta para marcarla en <strong>esta obra</strong> (azul = seleccionada).
-            Las marcadas también salen como filtro en la biblioteca pública.
+            Clic para marcar en esta obra. <strong>Dorado / relleno</strong> = seleccionada (y filtro
+            público).
           </p>
           <div class="mood-tags" data-mood-tags role="group" aria-label="Moods de la obra"></div>
           <div class="add-chip">
@@ -195,8 +195,7 @@ import Layout from "../../components/Layout.astro";
             <button type="button" class="btn btn--sm" data-mood-add>Añadir</button>
           </div>
           <details class="mood-manage">
-            <summary>Gestionar moods (borrar del catálogo local)</summary>
-            <p class="hint">Solo para quitar etiquetas que ya no quieras ver en la lista.</p>
+            <summary>Gestionar lista</summary>
             <ul class="mood-manage-list" data-mood-manage></ul>
           </details>
           <p class="hint" data-mood-hint hidden></p>
@@ -829,16 +828,20 @@ import Layout from "../../components/Layout.astro";
         const li = document.createElement("li");
         li.className = "mood-manage-row";
         const span = document.createElement("span");
+        span.className = "mood-manage-name";
         span.textContent = m;
         const del = document.createElement("button");
         del.type = "button";
-        del.className = "btn btn--sm btn--danger";
-        del.textContent = "Borrar";
+        del.className = "mood-trash";
+        del.setAttribute("aria-label", "Borrar " + m);
+        del.title = "Quitar de la lista";
+        del.innerHTML =
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
         del.addEventListener("click", () => {
-          if (!confirm("¿Quitar «" + m + "» de la lista de etiquetas?")) return;
+          if (!confirm("¿Quitar «" + m + "» de la lista?")) return;
           forgetMood(m);
           rebuildMoodPick({ selected: readSelectedMoods().filter((x) => x !== m) });
-          setStatus("Mood «" + m + "» quitado de la lista.");
+          setStatus("Mood «" + m + "» quitado.");
         });
         li.appendChild(span);
         li.appendChild(del);
@@ -2135,49 +2138,51 @@ import Layout from "../../components/Layout.astro";
   .mood-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-bottom: 0.5rem;
+    gap: 0.28rem;
+    margin-bottom: 0.45rem;
   }
+  /* Pills compactas estilo chip clásico */
   .mood-tag {
     appearance: none;
     margin: 0;
-    padding: 0.28rem 0.7rem;
+    padding: 0.18rem 0.55rem;
     border-radius: 999px;
-    border: 1px solid rgb(255 255 255 / 0.14);
-    background: rgb(20 20 24);
-    color: #9a9a9a;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: rgb(12 12 14);
+    color: #8a8a8a;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 500;
     cursor: pointer;
     line-height: 1.35;
     transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
   }
   .mood-tag:hover {
-    border-color: rgb(201 169 98 / 0.45);
-    color: #ddd;
+    border-color: rgb(201 169 98 / 0.4);
+    color: #ccc;
   }
-  /* Azul claro bien visible al seleccionar */
+  /* Seleccionada: relleno dorado sólido — se nota sí o sí */
   .mood-tag.is-on {
-    border-color: #5b9fd4;
-    background: rgb(60 140 210 / 0.35);
-    color: #e8f4ff;
+    border-color: #c9a962;
+    background: linear-gradient(145deg, #d4b56a, #b8923e);
+    color: #1a1408;
     font-weight: 700;
-    box-shadow: 0 0 0 1px rgb(91 159 212 / 0.5), 0 0 14px rgb(60 140 210 / 0.35);
+    box-shadow: 0 0 0 1px rgb(201 169 98 / 0.35), 0 2px 10px rgb(201 169 98 / 0.35);
   }
   .mood-manage {
-    margin-top: 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 0.3rem 0.55rem 0.45rem;
-    background: rgb(0 0 0 / 0.18);
+    margin-top: 0.4rem;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: 6px;
+    padding: 0.15rem 0.4rem 0.3rem;
+    background: rgb(0 0 0 / 0.22);
+    max-width: 16rem;
   }
   .mood-manage > summary {
     cursor: pointer;
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     font-weight: 600;
     color: var(--color-muted);
-    padding: 0.2rem 0;
+    padding: 0.15rem 0;
     list-style: none;
   }
   .mood-manage > summary::-webkit-details-marker {
@@ -2186,28 +2191,55 @@ import Layout from "../../components/Layout.astro";
   .mood-manage > summary::before {
     content: "▸ ";
     color: var(--color-accent);
+    font-size: 0.65rem;
   }
   .mood-manage[open] > summary::before {
     content: "▾ ";
   }
   .mood-manage-list {
-    margin: 0.35rem 0 0;
+    margin: 0.2rem 0 0;
     padding: 0;
     list-style: none;
-    max-height: 11rem;
+    max-height: 5.5rem;
     overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 0.35rem;
   }
   .mood-manage-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.28rem 0.2rem;
-    border-bottom: 1px solid rgb(255 255 255 / 0.05);
-    font-size: 0.8rem;
+    gap: 0.2rem;
+    padding: 0.08rem 0.1rem;
+    font-size: 0.65rem;
+    min-width: 0;
   }
-  .mood-manage-row:last-child {
-    border-bottom: none;
+  .mood-manage-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #aaa;
+  }
+  .mood-trash {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #c07070;
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 0.75;
+  }
+  .mood-trash:hover {
+    opacity: 1;
+    background: rgb(200 80 80 / 0.15);
+    color: #f0a0a0;
   }
   .btn {
     display: inline-flex;

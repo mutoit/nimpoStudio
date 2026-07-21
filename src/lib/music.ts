@@ -20,7 +20,13 @@ export type MusicTrack = {
 };
 
 /** Sync license tiers offered for a release (contact-based until store). */
-export type MusicLicenseTierId = "personal" | "commercial" | "exclusive";
+export type MusicLicenseTierId =
+  | "personal"
+  | "micro"
+  | "commercial"
+  | "ads"
+  | "exclusive"
+  | "buyout";
 
 export type MusicLicensePricing = "fixed" | "from" | "request";
 
@@ -82,8 +88,11 @@ const DEFAULT_LICENSE: MusicLicense = {
   contactOnly: true,
   tiers: [
     { id: "personal", requestOnly: true, pricing: "request" },
+    { id: "micro", priceFrom: "79 €", pricing: "fixed" },
     { id: "commercial", priceFrom: "169 €", pricing: "fixed" },
+    { id: "ads", priceFrom: "299 €", pricing: "fixed" },
     { id: "exclusive", priceFrom: "1.200 €", pricing: "from" },
+    { id: "buyout", priceFrom: "2.990 €", pricing: "from" },
   ],
 };
 
@@ -92,7 +101,7 @@ function normalizeTier(tier: MusicLicenseTier): MusicLicenseTier {
   let pricing = tier.pricing;
   if (!pricing) {
     if (requestOnly || tier.id === "personal") pricing = "request";
-    else if (tier.id === "exclusive") pricing = "from";
+    else if (tier.id === "exclusive" || tier.id === "buyout") pricing = "from";
     else if (tier.priceFrom) pricing = "fixed";
     else pricing = "from";
   }

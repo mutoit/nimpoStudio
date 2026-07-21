@@ -62,9 +62,11 @@ export async function onRequest(context: {
   if (!obj || !obj.body) return bad(404, "not_found");
 
   const contentType = obj.httpMetadata?.contentType || "application/octet-stream";
+  // No cachear 24h: al re-publicar o borrar, el navegador seguía oyendo el WAV viejo.
+  // Cache bust en cliente (?v=updatedAt) + revalidación obligatoria aquí.
   const headers: Record<string, string> = {
     "Content-Type": contentType,
-    "Cache-Control": "public, max-age=86400",
+    "Cache-Control": "private, max-age=0, must-revalidate",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Expose-Headers": "Content-Length, Content-Type, Accept-Ranges",
     "Accept-Ranges": "bytes",

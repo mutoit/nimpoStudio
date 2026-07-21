@@ -153,13 +153,22 @@ export const translations = {
     musicLicenseSend: "2. Envía la solicitud",
     musicLicenseTierPersonal: "Personal / no comercial",
     musicLicenseTierPersonalDesc:
-      "Solo casos sin negocio (estudio privado, demo interna). No sirve para postear como contenido de marca. Explica el propósito; se puede denegar o pedir crédito. Sin tarifa fija.",
-    musicLicenseTierCommercial: "Comercial / sync",
+      "Solo casos sin negocio (estudio privado, demo interna). No sirve para postear como contenido de marca. Explica el propósito; se puede denegar o pedir crédito. Sin tarifa fija (0–49 €).",
+    musicLicenseTierMicro: "Micro / un solo uso",
+    musicLicenseTierMicroDesc:
+      "1 sting, 1 post, 1 vuelo o 1 episodio declarado. Ideal hooks y previews cortos. Master WAV. No reutilizable en otra campaña.",
+    musicLicenseTierCommercial: "Comercial estándar (2 años)",
     musicLicenseTierCommercialDesc:
-      "Desde 79 € (micro/1 uso) · lista 169 € (2 años, 1 obra, 1 proyecto, no exclusiva, master WAV). MIDI manual sin IA + stems + clearance directo. +59 € stems · ads (+130 € → pack 299 €).",
-    musicLicenseTierExclusive: "Exclusiva / custom",
+      "1 obra, 1 proyecto, no exclusiva, 2 años, master WAV. Cortos, brand film orgánico, indie game, webserie 1 ep. Plazos más cortos en el formulario (129 / 159 €).",
+    musicLicenseTierAds: "Comercial + Ads",
+    musicLicenseTierAdsDesc:
+      "Base comercial + campaña de pago (redes/YouTube ~6 meses). Pack lista 2 años: 299 €. Elige «Publicidad / ads» en el formulario.",
+    musicLicenseTierExclusive: "Exclusiva / media",
     musicLicenseTierExclusiveDesc:
-      "Nadie más licencia en el alcance pactado (o embargo de catálogo). Desde 1.200 € (media/territorio); buyout desde 2.990 €. Contrato y firma.",
+      "Nadie más licencia en el alcance pactado. Desde 1.200 € (2 años media/territorio). Opción retirar del catálogo (+250 €).",
+    musicLicenseTierBuyout: "Buyout / fuera de catálogo",
+    musicLicenseTierBuyoutDesc:
+      "Derechos fuertes y retirada indefinida del catálogo. Desde 2.990 € según obra y alcance.",
     musicLicensePriceOnRequest: "Presupuesto",
     musicLicensePriceRequestOnly: "Bajo petición",
     musicLicensePriceFrom: "Desde",
@@ -412,13 +421,22 @@ export const translations = {
     musicLicenseSend: "2. Send the request",
     musicLicenseTierPersonal: "Personal / non-commercial",
     musicLicenseTierPersonalDesc:
-      "Non-business use only (private study, internal demo). Not for brand posting. State the purpose; may be declined or require credit. No fixed fee.",
-    musicLicenseTierCommercial: "Commercial / sync",
+      "Non-business use only (private study, internal demo). Not for brand posting. State the purpose; may be declined or require credit. No fixed fee (€0–49).",
+    musicLicenseTierMicro: "Micro / single use",
+    musicLicenseTierMicroDesc:
+      "1 sting, 1 post, 1 flight or 1 declared episode. Ideal for hooks and short previews. WAV master. Not reusable on another campaign.",
+    musicLicenseTierCommercial: "Standard commercial (2 years)",
     musicLicenseTierCommercialDesc:
-      "From €79 (micro/single use) · list €169 (2 years, 1 work, 1 project, non-exclusive, WAV master). Hand-made MIDI, no AI author + stems + direct clearance. +€59 stems · paid ads (+€130 → €299 pack).",
-    musicLicenseTierExclusive: "Exclusive / custom",
+      "1 work, 1 project, non-exclusive, 2 years, WAV master. Shorts, organic brand film, indie game, 1-ep web series. Shorter terms in the form (€129 / €159).",
+    musicLicenseTierAds: "Commercial + Ads",
+    musicLicenseTierAdsDesc:
+      "Commercial base + paid campaign (social/YouTube ~6 months). 2-year list pack: €299. Pick “Advertising / paid ads” in the form.",
+    musicLicenseTierExclusive: "Exclusive / media",
     musicLicenseTierExclusiveDesc:
-      "No one else licenses within the agreed scope (or catalog hold). From €1,200 (media/territory); buyout from €2,990. Contract and signature.",
+      "No one else licenses within the agreed scope. From €1,200 (2-year media/territory). Optional catalog removal (+€250).",
+    musicLicenseTierBuyout: "Buyout / leave catalog",
+    musicLicenseTierBuyoutDesc:
+      "Strong rights and indefinite catalog removal. From €2,990 depending on work and scope.",
     musicLicensePriceOnRequest: "Quote",
     musicLicensePriceRequestOnly: "On request",
     musicLicensePriceFrom: "From",
@@ -662,13 +680,22 @@ export const translations = {
     musicLicenseSend: "2. Envoyez la demande",
     musicLicenseTierPersonal: "Personnel / non commercial",
     musicLicenseTierPersonalDesc:
-      "Usage hors business seulement (étude privée, démo interne). Pas pour poster en marque. Précisez l'objectif ; refus possible ou crédit exigé. Pas de tarif fixe.",
-    musicLicenseTierCommercial: "Commercial / sync",
+      "Usage hors business seulement (étude privée, démo interne). Pas pour poster en marque. Précisez l'objectif ; refus possible ou crédit exigé. Pas de tarif fixe (0–49 €).",
+    musicLicenseTierMicro: "Micro / usage unique",
+    musicLicenseTierMicroDesc:
+      "1 sting, 1 post, 1 vol ou 1 épisode déclaré. Idéal hooks et previews courts. Master WAV. Non réutilisable sur une autre campagne.",
+    musicLicenseTierCommercial: "Commercial standard (2 ans)",
     musicLicenseTierCommercialDesc:
-      "Dès 79 € (micro/1 usage) · liste 169 € (2 ans, 1 œuvre, 1 projet, non exclusif, master WAV). MIDI fait main sans IA + stems + clearance direct. +59 € stems · ads (+130 € → pack 299 €).",
-    musicLicenseTierExclusive: "Exclusif / sur mesure",
+      "1 œuvre, 1 projet, non exclusif, 2 ans, master WAV. Courts, brand film organique, jeu indé, websérie 1 ep. Durées plus courtes dans le formulaire (129 / 159 €).",
+    musicLicenseTierAds: "Commercial + Ads",
+    musicLicenseTierAdsDesc:
+      "Base commerciale + campagne payante (réseaux/YouTube ~6 mois). Pack liste 2 ans : 299 €. Choisissez « Publicité / pubs » dans le formulaire.",
+    musicLicenseTierExclusive: "Exclusif / média",
     musicLicenseTierExclusiveDesc:
-      "Personne d'autre ne licence dans le périmètre (ou gel catalogue). Dès 1 200 € (média/territoire) ; buyout dès 2 990 €. Contrat et signature.",
+      "Personne d'autre ne licence dans le périmètre. Dès 1 200 € (2 ans média/territoire). Retrait catalogue optionnel (+250 €).",
+    musicLicenseTierBuyout: "Buyout / hors catalogue",
+    musicLicenseTierBuyoutDesc:
+      "Droits forts et retrait indéfini du catalogue. Dès 2 990 € selon l'œuvre et le périmètre.",
     musicLicensePriceOnRequest: "Devis",
     musicLicensePriceRequestOnly: "Sur demande",
     musicLicensePriceFrom: "À partir de",

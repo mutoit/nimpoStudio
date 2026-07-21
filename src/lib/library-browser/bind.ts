@@ -323,8 +323,11 @@ export function bindLibraryBrowser() {
             ...s,
             src: safeMediaUrl(s.src) || s.src,
           }));
+          // bust fuerte: updatedAt + sesión (si re-publican el mismo path, no oír WAV viejo)
+          const bust = `${item.updatedAt || item.slug || item.id}-${Math.floor(Date.now() / 60_000)}`;
           await stemsTx.load(item.id, stems, {
-            cacheBust: item.updatedAt || item.slug || item.id,
+            cacheBust: bust,
+            forceReload: true,
             onProgress: ({ loaded, total }) => {
               setPlayLoading(playId, `${loaded}/${total}`);
               showStemError(`Cargando audio ${loaded}/${total}…`, "info");
@@ -967,14 +970,20 @@ export function bindLibraryBrowser() {
 
       renderGrid();
 
-      // Catálogo vivo (R2) — un publish en admin se ve sin redeploy
+      // Catálogo vivo (R2) — un publish/delete en admin se ve sin redeploy
       void (async () => {
         try {
-          const res = await fetch("/api/library", { credentials: "same-origin" });
+          const res = await fetch("/api/library", {
+            credentials: "same-origin",
+            cache: "reload",
+          });
           if (!res.ok) return;
           const live = await res.json();
+          // Solo sustituir semilla si hay catálogo R2 real (aunque sea 1 ítem)
           if (!live?.ok || !Array.isArray(live.items) || !live.items.length) return;
-          // API ya sanitiza; re-normalizar ids/aspect en cliente por defensa
+          // Vaciar audio en memoria (evita seguir oyendo un ítem ya borrado del catálogo)
+          stemsTx.dispose();
+          stopAll();
           items = (live.items as Item[]).map((raw) => ({
             ...raw,
             id: safeDomId(raw.id),

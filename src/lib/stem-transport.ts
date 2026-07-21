@@ -182,8 +182,8 @@ export class StemTransport {
       try {
         const res = await fetch(url, {
           credentials: "same-origin",
-          // no force-cache: tras re-publicar el mismo path debe verse el audio nuevo
-          cache: "no-cache",
+          // bypass caché HTTP del navegador (mismo path tras re-bake o delete+reupload)
+          cache: "reload",
         });
         if (!res.ok) {
           errors.push(`${res.status} ${url}`);

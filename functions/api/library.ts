@@ -14,7 +14,8 @@ function json(data: unknown, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "public, max-age=30",
+      // Tras borrar/publicar en admin, la biblioteca no debe servir catálogo viejo 30s
+      "Cache-Control": "private, max-age=0, must-revalidate",
       "Access-Control-Allow-Origin": "*",
     },
   });

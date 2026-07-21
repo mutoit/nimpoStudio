@@ -32,24 +32,36 @@ function priceLabel(tier: (typeof license.tiers)[number]): string {
   return `${t("musicLicensePriceFrom")} ${tier.priceFrom}`;
 }
 
-const tierCopy = {
+const tierCopy: Record<
+  string,
+  { title: string; desc: string }
+> = {
   personal: { title: t("musicLicenseTierPersonal"), desc: t("musicLicenseTierPersonalDesc") },
+  micro: { title: t("musicLicenseTierMicro"), desc: t("musicLicenseTierMicroDesc") },
   commercial: {
     title: t("musicLicenseTierCommercial"),
     desc: t("musicLicenseTierCommercialDesc"),
   },
+  ads: { title: t("musicLicenseTierAds"), desc: t("musicLicenseTierAdsDesc") },
   exclusive: {
     title: t("musicLicenseTierExclusive"),
     desc: t("musicLicenseTierExclusiveDesc"),
   },
-} as const;
+  buyout: { title: t("musicLicenseTierBuyout"), desc: t("musicLicenseTierBuyoutDesc") },
+};
 
-const tiersPayload = license.tiers.map((tier) => ({
-  id: tier.id,
-  title: tierCopy[tier.id].title,
-  desc: tierCopy[tier.id].desc,
-  price: priceLabel(tier),
-}));
+const tiersPayload = license.tiers.map((tier) => {
+  const copy = tierCopy[tier.id] || {
+    title: tier.id,
+    desc: "",
+  };
+  return {
+    id: tier.id,
+    title: copy.title,
+    desc: copy.desc,
+    price: priceLabel(tier),
+  };
+});
 
 const usageLabelKey: Record<LicenseUsageCode, string> = {
   personal_private: "usagePersonalPrivate",
@@ -575,7 +587,13 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
     margin: 0 0 1.75rem;
   }
 
-  @media (min-width: 900px) {
+  @media (min-width: 700px) {
+    .license__tiers {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1100px) {
     .license__tiers {
       grid-template-columns: repeat(3, 1fr);
     }

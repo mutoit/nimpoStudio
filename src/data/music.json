@@ -26,14 +26,29 @@
           "priceFrom": null
         },
         {
+          "id": "micro",
+          "pricing": "fixed",
+          "priceFrom": "79 €"
+        },
+        {
           "id": "commercial",
           "pricing": "fixed",
           "priceFrom": "169 €"
         },
         {
+          "id": "ads",
+          "pricing": "fixed",
+          "priceFrom": "299 €"
+        },
+        {
           "id": "exclusive",
           "pricing": "from",
           "priceFrom": "1.200 €"
+        },
+        {
+          "id": "buyout",
+          "pricing": "from",
+          "priceFrom": "2.990 €"
         }
       ]
     },
@@ -105,14 +120,29 @@
           "priceFrom": null
         },
         {
+          "id": "micro",
+          "pricing": "fixed",
+          "priceFrom": "79 €"
+        },
+        {
           "id": "commercial",
           "pricing": "fixed",
           "priceFrom": "169 €"
         },
         {
+          "id": "ads",
+          "pricing": "fixed",
+          "priceFrom": "299 €"
+        },
+        {
           "id": "exclusive",
           "pricing": "from",
           "priceFrom": "1.200 €"
+        },
+        {
+          "id": "buyout",
+          "pricing": "from",
+          "priceFrom": "2.990 €"
         }
       ]
     },
@@ -194,14 +224,29 @@
           "priceFrom": null
         },
         {
+          "id": "micro",
+          "pricing": "fixed",
+          "priceFrom": "79 €"
+        },
+        {
           "id": "commercial",
           "pricing": "fixed",
           "priceFrom": "169 €"
         },
         {
+          "id": "ads",
+          "pricing": "fixed",
+          "priceFrom": "299 €"
+        },
+        {
           "id": "exclusive",
           "pricing": "from",
           "priceFrom": "1.200 €"
+        },
+        {
+          "id": "buyout",
+          "pricing": "from",
+          "priceFrom": "2.990 €"
         }
       ]
     },
@@ -241,14 +286,29 @@
           "priceFrom": null
         },
         {
+          "id": "micro",
+          "pricing": "fixed",
+          "priceFrom": "79 €"
+        },
+        {
           "id": "commercial",
           "pricing": "fixed",
           "priceFrom": "169 €"
         },
         {
+          "id": "ads",
+          "pricing": "fixed",
+          "priceFrom": "299 €"
+        },
+        {
           "id": "exclusive",
           "pricing": "from",
           "priceFrom": "1.200 €"
+        },
+        {
+          "id": "buyout",
+          "pricing": "from",
+          "priceFrom": "2.990 €"
         }
       ]
     },

@@ -218,8 +218,9 @@ const payload = {
               /></label
             >
 
-            <div class="lb__usage">
-              <span class="lb__usage-label">{t("quoteUsageType")}</span>
+            <div class="lb__usage" data-lb-usage-dd>
+              <span class="lb__usage-label" id="lb-usage-label">{t("quoteUsageType")}</span>
+              {/* Escritorio: select nativo. Móvil: se oculta y manda el valor del desplegable */}
               <select name="usage" required data-lb-usage class="lb__usage-select">
                 <option value="">{t("quoteSelect")}</option>
                 {
@@ -232,8 +233,26 @@ const payload = {
                   ))
                 }
               </select>
-              {/* Lista densa solo móvil: el select se oculta y se sincroniza por JS */}
-              <div class="lb__usage-list" data-lb-usage-list>
+              {/* Móvil: menú plegable (como el select de plazo) + lista densa al abrir */}
+              <button
+                type="button"
+                class="lb__usage-trigger"
+                data-lb-usage-trigger
+                aria-expanded="false"
+                aria-controls="lb-usage-panel"
+                aria-labelledby="lb-usage-label"
+              >
+                <span class="lb__usage-trigger-text" data-lb-usage-value>{t("quoteSelect")}</span>
+                <span class="lb__usage-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div
+                class="lb__usage-panel"
+                id="lb-usage-panel"
+                data-lb-usage-list
+                hidden
+                role="listbox"
+                aria-labelledby="lb-usage-label"
+              >
                 {
                   usageGroups.map((g) => (
                     <div class="lb__usage-group">
@@ -246,11 +265,18 @@ const payload = {
                         );
                         const price = priceMatch ? priceMatch[0].trim() : "según plazo";
                         return (
-                          <label class="lb__usage-row">
-                            <input type="radio" name="usage_ui" value={u.code} data-lb-usage-radio />
+                          <button
+                            type="button"
+                            class="lb__usage-row"
+                            role="option"
+                            data-lb-usage-option
+                            data-value={u.code}
+                            data-title={title}
+                            data-price={price}
+                          >
                             <span class="lb__usage-row-title">{title}</span>
                             <span class="lb__usage-row-price">{price}</span>
-                          </label>
+                          </button>
                         );
                       })}
                     </div>
@@ -956,19 +982,21 @@ const payload = {
     white-space: nowrap;
   }
 
-  /* Uso: select en desktop; lista densa en móvil */
+  /* Uso: select nativo en desktop; desplegable denso en móvil */
   .lb__usage {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     min-width: 0;
+    position: relative;
   }
   .lb__usage-label {
     font-size: 0.75rem;
     font-weight: 600;
     color: rgb(150 150 160);
   }
-  .lb__usage-list {
+  .lb__usage-trigger,
+  .lb__usage-panel {
     display: none;
   }
   .lb__usage-group {
@@ -986,31 +1014,29 @@ const payload = {
     border-bottom: 1px solid rgb(255 255 255 / 0.05);
   }
   .lb__usage-row {
-    display: grid !important;
-    grid-template-columns: 1rem minmax(0, 1fr) auto !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 0.45rem;
-    margin: 0 !important;
-    padding: 0.42rem 0.55rem !important;
+    width: 100%;
+    margin: 0;
+    padding: 0.48rem 0.55rem;
+    border: none;
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
-    font-size: 0.72rem !important;
-    font-weight: 400 !important;
-    color: #e8e8ec !important;
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: #e8e8ec;
+    text-align: left;
     cursor: pointer;
     line-height: 1.25;
-    min-height: 2.3rem;
+    min-height: 2.35rem;
   }
-  .lb__usage-row:has(input:checked) {
+  .lb__usage-row:hover,
+  .lb__usage-row.is-on {
     background: rgb(201 169 98 / 0.1);
-  }
-  .lb__usage-row input {
-    width: 0.95rem !important;
-    height: 0.95rem !important;
-    min-width: 0.95rem !important;
-    max-width: 0.95rem !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    accent-color: #c9a962;
   }
   .lb__usage-row-title {
     min-width: 0;
@@ -1366,7 +1392,7 @@ const payload = {
       text-transform: uppercase;
     }
 
-    /* Lista de usos/precios: filas densas (no select nativo enorme) */
+    /* Uso plegable: un campo cerrado como el plazo; se abre al tocar */
     .lb__usage-label {
       font-size: 0.62rem;
       letter-spacing: 0.04em;
@@ -1387,16 +1413,66 @@ const payload = {
       pointer-events: none;
     }
 
-    .lb__usage-list {
+    .lb__usage-trigger {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      width: 100%;
+      min-height: 2.4rem;
+      margin: 0;
+      padding: 0.4rem 0.55rem;
+      border-radius: 6px;
+      border: 1px solid rgb(255 255 255 / 0.12);
+      background: #0a0a0c;
+      color: #f0f0f2;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 400;
+      text-align: left;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .lb__usage-trigger-text {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lb__usage-chevron {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      color: rgb(150 150 160);
+      transition: transform 0.15s;
+    }
+
+    .lb__usage.is-open .lb__usage-chevron {
+      transform: rotate(180deg);
+      color: #c9a962;
+    }
+
+    .lb__usage.is-open .lb__usage-trigger {
+      border-color: rgb(201 169 98 / 0.45);
+    }
+
+    .lb__usage-panel {
+      display: none;
       flex-direction: column;
+      margin-top: 0.35rem;
       border: 1px solid rgb(255 255 255 / 0.1);
       border-radius: 8px;
       overflow: hidden;
       background: #0a0a0c;
-      max-height: 14.5rem;
+      max-height: 14rem;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .lb__usage-panel:not([hidden]) {
+      display: flex;
     }
 
     .lb__usage-group:last-child .lb__usage-row:last-child {

@@ -205,8 +205,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
         />
       </label>
 
-      <div class="quote__usage">
-        <span class="quote__usage-label">{t("quoteUsageType")}</span>
+      <div class="quote__usage" data-quote-usage-dd>
+        <span class="quote__usage-label" id="quote-usage-label">{t("quoteUsageType")}</span>
         <select name="usage" required data-quote-usage class="quote__usage-select">
           <option value="">{t("quoteSelect")}</option>
           {
@@ -221,7 +221,25 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
             ))
           }
         </select>
-        <div class="quote__usage-list" data-quote-usage-list>
+        <button
+          type="button"
+          class="quote__usage-trigger"
+          data-quote-usage-trigger
+          aria-expanded="false"
+          aria-controls="quote-usage-panel"
+          aria-labelledby="quote-usage-label"
+        >
+          <span class="quote__usage-trigger-text" data-quote-usage-value>{t("quoteSelect")}</span>
+          <span class="quote__usage-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div
+          class="quote__usage-panel"
+          id="quote-usage-panel"
+          data-quote-usage-list
+          hidden
+          role="listbox"
+          aria-labelledby="quote-usage-label"
+        >
           {
             usageGroups.map((g) => (
               <div class="quote__usage-group">
@@ -236,11 +254,18 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
                     );
                     const price = priceMatch ? priceMatch[0].trim() : "según plazo";
                     return (
-                      <label class="quote__usage-row">
-                        <input type="radio" name="usage_ui" value={u.code} data-quote-usage-radio />
+                      <button
+                        type="button"
+                        class="quote__usage-row"
+                        role="option"
+                        data-quote-usage-option
+                        data-value={u.code}
+                        data-title={title}
+                        data-price={price}
+                      >
                         <span class="quote__usage-row-title">{title}</span>
                         <span class="quote__usage-row-price">{price}</span>
-                      </label>
+                      </button>
                     );
                   })}
               </div>
@@ -474,19 +499,75 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       };
 
       const usageSel = form.querySelector<HTMLSelectElement>("[data-quote-usage]");
-      root.querySelectorAll<HTMLInputElement>("[data-quote-usage-radio]").forEach((radio) => {
-        radio.addEventListener("change", () => {
-          if (!radio.checked || !usageSel) return;
-          usageSel.value = radio.value;
-          usageSel.dispatchEvent(new Event("change", { bubbles: true }));
+      const usageDd = root.querySelector<HTMLElement>("[data-quote-usage-dd]");
+      const usageTrigger = root.querySelector<HTMLButtonElement>("[data-quote-usage-trigger]");
+      const usagePanel = root.querySelector<HTMLElement>("[data-quote-usage-list]");
+      const usageValueEl = root.querySelector<HTMLElement>("[data-quote-usage-value]");
+      const usagePlaceholder =
+        usageValueEl?.textContent?.trim() || usageSel?.options?.[0]?.textContent || "…";
+
+      const setUsageOpen = (open: boolean) => {
+        usageDd?.classList.toggle("is-open", open);
+        usageTrigger?.setAttribute("aria-expanded", open ? "true" : "false");
+        if (usagePanel) {
+          if (open) usagePanel.removeAttribute("hidden");
+          else usagePanel.setAttribute("hidden", "");
+        }
+      };
+
+      const syncUsageDropdown = () => {
+        const val = usageSel?.value || "";
+        root.querySelectorAll<HTMLElement>("[data-quote-usage-option]").forEach((btn) => {
+          const on = btn.dataset.value === val && val !== "";
+          btn.classList.toggle("is-on", on);
+          btn.setAttribute("aria-selected", on ? "true" : "false");
         });
+        const onBtn =
+          val &&
+          root.querySelector<HTMLElement>(
+            `[data-quote-usage-option][data-value="${CSS.escape(val)}"]`,
+          );
+        if (usageValueEl) {
+          if (onBtn) {
+            const title = onBtn.dataset.title || "";
+            const price = onBtn.dataset.price || "";
+            usageValueEl.textContent = price ? `${title} · ${price}` : title;
+          } else {
+            usageValueEl.textContent = usagePlaceholder;
+          }
+        }
+      };
+
+      usageTrigger?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setUsageOpen(!usageDd?.classList.contains("is-open"));
       });
-      usageSel?.addEventListener("change", () => {
-        root.querySelectorAll<HTMLInputElement>("[data-quote-usage-radio]").forEach((r) => {
-          r.checked = r.value === usageSel.value;
+
+      root.querySelectorAll<HTMLButtonElement>("[data-quote-usage-option]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (!usageSel) return;
+          usageSel.value = btn.dataset.value || "";
+          usageSel.dispatchEvent(new Event("change", { bubbles: true }));
+          syncUsageDropdown();
+          setUsageOpen(false);
         });
       });
 
+      usageSel?.addEventListener("change", syncUsageDropdown);
+
+      document.addEventListener("click", (e) => {
+        if (!usageDd || !usageDd.classList.contains("is-open")) return;
+        const t = e.target;
+        if (t instanceof Node && usageDd.contains(t)) return;
+        setUsageOpen(false);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") setUsageOpen(false);
+      });
+
+      syncUsageDropdown();
       form.addEventListener("change", refreshLive);
       form.addEventListener("input", refreshLive);
       refreshLive();
@@ -924,11 +1005,12 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     margin-top: 0.25rem;
   }
 
-  /* Uso: select desktop / lista densa móvil */
+  /* Uso: select desktop / desplegable denso móvil */
   .quote__usage {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+    position: relative;
   }
 
   .quote__usage-label {
@@ -937,7 +1019,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     color: var(--color-muted);
   }
 
-  .quote__usage-list {
+  .quote__usage-trigger,
+  .quote__usage-panel {
     display: none;
   }
 
@@ -955,28 +1038,28 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
 
   .quote__usage-row {
     display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 0.45rem;
+    width: 100%;
     margin: 0;
-    padding: 0.42rem 0.55rem;
+    padding: 0.48rem 0.55rem;
+    border: none;
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
     font-size: 0.72rem;
     color: var(--color-fg);
+    text-align: left;
     cursor: pointer;
-    min-height: 2.3rem;
+    min-height: 2.35rem;
     line-height: 1.25;
   }
 
-  .quote__usage-row:has(input:checked) {
+  .quote__usage-row:hover,
+  .quote__usage-row.is-on {
     background: rgb(201 169 98 / 0.1);
-  }
-
-  .quote__usage-row input {
-    width: 0.95rem;
-    height: 0.95rem;
-    margin: 0;
-    accent-color: var(--color-accent);
   }
 
   .quote__usage-row-title {
@@ -1118,16 +1201,66 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       pointer-events: none;
     }
 
-    .quote__usage-list {
+    .quote__usage-trigger {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      width: 100%;
+      min-height: 2.4rem;
+      margin: 0;
+      padding: 0.4rem 0.55rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+      background: rgb(8 8 10 / 0.5);
+      color: var(--color-fg);
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 400;
+      text-align: left;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .quote__usage-trigger-text {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .quote__usage-chevron {
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      color: var(--color-muted);
+      transition: transform 0.15s;
+    }
+
+    .quote__usage.is-open .quote__usage-chevron {
+      transform: rotate(180deg);
+      color: var(--color-accent);
+    }
+
+    .quote__usage.is-open .quote__usage-trigger {
+      border-color: rgb(201 169 98 / 0.45);
+    }
+
+    .quote__usage-panel {
+      display: none;
       flex-direction: column;
+      margin-top: 0.35rem;
       border: 1px solid var(--color-border);
       border-radius: 8px;
       overflow: hidden;
-      background: rgb(8 8 10 / 0.55);
-      max-height: 14.5rem;
+      background: rgb(8 8 10 / 0.75);
+      max-height: 14rem;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .quote__usage-panel:not([hidden]) {
+      display: flex;
     }
 
     .quote__usage-group:last-child .quote__usage-row:last-child {

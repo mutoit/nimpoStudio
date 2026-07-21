@@ -773,9 +773,8 @@ export function bindLibraryBrowser() {
           if (stemsCb) stemsCb.checked = hasStems;
           const usageSel = form.elements.namedItem("usage") as HTMLSelectElement | null;
           if (usageSel) usageSel.value = "brand_video";
-          root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((r) => {
-            r.checked = r.value === "brand_video";
-          });
+          syncUsageDropdown();
+          setUsageOpen(false);
           const msg = root.querySelector("[data-lb-msg]");
           if (msg instanceof HTMLElement) msg.hidden = true;
           refreshLive();
@@ -917,20 +916,76 @@ export function bindLibraryBrowser() {
 
       // moods/tags: se re-pintan en paintFilters()
 
-      // Lista móvil de usos ↔ select (el select sigue siendo el valor del form)
+      // Desplegable de usos (móvil): cerrado por defecto, lista densa al abrir
       const usageSel = form?.elements.namedItem("usage") as HTMLSelectElement | null;
-      root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((radio) => {
-        radio.addEventListener("change", () => {
-          if (!radio.checked || !usageSel) return;
-          usageSel.value = radio.value;
+      const usageDd = root.querySelector<HTMLElement>("[data-lb-usage-dd]");
+      const usageTrigger = root.querySelector<HTMLButtonElement>("[data-lb-usage-trigger]");
+      const usagePanel = root.querySelector<HTMLElement>("[data-lb-usage-list]");
+      const usageValueEl = root.querySelector<HTMLElement>("[data-lb-usage-value]");
+      const usagePlaceholder =
+        usageValueEl?.textContent?.trim() || usageSel?.options?.[0]?.textContent || "…";
+
+      const setUsageOpen = (open: boolean) => {
+        usageDd?.classList.toggle("is-open", open);
+        usageTrigger?.setAttribute("aria-expanded", open ? "true" : "false");
+        if (usagePanel) {
+          if (open) usagePanel.removeAttribute("hidden");
+          else usagePanel.setAttribute("hidden", "");
+        }
+      };
+
+      const syncUsageDropdown = () => {
+        const val = usageSel?.value || "";
+        root.querySelectorAll<HTMLElement>("[data-lb-usage-option]").forEach((btn) => {
+          const on = btn.dataset.value === val && val !== "";
+          btn.classList.toggle("is-on", on);
+          btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        const onBtn = root.querySelector<HTMLElement>(
+          `[data-lb-usage-option][data-value="${CSS.escape(val)}"]`,
+        );
+        if (usageValueEl) {
+          if (onBtn) {
+            const title = onBtn.dataset.title || "";
+            const price = onBtn.dataset.price || "";
+            usageValueEl.textContent = price ? `${title} · ${price}` : title;
+          } else {
+            usageValueEl.textContent = usagePlaceholder;
+          }
+        }
+      };
+
+      usageTrigger?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setUsageOpen(!usageDd?.classList.contains("is-open"));
+      });
+
+      root.querySelectorAll<HTMLButtonElement>("[data-lb-usage-option]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (!usageSel) return;
+          usageSel.value = btn.dataset.value || "";
           usageSel.dispatchEvent(new Event("change", { bubbles: true }));
+          syncUsageDropdown();
+          setUsageOpen(false);
         });
       });
-      usageSel?.addEventListener("change", () => {
-        root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((r) => {
-          r.checked = r.value === usageSel.value;
-        });
+
+      usageSel?.addEventListener("change", syncUsageDropdown);
+
+      // Cerrar al pulsar fuera del desplegable
+      document.addEventListener("click", (e) => {
+        if (!usageDd || !usageDd.classList.contains("is-open")) return;
+        const t = e.target;
+        if (t instanceof Node && usageDd.contains(t)) return;
+        setUsageOpen(false);
       });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") setUsageOpen(false);
+      });
+
+      syncUsageDropdown();
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);

@@ -222,9 +222,35 @@ export const translations = {
     quoteProjectPh: "Nombre del proyecto, dónde se oye la música, fechas…",
     quoteExtras: "Extras",
     quoteStems: "Stems (capas separadas)",
+    quoteStemsHint:
+      "Master en capas sueltas (p. ej. pads, melodía, bajo) para recortar, bajar o remezclar en tu DAW. No es el master estéreo solo.",
     quoteEdit: "Edit / recorte corto a medida",
+    quoteEditHint:
+      "Pedimos un recorte o edit corto a medida (sting, loop, fade) a partir de la obra. No sustituye una composición nueva entera.",
+    quoteTermPlus1y: "Extensión +1 año",
+    quoteTermPlus1yHint:
+      "Suma un año más al plazo elegido. Precio bajo: +55 € sobre licencia comercial; +220 € si hay exclusiva.",
+    quoteTerritoryExpand: "Ampliar territorio / medios",
+    quoteTerritoryExpandHint:
+      "Más países o más canales de los del uso base (p. ej. pasar de ES a UE/mundial, o añadir TV/paid media).",
+    quoteMoreComposition: "Más composición / custom ½ día",
+    quoteMoreCompositionHint:
+      "Hasta ~½ día de trabajo del estudio: variaciones, arreglos o ajustes a medida sobre la pieza.",
     quoteExclusive: "Quiero exclusividad (no solo uso no exclusivo)",
+    quoteExclusiveHint:
+      "Nadie más licencia esa obra en el alcance acordado (territorio/plazo). Suelo desde 1.200 €; se revisa el alcance.",
+    quoteExclusiveStrong: "Exclusiva fuerte multi-medio",
+    quoteExclusiveStrongHint:
+      "Exclusiva amplia (varios medios / alcance fuerte). Suelo desde 3.000 €; alcance por escrito.",
+    quoteRemoveFromCatalog: "Retirar del catálogo público",
+    quoteRemoveFromCatalogHint:
+      "Dejamos de ofrecer la obra en la biblioteca pública (suele ir con exclusiva). +250 € sobre el acuerdo.",
     quoteBuyout: "Buyout / sacar la obra del catálogo",
+    quoteBuyoutHint:
+      "Cesión amplia / buyout: la obra sale del catálogo comercial del estudio. Suelo desde 2.990 €.",
+    quoteBuyoutHigh: "Buyout alto / a medida",
+    quoteBuyoutHighHint:
+      "Buyout premium o caso a medida (marca global, forever, multi-obra…). Suelo desde 5.500 €.",
     quoteSpecialLegend: "Presupuesto especial (revisión del estudio)",
     quoteSpecialHelp:
       "Márcalo si tu caso no es un uso de la lista estándar: multi-territorio raro, varias obras, marca global, TV lineal nacional, etc. Entonces no se cierra el precio automático: te lo calculamos a mano.",
@@ -248,7 +274,9 @@ export const translations = {
     usageBrandVideo: "Vídeo de marca / corporativo (1 pieza) — según plazo",
     usageSocialBrand: "Redes de marca (1 campaña orgánica) — según plazo",
     usagePodcastOne: "Podcast: 1 episodio — según plazo (micro 79 € si 1 uso)",
-    usageAdsPaid: "Publicidad / ads de pago — desde ~209 € (plazo + ads)",
+    usageAdsPaid: "Publicidad / ads de pago — desde 209 € (plazo + ads)",
+    usageAdsPaidHint:
+      "No es un descuento de −209 €. El ~ o «desde» significa aproximado/suelo: plazo micro 79 € + suplemento ads 130 € = 209 €. Con plazo 2 años: 169 + 130 = 299 €. El total exacto sale al elegir el plazo abajo.",
     usageGameIndie: "Juego indie (1 título / uso declarado) — según plazo",
     usageGameLiveops: "Juego live-ops / marketing continuo — desde 590 €/año (revisión)",
     usageAppOne: "App móvil / software (1 app, uso fijo) — según plazo",
@@ -510,9 +538,35 @@ export const translations = {
     quoteProjectPh: "Project name, where the music is heard, dates…",
     quoteExtras: "Extras",
     quoteStems: "Stems (separate layers)",
+    quoteStemsHint:
+      "Master as separate layers (e.g. pads, melody, bass) so you can mute, trim or remix in your DAW. Not just a stereo master.",
     quoteEdit: "Short custom edit / trim",
+    quoteEditHint:
+      "A short custom cut or edit (sting, loop, fade) from the work. Not a full new composition.",
+    quoteTermPlus1y: "Extension +1 year",
+    quoteTermPlus1yHint:
+      "Adds one year to the term you chose. +€55 on commercial licenses; +€220 if exclusivity is selected.",
+    quoteTerritoryExpand: "Expand territory / media",
+    quoteTerritoryExpandHint:
+      "More countries or channels than the base use (e.g. ES → EU/worldwide, or add TV/paid media).",
+    quoteMoreComposition: "More composition / custom ½ day",
+    quoteMoreCompositionHint:
+      "Up to about half a day of studio work: variations, arrangement or custom tweaks on the piece.",
     quoteExclusive: "I want exclusivity (not just non-exclusive use)",
+    quoteExclusiveHint:
+      "No one else licenses this work in the agreed scope (territory/term). From €1,200; scope is confirmed in writing.",
+    quoteExclusiveStrong: "Strong multi-media exclusivity",
+    quoteExclusiveStrongHint:
+      "Broad exclusivity (multiple media / strong scope). From €3,000; scope in writing.",
+    quoteRemoveFromCatalog: "Remove from public catalog",
+    quoteRemoveFromCatalogHint:
+      "We stop offering the work in the public library (usually with exclusivity). +€250 on top of the deal.",
     quoteBuyout: "Buyout / remove work from catalog",
+    quoteBuyoutHint:
+      "Broad buyout: work leaves the studio commercial catalog. From €2,990.",
+    quoteBuyoutHigh: "High / custom buyout",
+    quoteBuyoutHighHint:
+      "Premium or custom buyout (global brand, forever, multi-work…). From €5,500.",
     quoteSpecialLegend: "Special quote (studio review)",
     quoteSpecialHelp:
       "Check this if your case is outside the standard list: unusual multi-territory, multiple works, global brand, national linear TV, etc. Then price is not automatic — we quote by hand.",
@@ -536,7 +590,9 @@ export const translations = {
     usageBrandVideo: "Brand / corporate video (1 piece) — by term",
     usageSocialBrand: "Brand social (1 organic campaign) — by term",
     usagePodcastOne: "Podcast: 1 episode — by term (micro €79 if single use)",
-    usageAdsPaid: "Advertising / paid ads — from ~€209 (term + ads)",
+    usageAdsPaid: "Advertising / paid ads — from €209 (term + ads)",
+    usageAdsPaidHint:
+      "Not a −€209 discount. “From” means the floor: micro term €79 + ads uplift €130 = €209. With 2-year term: €169 + €130 = €299. Exact total appears when you pick the term below.",
     usageGameIndie: "Indie game (1 title / declared use) — by term",
     usageGameLiveops: "Live-ops game / ongoing marketing — from €590/yr (review)",
     usageAppOne: "Mobile app / software (1 app, fixed use) — by term",
@@ -790,9 +846,35 @@ export const translations = {
     quoteProjectPh: "Nom du projet, où la musique est entendue, dates…",
     quoteExtras: "Extras",
     quoteStems: "Stems (pistes séparées)",
+    quoteStemsHint:
+      "Master en pistes séparées (pads, mélodie, basse…) pour couper, baisser ou remixer dans votre DAW. Pas seulement le master stéréo.",
     quoteEdit: "Edit / coupe courte sur mesure",
+    quoteEditHint:
+      "Une coupe ou un edit court sur mesure (sting, loop, fade) à partir de l’œuvre. Ce n’est pas une composition neuve entière.",
+    quoteTermPlus1y: "Extension +1 an",
+    quoteTermPlus1yHint:
+      "Ajoute un an à la durée choisie. +55 € sur licence commerciale ; +220 € s’il y a exclusivité.",
+    quoteTerritoryExpand: "Élargir territoire / médias",
+    quoteTerritoryExpandHint:
+      "Plus de pays ou de canaux que l’usage de base (ex. ES → UE/mondial, ou TV/paid media).",
+    quoteMoreComposition: "Plus de composition / custom ½ jour",
+    quoteMoreCompositionHint:
+      "Jusqu’à ~½ jour de travail studio : variations, arrangement ou ajustements sur mesure.",
     quoteExclusive: "Je veux l'exclusivité (pas seulement non exclusif)",
+    quoteExclusiveHint:
+      "Personne d’autre ne licence l’œuvre dans le périmètre convenu. Dès 1 200 € ; périmètre écrit.",
+    quoteExclusiveStrong: "Exclusivité forte multi-supports",
+    quoteExclusiveStrongHint:
+      "Exclusivité large (plusieurs médias / périmètre fort). Dès 3 000 € ; contrat écrit.",
+    quoteRemoveFromCatalog: "Retirer du catalogue public",
+    quoteRemoveFromCatalogHint:
+      "L’œuvre n’est plus proposée dans la bibliothèque publique (souvent avec exclusivité). +250 €.",
     quoteBuyout: "Buyout / retirer l'œuvre du catalogue",
+    quoteBuyoutHint:
+      "Buyout large : l’œuvre sort du catalogue commercial du studio. Dès 2 990 €.",
+    quoteBuyoutHigh: "Buyout haut / sur mesure",
+    quoteBuyoutHighHint:
+      "Buyout premium ou cas sur mesure (marque globale, forever…). Dès 5 500 €.",
     quoteSpecialLegend: "Devis spécial (revue du studio)",
     quoteSpecialHelp:
       "Cochez si votre cas sort de la liste standard : multi-territoire inhabituel, plusieurs œuvres, marque globale, TV nationale, etc. Alors le prix n'est pas automatique.",
@@ -816,7 +898,9 @@ export const translations = {
     usageBrandVideo: "Vidéo de marque / corporate (1 pièce) — selon durée",
     usageSocialBrand: "Réseaux de marque (1 campagne organique) — selon durée",
     usagePodcastOne: "Podcast : 1 épisode — selon durée (micro 79 € si 1 usage)",
-    usageAdsPaid: "Publicité / pubs payantes — dès ~209 € (durée + ads)",
+    usageAdsPaid: "Publicité / pubs payantes — dès 209 € (durée + ads)",
+    usageAdsPaidHint:
+      "Ce n’est pas une remise de −209 €. « Dès » = plancher : micro 79 € + ads 130 € = 209 €. Avec 2 ans : 169 + 130 = 299 €. Le total exact s’affiche en choisissant la durée ci-dessous.",
     usageGameIndie: "Jeu indé (1 titre / usage déclaré) — selon durée",
     usageGameLiveops: "Jeu live-ops / marketing continu — dès 590 €/an (revue)",
     usageAppOne: "App mobile / logiciel (1 app, usage fixe) — selon durée",

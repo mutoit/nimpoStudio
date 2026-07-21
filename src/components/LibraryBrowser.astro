@@ -52,53 +52,62 @@ const usageGroups = [
 const P = LICENSE_PRICES;
 const turnstileSiteKey = (import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || "").trim();
 
-/** Extras del cotizador: título corto + precio a la derecha (listas densas en móvil) */
+/** Extras del cotizador: título + hint (hover/title) + precio */
 const licenseExtras: {
   name: string;
   title: string;
+  hint: string;
   price: string;
 }[] = [
-  { name: "stems", title: t("quoteStems"), price: `+${P.stems} €` },
-  { name: "editShort", title: t("quoteEdit"), price: `+${P.editShort} €` },
+  { name: "stems", title: t("quoteStems"), hint: t("quoteStemsHint"), price: `+${P.stems} €` },
+  { name: "editShort", title: t("quoteEdit"), hint: t("quoteEditHint"), price: `+${P.editShort} €` },
   {
     name: "termPlus1y",
-    title: "Extensión +1 año",
+    title: t("quoteTermPlus1y"),
+    hint: t("quoteTermPlus1yHint"),
     price: `+${P.termPlus1yCommercial} / +${P.termPlus1yExclusive} €`,
   },
   {
     name: "territoryExpand",
-    title: "Ampliar territorio / medios",
+    title: t("quoteTerritoryExpand"),
+    hint: t("quoteTerritoryExpandHint"),
     price: `+${P.territoryExpand} €`,
   },
   {
     name: "moreComposition",
-    title: "Más composición / custom ½ día",
+    title: t("quoteMoreComposition"),
+    hint: t("quoteMoreCompositionHint"),
     price: `+${P.moreComposition} €`,
   },
   {
     name: "exclusive",
     title: t("quoteExclusive"),
-    price: `desde ${P.exclusiveFrom} €`,
+    hint: t("quoteExclusiveHint"),
+    price: `${t("musicLicensePriceFrom")} ${P.exclusiveFrom} €`,
   },
   {
     name: "exclusiveStrong",
-    title: "Exclusiva fuerte multi-medio",
-    price: `desde ${P.exclusiveStrongFrom} €`,
+    title: t("quoteExclusiveStrong"),
+    hint: t("quoteExclusiveStrongHint"),
+    price: `${t("musicLicensePriceFrom")} ${P.exclusiveStrongFrom} €`,
   },
   {
     name: "removeFromCatalog",
-    title: "Retirar del catálogo público",
+    title: t("quoteRemoveFromCatalog"),
+    hint: t("quoteRemoveFromCatalogHint"),
     price: `+${P.removeFromCatalog} €`,
   },
   {
     name: "buyout",
     title: t("quoteBuyout"),
-    price: `desde ${P.buyoutFrom} €`,
+    hint: t("quoteBuyoutHint"),
+    price: `${t("musicLicensePriceFrom")} ${P.buyoutFrom} €`,
   },
   {
     name: "buyoutHigh",
-    title: "Buyout alto / a medida",
-    price: `desde ${P.buyoutHighFrom} €`,
+    title: t("quoteBuyoutHigh"),
+    hint: t("quoteBuyoutHighHint"),
+    price: `${t("musicLicensePriceFrom")} ${P.buyoutHighFrom} €`,
   },
 ];
 
@@ -293,9 +302,17 @@ const payload = {
                         const full = usageLabelMap[u.code] || u.code;
                         const title = full.split("—")[0].split(" - ")[0].trim();
                         const priceMatch = full.match(
-                          /(?:desde|from|dès|~)\s*[\d.,\s]+\s*€[^)]*|micro\s*[\d.,]+\s*€/i,
+                          /(?:desde|from|dès)\s*[\d.,\s]+\s*€[^)]*|micro\s*[\d.,]+\s*€|según plazo|by term|selon durée/i,
                         );
-                        const price = priceMatch ? priceMatch[0].trim() : "según plazo";
+                        const price = priceMatch
+                          ? priceMatch[0].trim()
+                          : lang === "en"
+                            ? "by term"
+                            : lang === "fr"
+                              ? "selon durée"
+                              : "según plazo";
+                        const hint =
+                          u.code === "ads_paid" ? t("usageAdsPaidHint") : full;
                         return (
                           <button
                             type="button"
@@ -305,6 +322,7 @@ const payload = {
                             data-value={u.code}
                             data-title={title}
                             data-price={price}
+                            title={hint}
                           >
                             <span class="lb__usage-row-title">{title}</span>
                             <span class="lb__usage-row-price">{price}</span>
@@ -410,9 +428,14 @@ const payload = {
               <legend>{t("quoteExtras")}</legend>
               {
                 licenseExtras.map((ex) => (
-                  <label class="lb__opt">
+                  <label class="lb__opt" title={ex.hint}>
                     <input type="checkbox" name={ex.name} value="1" data-lb-flag />
-                    <span class="lb__opt-title">{ex.title}</span>
+                    <span class="lb__opt-title">
+                      {ex.title}
+                      <span class="lb__opt-help" aria-hidden="true" title={ex.hint}>
+                        ?
+                      </span>
+                    </span>
                     <span class="lb__opt-price">{ex.price}</span>
                   </label>
                 ))
@@ -1500,6 +1523,23 @@ const payload = {
     accent-color: #c9a962;
     border: none;
     background: transparent;
+  }
+  .lb__opt-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.35rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    color: #c9a962;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: help;
+    flex-shrink: 0;
   }
   .lb__opt-title {
     min-width: 0;

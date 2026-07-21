@@ -752,9 +752,13 @@ export function bindLibraryBrowser() {
           mixer.innerHTML = item.stems
             .map((s) => {
               const src = escapeHtml(safeMediaUrl(s.src));
-              return `<label class="lb__mix-row" title="Clic derecho: solo esta capa · otra vez: todas"><input type="checkbox" checked data-stem-src="${src}" /> <span class="lb__mix-label">${escapeHtml(s.label)}</span></label>`;
+              return `<label class="lb__mix-row" title="Ctrl+clic: solo esta capa · otra vez: todas"><input type="checkbox" checked data-stem-src="${src}" /> <span class="lb__mix-label">${escapeHtml(s.label)}</span></label>`;
             })
             .join("");
+          mixer.insertAdjacentHTML(
+            "beforeend",
+            `<p class="lb__mix-hint" data-lb-mix-hint>Ctrl+clic en una capa: oculta las demás. Ctrl+clic otra vez en la misma: muestra todas.</p>`,
+          );
         }
 
         const licWrap = root.querySelector("[data-lb-lic-wrap]");
@@ -847,7 +851,7 @@ export function bindLibraryBrowser() {
         }
       });
 
-      /** Solo / restore: clic derecho en una capa de stems */
+      /** Solo / restore: Ctrl+clic (Mac: ⌘+clic) en una capa de stems */
       const syncStemSoloUi = () => {
         const checks = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
         const checked = checks.filter((c) => c.checked);
@@ -859,36 +863,41 @@ export function bindLibraryBrowser() {
         });
       };
 
-      root.addEventListener("contextmenu", (e) => {
-        const t = e.target;
-        if (!(t instanceof Element)) return;
-        const row = t.closest(".lb__mix-row");
-        if (!(row instanceof HTMLElement) || !root.contains(row)) return;
-        const input = row.querySelector<HTMLInputElement>("[data-stem-src]");
-        if (!input) return;
-        e.preventDefault();
-        e.stopPropagation();
+      root.addEventListener(
+        "click",
+        (e) => {
+          if (!(e.ctrlKey || e.metaKey)) return;
+          const t = e.target;
+          if (!(t instanceof Element)) return;
+          const row = t.closest(".lb__mix-row");
+          if (!(row instanceof HTMLElement) || !root.contains(row)) return;
+          const input = row.querySelector<HTMLInputElement>("[data-stem-src]");
+          if (!input) return;
+          e.preventDefault();
+          e.stopPropagation();
 
-        const all = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
-        if (all.length < 2) return;
+          const all = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
+          if (all.length < 2) return;
 
-        const checkedCount = all.filter((c) => c.checked).length;
-        const isSoloThis = input.checked && checkedCount === 1;
+          const checkedCount = all.filter((c) => c.checked).length;
+          // Solo esta capa ya activa → restaurar todas
+          const isSoloThis = input.checked && checkedCount === 1;
 
-        if (isSoloThis) {
-          // Segundo clic derecho: volver a activar el resto
-          all.forEach((c) => {
-            c.checked = true;
-          });
-        } else {
-          // Primer clic derecho: solo esta capa (las demás off)
-          all.forEach((c) => {
-            c.checked = c === input;
-          });
-        }
-        syncStemSoloUi();
-        onStemMixChange();
-      });
+          if (isSoloThis) {
+            all.forEach((c) => {
+              c.checked = true;
+            });
+          } else {
+            // Incluye “todas off”: activa solo esta y oculta el resto
+            all.forEach((c) => {
+              c.checked = c === input;
+            });
+          }
+          syncStemSoloUi();
+          onStemMixChange();
+        },
+        true,
+      );
 
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
       let seekDragging = false;

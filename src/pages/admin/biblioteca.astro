@@ -1059,6 +1059,7 @@ import Layout from "../../components/Layout.astro";
       renderStems();
       paintMediaStatus(null);
       setChannel("video");
+      rebuildMoodPick({ selected: [], filters: [] });
       return;
     }
 

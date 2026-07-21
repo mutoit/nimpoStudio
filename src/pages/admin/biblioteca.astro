@@ -120,9 +120,10 @@ import Layout from "../../components/Layout.astro";
         <div class="mix-preview" data-mix-preview>
           <p class="mix-preview__title">Escuchar mezcla (audio + ruido)</p>
           <p class="mix-protect" role="note">
-            El ruido se pone <strong>a propósito para proteger el audio</strong> en la web. El
-            visitante oirá esa mezcla (no el master limpio). En <strong>stems</strong> se incrusta
-            al publicar; en vídeo es solo referencia de escucha.
+            El <strong>Play aquí</strong> usa stems <strong>limpios</strong> + el ruido del
+            slider (no el archivo ya guardado con ruido). Al publicar se guardan dos copias:
+            limpia (solo admin) y con ruido (visitantes). Si la ficha es antigua sin copia limpia,
+            arrastra los stems una vez y guarda.
           </p>
           <p class="hint">
             Ajusta volúmenes y dale a play hasta que el balance te convenza, luego publica.
@@ -615,26 +616,39 @@ import Layout from "../../components/Layout.astro";
     setMixMsg("Cargando…");
     try {
       if (channel === "stems") {
+        // Preferir archivos locales limpios (recién arrastrados)
         const files = stemRows.map((r) => r.file).filter((f): f is File => !!f);
         if (files.length) {
           await mixPreview.playStems(files);
           setMixMsg(
-            `Local · ${files.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+            `Stems limpios (local) · ${files.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
           );
           return;
         }
-        // Edición: stems ya en servidor
+        // Edición: preferir cleanSrc (sin ruido); fallback a src ruidoso con aviso
+        type ServerStem = { src?: string; cleanSrc?: string };
         const serverStems = Array.isArray(editingItem?.stems)
-          ? (editingItem!.stems as { src?: string }[])
+          ? (editingItem!.stems as ServerStem[])
           : [];
-        const urls = serverStems.map((s) => String(s.src || "")).filter(Boolean);
-        if (!urls.length) {
+        const cleanUrls = serverStems
+          .map((s) => String(s.cleanSrc || "").trim())
+          .filter(Boolean);
+        const noisyUrls = serverStems.map((s) => String(s.src || "").trim()).filter(Boolean);
+        if (cleanUrls.length) {
+          await mixPreview.playStemUrls(cleanUrls);
+          setMixMsg(
+            `Stems limpios (servidor) · ${cleanUrls.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+          );
+          return;
+        }
+        if (!noisyUrls.length) {
           setMixMsg("No hay stems locales ni en servidor. Arrastra audio o elige otra ficha.", true);
           return;
         }
-        await mixPreview.playStemUrls(urls);
+        await mixPreview.playStemUrls(noisyUrls);
         setMixMsg(
-          `Servidor · ${urls.length} capa(s) · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% (solo escucha; para grabar nuevo ruido re-sube o usa re-mezcla al publicar stems nuevos)`,
+          `⚠ Solo hay stems CON RUIDO guardados (publicación antigua). Arrastra los limpios una vez y guarda: a partir de ahí el Play usará limpios y podrás re-mezclar ruido.`,
+          true,
         );
       } else {
         const vInput = document.querySelector<HTMLInputElement>("[data-video-file]");
@@ -862,13 +876,21 @@ import Layout from "../../components/Layout.astro";
     }
 
     // Canal stems — audio
+    const stemsArr = Array.isArray(item?.stems) ? (item.stems as { cleanSrc?: string }[]) : [];
+    const cleanCount = stemsArr.filter((s) => s && s.cleanSrc).length;
     if (stemNames.length) {
+      const cleanNote =
+        cleanCount === stemNames.length
+          ? `Play del admin usa stems limpios (${cleanCount}). Visitantes oyen la versión con ruido.`
+          : cleanCount > 0
+            ? `Solo ${cleanCount}/${stemNames.length} tienen copia limpia. Arrastra de nuevo los que falten para re-mezclar sin ruido doble.`
+            : `⚠ Sin copia limpia (publicación antigua). Arrastra los stems limpios una vez y guarda: el Play dejará de oír ruido doble.`;
       setMediaBanner(
         "[data-status-stems]",
         true,
         `<strong>✓ ${stemNames.length} stem(s) en servidor</strong><br/><span>${stemNames.join(" · ")}</span>` +
-          `<br/><span class="media-status__note">Se conservan al guardar. Solo arrastra archivos nuevos si quieres reemplazarlos (con ruido).</span>`,
-        true,
+          `<br/><span class="media-status__note">${cleanNote}</span>`,
+        cleanCount > 0,
       );
     } else {
       setMediaBanner(
@@ -1229,13 +1251,16 @@ import Layout from "../../components/Layout.astro";
           let n = 0;
           for (const row of withFile) {
             if (!row.file) continue;
-            let file = row.file;
+            // Original limpio → admin preview / re-mezcla futura
+            body.set(`stem_${n}_clean`, row.file, row.file.name);
+            let baked = row.file;
             try {
-              file = await bakePreviewNoise(row.file, noise01, music01);
+              baked = await bakePreviewNoise(row.file, noise01, music01);
             } catch (err) {
               console.warn("[bake noise]", err);
             }
-            body.set(`stem_${n}_file`, file, file.name);
+            // Con ruido → catálogo público
+            body.set(`stem_${n}_file`, baked, baked.name);
             body.set(`stem_${n}_label`, row.label || row.file.name);
             n++;
           }

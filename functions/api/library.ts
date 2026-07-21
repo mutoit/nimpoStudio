@@ -56,7 +56,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
-  const items = sanitizeCatalogItems(raw);
+  // Público: solo stems con ruido (sin cleanSrc)
+  const items = sanitizeCatalogItems(raw, { stripCleanSrc: true });
 
   return json({
     ok: true,

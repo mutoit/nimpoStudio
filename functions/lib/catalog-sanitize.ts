@@ -65,7 +65,11 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
       if (!src) return null;
       const label = clipText(st.label || `Stem ${i + 1}`, 80);
       const sid = safeName(String(st.id || label)) || `stem-${i + 1}`;
-      return { id: sid, label, src };
+      // cleanSrc = original sin ruido (solo admin re-mezcla / preview limpio)
+      const cleanSrc = safeMediaUrlField(st.cleanSrc) || undefined;
+      return cleanSrc
+        ? { id: sid, label, src, cleanSrc }
+        : { id: sid, label, src };
     })
     .filter(Boolean);
 
@@ -101,11 +105,28 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
 
 export function sanitizeCatalogItems(
   items: unknown[],
-  opts?: { includeOffCatalog?: boolean },
+  opts?: { includeOffCatalog?: boolean; stripCleanSrc?: boolean },
 ): Record<string, unknown>[] {
   if (!Array.isArray(items)) return [];
   return items
     .map(sanitizeCatalogItem)
     .filter((x): x is Record<string, unknown> => x != null)
-    .filter((x) => opts?.includeOffCatalog || x.availability !== "off_catalog");
+    .filter((x) => opts?.includeOffCatalog || x.availability !== "off_catalog")
+    .map((item) => (opts?.stripCleanSrc ? stripCleanSrcFromItem(item) : item));
+}
+
+/** Público: no exponer stems limpios (solo preview con ruido). */
+export function stripCleanSrcFromItem(
+  item: Record<string, unknown>,
+): Record<string, unknown> {
+  const stems = item.stems;
+  if (!Array.isArray(stems)) return item;
+  return {
+    ...item,
+    stems: stems.map((s) => {
+      if (!s || typeof s !== "object") return s;
+      const { cleanSrc: _c, ...rest } = s as Record<string, unknown>;
+      return rest;
+    }),
+  };
 }

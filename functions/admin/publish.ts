@@ -46,7 +46,8 @@ type Env = AdminEnv & {
   RATE_LIMIT_KV?: RateLimitKv;
 };
 
-type StemItem = { id: string; label: string; src: string };
+/** src = preview público (con ruido bake). cleanSrc = original limpio (admin). */
+type StemItem = { id: string; label: string; src: string; cleanSrc?: string };
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -193,6 +194,7 @@ export async function onRequest(context: {
 
       const stemItems: StemItem[] = [];
       for (let i = 0; i < MAX_STEMS; i++) {
+        // stem_i_file = con ruido (público). stem_i_clean = original limpio (admin preview).
         const f = form.get(`stem_${i}_file`);
         if (!(f instanceof File) || !f.size) continue;
         if (stemItems.length >= MAX_STEMS) throw new Error("too_many_stems");
@@ -202,15 +204,25 @@ export async function onRequest(context: {
         );
         const id = safeSlug(label, `stem-${i + 1}`);
         const src = await putFile(`stem_${i}`, f, "audio", `${slug}-${id}`);
-        stemItems.push({ id, label, src });
+        const cleanFile = form.get(`stem_${i}_clean`);
+        let cleanSrc: string | undefined;
+        if (cleanFile instanceof File && cleanFile.size > 0) {
+          cleanSrc = await putFile(
+            `stem_${i}_clean`,
+            cleanFile,
+            "audio",
+            `${slug}-${id}-clean`,
+          );
+        }
+        stemItems.push(cleanSrc ? { id, label, src, cleanSrc } : { id, label, src });
       }
       if (stemItems.length) {
-        // Nuevos stems → sustituyen la lista (con ruido bake en cliente)
+        // Nuevos stems → sustituyen la lista
         stems = stemItems;
       } else if (!stems?.length) {
         return json({ ok: false, error: "missing_stems" }, 400);
       }
-      // si no hay stems nuevos y ya había: se conservan
+      // si no hay stems nuevos y ya había: se conservan (incl. cleanSrc si existía)
     }
 
     const item = {

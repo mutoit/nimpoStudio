@@ -1,7 +1,7 @@
 # Plan de implementación — Biblioteca + licencias (completo)
 
-**Estado:** plan aprobado por dirección de producto (conversación 2026-07-20).  
-**Criterio de precios:** media de mercado de **librerías stock / indie direct** tirando **~10 % hacia abajo**. No competir con deals de TV mid-tier ($5k–50k); competir con **stock premium + sync indie barato**.
+**Estado:** plan de producto + **canon precios 2026-07-21** (crítica mercado adoptada).  
+**Criterio de precios:** baja entrada (micro **79 €**) + lista comercial **169 €** + premium real (exclusiva **1.200+**, buyout **2.990+**). Calculadora por uso/plazo; no un solo precio plano. Detalle: `00-PRECIOS-REFERENCIA.md`.
 
 ---
 
@@ -12,52 +12,49 @@
 3. Preview de audio/vídeo también **dentro del modal**.  
 4. Exclusiva: opción **no disponible / vendido / fuera de catálogo**.  
 5. **Extras con precio** en el formulario (extensión, más composición, etc.).  
-6. Precios **conservadores** (no perder ventas por caro).
+6. Precios **escalonados** (volumen micro + margen alto en exclusiva/ads).
 
 ---
 
-## 1. Precios propuestos (conservadores)
+## 1. Precios (canon actual)
 
 ### 1.1 Referencias de mercado (resumen)
 
 | Fuente / contexto | Rango típico |
 |-------------------|--------------|
-| Stock (AudioJungle standard / PremiumBeat single) | ~15–200 USD por uso RF no exclusivo |
-| Sync indie / web commercial pequeño (Reddit / guías 2025) | ~500–5.000 USD según alcance |
-| TV mid-tier | 5.000–50.000 USD (fuera de nuestro posicionamiento) |
-| Beats exclusive (UK/EU indie) | ~500–5.000 GBP |
+| Stock (AudioJungle / PremiumBeat / Pond5 single) | ~15–200 USD/EUR RF |
+| Sync indie / placements | ~250–2.500 €; film 500–5k USD |
+| Ads local/regional | 1k–15k+ USD |
+| TV / SVOD background | 2k–25k USD |
+| Exclusivas / buyouts | premium alto |
 
-**Posicionamiento Nimpo:** por debajo del “sync indie medio”, un poco por encima del stock barato (obra original + stems + trato humano).
+**Posicionamiento Nimpo:** por encima del stock barato (MIDI manual, stems, clearance directo); por debajo del sync mid-tier TV $5k–50k.
 
-### 1.2 Anclas a implementar (EUR, sin IVA)
+### 1.2 Anclas en código (EUR, sin IVA) — 2026-07-21
 
-| Concepto | Antes | **Nuevo (conservador)** | Notas |
-|----------|-------|-------------------------|--------|
-| Comercial estándar (1 obra, 1 proyecto, no exclusiva, 2 años) | 290 € | **179 €** | ~media stock premium / indie bajo |
-| + Stems | +100 | **+59 €** → **238 €** | |
-| + Edit / recorte corto (~1 h) | +80 | **+49 €** | |
-| Pack ads (base + ads campaña ref.) | 590 | **329 €** (179+150) | ads uplift **+150 €** |
-| Tema extra mismo proyecto | −20 % | **143 €** (80 % de 179) | |
-| Exclusiva “blanda” (1 medio / 1 año, sigue visible como no disponible) | desde 1.800 | **desde 890 €** | |
-| Exclusiva + **retirar del catálogo** | — | **+190 €** → **desde 1.080 €** | o tramo único 1.080 |
-| Buyout / forever + fuera catálogo | desde 5.000 | **desde 2.490 €** | |
-| Extensión +1 año (comercial no exclusivo) | — | **+59 €** | extra formulario |
-| Extensión +1 año (sobre exclusiva) | — | **+190 €** | |
-| Ampliación territorio / medios (exclusiva) | — | **+149 €** | |
-| Más composición / custom (hasta ~½ día) | — | **+149 €** | si más → revisión |
-| Stems master “limpios” (extra calidad) | — | **+39 €** | si no van en base |
+| Concepto | Valor | Notas |
+|----------|-------|--------|
+| Micro / un solo uso | **79 €** | Volumen vs stock |
+| Comercial 1 año / proyecto / 2 años | **129 / 159 / 169 €** | Lista 2y = 169 |
+| + Stems / edit | **+59 / +49 €** | |
+| Pack ads (2y) | **299 €** (169+130) | uplift **+130 €** |
+| Tema extra mismo proyecto | ×0,8 (−20 %) | rango mercado −15–25 % |
+| Exclusiva 2y media/territorio | **desde 1.200 €** | single 890 · 1y 1.100 |
+| + retirar catálogo | **+250 €** | |
+| Buyout | **desde 2.990 €** | |
+| Indie pro / SaaS anual (suelos revisión) | **390 · 590 €** | |
+| Custom ½ día | **+199 €** | |
 
-**Regla de oro:** si la media que veas en el mercado es X, en catálogo pon **≈ 0,9 × X**. Revisar tras 5–10 ventas reales.
+**Regla:** revisar tras 5–10 ventas o A/B ~4 semanas. Fuente: `LICENSE_PRICES`.
 
 ### 1.3 Archivos a tocar por precios
 
-- [x] `src/lib/license-quote.ts` → `LICENSE_PRICES` + lógica extras  
-- [x] `functions/lib/license-quote.ts` → **misma** lógica (sync)  
-- [ ] `docs/licencias/00-PRECIOS-REFERENCIA.md` (parcial; ver TABLA-RAPIDA)  
+- [x] `src/lib/license-quote.ts` + `functions/lib/license-quote.ts`  
+- [x] `docs/licencias/00-PRECIOS-REFERENCIA.md`  
 - [x] `docs/licencias/TABLA-RAPIDA-PRECIOS.md`  
-- [ ] `docs/licencias/plantilla-comercial.md` / `plantilla-exclusiva.md` (cifras)  
-- [x] `music.json` `priceFrom` 179 / 890  
-- [x] i18n textos de “desde X €”
+- [x] plantillas comercial / exclusiva  
+- [x] `music.json` `priceFrom` 169 / 1.200  
+- [x] i18n es/en/fr
 
 ---
 
@@ -135,7 +132,7 @@ Todos como **checkboxes** (o select cantidad) que suman al total o marcan revisi
 | `edit_short` | +49 € | Instant |
 | `ads_uplift` | +150 € (o usage ads_paid) | Instant |
 | `term_plus_1y` | +59 € (comercial) / +190 € (si exclusiva) | Instant |
-| `exclusive_soft` | base 890 € | Review o instant “desde” |
+| `exclusive_soft` | base 1.200 € (2y) / 890 single | Instant exclusiva o “desde” |
 | `remove_from_catalog` | +190 € (con exclusiva) | Instant add-on |
 | `territory_expand` | +149 € | Instant o review si multi-global |
 | `more_composition` | +149 € | Instant; si “más de ½ día” → special |
@@ -254,20 +251,20 @@ Actualizar:
 
 ---
 
-## 13. Aprobación de precios
+## 13. Aprobación de precios (canon 2026-07-21)
 
-Antes de codificar Sprint B, confirmar mentalmente:
+| | Estado |
+|--|--------|
+| Micro **79 €** | Adoptado |
+| Comercial 2 años **169 €** | Adoptado |
+| Ads pack 2y **299 €** (169+130) | Adoptado |
+| Exclusiva desde **1.200 €** (+250 retirar) | Adoptado |
+| Buyout desde **2.990 €** | Adoptado |
+| Calculadora dinámica uso+plazo | En código |
+| Docs unificados | 00-PRECIOS + TABLA-RAPIDA + plantillas + i18n |
 
-| | ¿OK? |
-|--|------|
-| Comercial **179 €** | |
-| Ads pack **329 €** | |
-| Exclusiva desde **890 €** (+190 retirar catálogo) | |
-| Buyout desde **2.490 €** | |
-| Extras extensión / composición con € en form | |
-
-Si quieres aún más barato: comercial **149 €**, ads **299 €**, exclusiva **790 €**.
+Revisar tras 5–10 ventas reales o A/B ~4 semanas.
 
 ---
 
-*Plan único de referencia · no implementar a medias · actualizar este doc si se cambia un precio o un DoD*
+*Plan de referencia · actualizar este doc si se cambia un precio o un DoD*

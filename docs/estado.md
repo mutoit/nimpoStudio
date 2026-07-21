@@ -167,7 +167,7 @@ No editar `library.json` a mano salvo semilla local o fallback.
 ## Historial reciente (producto)
 
 - **Hardening seguridad (ola 7 puntos):** XSS catálogo, allowlist subidas, sesión ≠ password, cuotas, upload 410, quote anti-spam, Access/Turnstile docs
-- Biblioteca densa + stems + cotizador de licencias (precios conservadores)
+- Biblioteca densa + stems + cotizador de licencias (canon 2026: micro 79 · comercial 169 · ads 299 · exclusiva 1.200 · buyout 2.990)
 - Admin cookie + rate limits; endurecimiento auth (sin JWT spoof)
 - R2 `nimpo-library` + **Publicar en la web** (media + catálogo vivo)
 - `GET /api/library` — front sin redeploy al publicar

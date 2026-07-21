@@ -7,7 +7,10 @@
 **Proyecto:** [ ]  
 **Referencia:** LIC-EXC-[AÑO]-[NÚMERO]
 
-**Tarifa mínima de referencia del estudio:** **desde 1.800 €** (el precio final es el pactado abajo).
+**Tarifa mínima de referencia del estudio (2026):**  
+exclusiva un solo uso **890 €** · 1 año **1.100 €** · media/territorio 2 años **desde 1.200 €** ·  
++ retirar catálogo **+250 €** · buyout **desde 2.990 €** · exclusiva fuerte multi-medio **3.000–6.000 €+**.  
+El precio final es el pactado abajo.
 
 ---
 
@@ -28,6 +31,7 @@ El Licenciante concede licencia **exclusiva** en el alcance de la cláusula 3. D
 | Territorio | [ ] |
 | Plazo | Desde [fecha] hasta [fecha] ( [ ] renovable ) |
 | Buyout indefinido | [ ] No / [ ] Sí (precio superior) |
+| Retirada catálogo público | [ ] No / [ ] Sí (+250 € ref.) |
 | Obras cubiertas | [1 tema / varias: ___] |
 | Custom / stems / partitura | [detalle] |
 
@@ -36,41 +40,18 @@ El Licenciante concede licencia **exclusiva** en el alcance de la cláusula 3. D
 | Concepto | Importe |
 |----------|---------|
 | Fee de exclusividad / licencia | ___ € |
-| Custom / producción extra | ___ € |
+| Retirada catálogo | ___ € |
+| Custom / stems / producción extra | ___ € |
 | **Total** | **___ €** |
 
-Calendario: **50 %** a la firma · **50 %** a entrega de masters (salvo pacto).  
-Impuestos: [ ].
+Pago: [ ] 100 % prepago · [ ] 50/50 (50 % al firmar, 50 % antes de master).  
+Sin pago no hay entrega ni embargo efectivo.
 
-## 5. Entrega
+## 5. Catálogo
 
-Formatos: [WAV, stems, video ref…]. Plazo de entrega: [ ].  
-Previews web no son entrega contractual.
+Durante la exclusiva: [ ] visible como no disponible · [ ] retirada del catálogo público.
 
-## 6. Derechos morales y crédito
+## 6. Aceptación
 
-Crédito: [texto acordado] / [omitido por fee].  
-El Licenciante conserva la autoría; no se cede el copyright salvo que se pacte **cesión** en documento aparte (no es el caso por defecto).
-
-## 7. Usos prohibidos del Licenciatario
-
-Fuera del alcance de la cláusula 3; reventa como librería; afirmar autoría creativa de la composición.
-
-## 8. Incumplimiento
-
-Cese, daños y perjuicios, y/o resolución. La exclusividad no se mantiene si el Licenciatario no paga.
-
-## 9. Confidencialidad
-
-[Opcional: cláusulas de NDA mutuo sobre el fee y el brief.]
-
-## 10. Ley y firma
-
-Ley: [España]. Firma manuscrita o electrónica cualificada/avanzada (DocuSign u equivalente) **recomendada**.
-
-| | Licenciante | Licenciatario |
-|--|-------------|---------------|
-| Nombre | | |
-| Cargo | | |
-| Fecha | | |
-| Firma | | |
+Licenciatario: _________________ Fecha: _______  
+Licenciante: _________________ Fecha: _______

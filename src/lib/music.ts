@@ -82,8 +82,8 @@ const DEFAULT_LICENSE: MusicLicense = {
   contactOnly: true,
   tiers: [
     { id: "personal", requestOnly: true, pricing: "request" },
-    { id: "commercial", priceFrom: "290 €", pricing: "fixed" },
-    { id: "exclusive", priceFrom: "1.800 €", pricing: "from" },
+    { id: "commercial", priceFrom: "169 €", pricing: "fixed" },
+    { id: "exclusive", priceFrom: "1.200 €", pricing: "from" },
   ],
 };
 
@@ -243,18 +243,18 @@ function licenseEmailBody(
     return (byLang[lang] ?? byLang.es).join("\n");
   }
 
-  // commercial (default) or unspecified — list price 290 € (see docs/licencias)
+  // commercial (default) or unspecified — list price 169 € (see docs/licencias)
   const tierLine =
     tierId === "commercial"
       ? {
-          es: "Licencia: Comercial / sync — tarifa lista 290 € (no exclusiva, 1 proyecto).",
-          en: "License: Commercial / sync — list price €290 (non-exclusive, 1 project).",
-          fr: "Licence : Commercial / sync — prix catalogue 290 € (non exclusif, 1 projet).",
+          es: "Licencia: Comercial / sync — tarifa lista 169 € (2 años; micro 79 €; no exclusiva, 1 proyecto).",
+          en: "License: Commercial / sync — list price €169 (2y; micro €79; non-exclusive, 1 project).",
+          fr: "Licence : Commercial / sync — prix catalogue 169 € (2 ans ; micro 79 € ; non exclusif, 1 projet).",
         }[lang]
       : {
-          es: "Licencia de interés: (personal / comercial 290 € / exclusiva desde 1.800 €)",
-          en: "License of interest: (personal / commercial €290 / exclusive from €1,800)",
-          fr: "Licence souhaitée : (personnel / commercial 290 € / exclusif dès 1 800 €)",
+          es: "Licencia de interés: (personal / comercial 169 € / micro 79 € / exclusiva desde 1.200 €)",
+          en: "License of interest: (personal / commercial €169 / micro €79 / exclusive from €1,200)",
+          fr: "Licence souhaitée : (personnel / commercial 169 € / micro 79 € / exclusif dès 1 200 €)",
         }[lang];
 
   const byLang: Record<Locale, string[]> = {

@@ -34,7 +34,8 @@ El Licenciante concede al Licenciatario una licencia **no exclusiva**, **no tran
 
 ## 5. Precio
 
-**[ 0 € con crédito ]** / **[ 49 € ]** / **[ otro: ___ € ]**  
+**[ 0 € con crédito ]** / **[ hasta 49 € ]** / **[ otro: ___ € ]**  
+Si hay marca, monetización o cliente → **no aplica personal**; usar plantilla comercial (desde **79 €** micro / **169 €** lista).  
 Forma de pago: [transferencia / PayPal / otro] — **[si 0 €: no aplica]**.
 
 ## 6. Crédito

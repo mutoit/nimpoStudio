@@ -10,7 +10,9 @@
 **Proyecto autorizado:** [NOMBRE DEL PROYECTO]  
 **Referencia:** LIC-COM-[AÑO]-[NÚMERO]
 
-**Tarifa de lista del estudio (referencia 2026):** comercial base **290 €** · + stems **+100 €** · + ads ampliada **+300 €**.
+**Tarifa de lista del estudio (referencia 2026):**  
+micro **79 €** · 1 año **129 €** · proyecto **159 €** · 2 años **169 €** ·  
++ stems **+59 €** · + edit **+49 €** · + ads **+130 €** (pack 2y **299 €**).
 
 ---
 
@@ -22,75 +24,45 @@ La Obra es **composición original** del Licenciante (MIDI / producción de estu
 
 Licencia **no exclusiva**, **no transferible** salvo al productor/distribuidor del Proyecto autorizado, **no sublicenciable** como librería de audio, para sincronizar y comunicar públicamente la Obra **únicamente** en el Proyecto indicado.
 
-## 3. Alcance estándar (tarifa 290 €)
+## 3. Alcance (marcar plazo contratado)
 
 | Concepto | Valor |
 |----------|--------|
 | Obras cubiertas | 1 (la indicada) |
 | Proyectos | 1 (el indicado) |
 | Exclusividad | No |
-| Territorio | Mundial |
-| Plazo | 2 años desde la fecha de esta licencia (renovable por escrito) |
-| Medios incluidos | Proyección, online, redes del Proyecto, festivales, trailer del Proyecto |
+| Territorio | Mundial (en el marco del Proyecto) |
+| Plazo | [ ] Micro / un solo uso · [ ] 1 año · [ ] Vida del proyecto · [ ] 2 años desde la fecha |
+| Medios incluidos | Según plazo: online, redes del Proyecto, festivales, trailer del Proyecto; ads solo si add-on ads |
 | Entrega base | Master estéreo WAV (o formato acordado) |
 
 ### Add-ons contratados (marcar)
 
-- [ ] **Stems** (+100 €) — entrega de capas según acuerdo  
-- [ ] **Edit / recorte a medida** (+80 €)  
-- [ ] **Ads / campaña de pago ampliada** (+300 €) — vuelo publicitario multi-canal de la marca del Proyecto, hasta 6 meses  
-- [ ] Otros: _______________ (+ ___ €)
+- [ ] **Stems** (+59 €) — entrega de capas según acuerdo  
+- [ ] **Edit / recorte a medida** (+49 €)  
+- [ ] **Ads / campaña de pago** (+130 €)  
+- [ ] **Más composición / custom ½ día** (+199 €)  
+- [ ] **Extensión +1 año** (+55 €)
 
-## 4. Precio total
+## 4. Precio
 
 | Concepto | Importe |
 |----------|---------|
-| Comercial base | 290 € |
+| Base (plazo marcado) | ___ € |
 | Add-ons | ___ € |
-| **Total** | **___ €** |
+| **Total (sin IVA)** | **___ €** |
 
-Impuestos: [incluidos / + IVA ___ %].  
-Pago: [100 % antes de entrega] / [50 % reserva + 50 % entrega].  
-Cuenta / método: [ ].
+Pago **antes** de la entrega del master/stems. Previews web no otorgan derechos.
 
-## 5. Usos prohibidos
+## 5. Crédito
 
-- Usar la Obra en un **proyecto distinto** del autorizado.  
-- Reventa del audio, packs, “music libraries”, NFTs del master sin acuerdo.  
-- Exclusividad o bloqueo de catálogo (requiere licencia exclusiva).  
-- Presentar la Obra como creación del Licenciatario.  
-- Usar **previews web** (con ruido/degradado) como master final.
+Recomendado: `Music: [título] — Nimpo 3D Studio`.
 
-## 6. Crédito
+## 6. Prohibiciones
 
-Salvo ads donde la marca lo impida por formato:  
-`Music: [TÍTULO] — Nimpo 3D Studio / [URL del estudio si se acuerda]`
+Reventa como stock/librería; sublicencia genérica; uso fuera del Proyecto o plazo; exclusividad no contratada.
 
-## 7. Entrega y previews
+## 7. Aceptación
 
-Entrega de calidad **solo tras** firma/aceptación de esta licencia y **pago** según lo pactado.  
-Los archivos del sitio nimpo3dstudio.com son **previews protegidos** y no otorgan derechos de uso.
-
-## 8. Garantías y responsabilidad
-
-El Licenciante garantiza ser titular de los derechos necesarios para conceder esta licencia sobre la composición en los términos anteriores.  
-Salvo dolo, la responsabilidad total del Licenciante se limita al importe pagado por esta licencia.
-
-## 9. Resolución
-
-Incumplimiento grave → resolución y cese de uso; no implica reembolso automático si ya hubo uso público, sin perjuicio de acciones legales.
-
-## 10. Ley aplicable
-
-[España / CCAA acordada]. Juzgados de [ciudad].
-
-## 11. Aceptación
-
-| | Licenciante | Licenciatario |
-|--|-------------|---------------|
-| Nombre | | |
-| Cargo | | |
-| Fecha | | |
-| Firma | | |
-
-**Aceptación electrónica válida:** respuesta afirmativa al email que adjunta esta licencia + comprobante de pago del Total.
+Licenciatario: _________________ Fecha: _______  
+Licenciante: _________________ Fecha: _______

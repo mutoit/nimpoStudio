@@ -1,9 +1,13 @@
 /**
  * Calculadora de presupuestos de licencia.
- * Precios: docs/licencias/PLAN-BIBLIOTECA-Y-PRECIOS.md (conservadores, media baja).
+ * Canon precios 2026: docs/licencias/00-PRECIOS-REFERENCIA.md + TABLA-RAPIDA.
+ * Crítica mercado adoptada: entrada baja (micro 79) + premium real (exclusiva/buyout) +
+ * ads uplift; no un solo “comercial” plano que pierde volumen y techo.
  *
- * El plazo SÍ mueve el precio (un solo uso < 1 año < proyecto < 2 años).
+ * El plazo SÍ mueve el precio (micro/single < 1 año < proyecto < 2 años).
  * La duración del audio (20 s vs 3 min) NO rebaja el fee: se cobra el uso, no el minutaje.
+ *
+ * Mantener en sync: functions/lib/license-quote.ts (misma lógica).
  */
 
 export type LicenseUsageCode =
@@ -68,34 +72,43 @@ export type LicenseQuoteResult = {
 };
 
 /**
- * Anclas conservadoras (media baja). EUR sin IVA.
- * Comercial “catálogo” = 2 años. Plazos más cortos = menos €.
+ * Anclas EUR sin IVA (2026) — punto fijo de rangos de mercado adoptados.
+ * Single/micro 79–99 · comercial 149–169 · ads 249–329 · exclusiva media 1.200–2.500 ·
+ * buyout 2.990–5.500 · personal 0–49.
  */
 export const LICENSE_PRICES = {
-  /** 2 años — tarifa de lista estándar */
-  commercialBase: 179,
-  /** Un solo uso (1 entrega / 1 post / 1 vuelo declarado) */
-  singleUse: 99,
+  /** Micro / sting / 1 post orgánico hobby / 1 ep podcast / splash */
+  singleUse: 79,
   /** 1 año calendario */
-  term1y: 139,
+  term1y: 129,
   /** Vida del proyecto nombrado (1 obra en ese proyecto) */
   termProject: 159,
+  /** 2 años — lista estándar catálogo */
+  commercialBase: 169,
   stems: 59,
   editShort: 49,
-  adsUplift: 150,
-  exclusiveFrom: 890,
-  /** Exclusiva 1 año / un solo uso / proyecto (suelos) */
-  exclusive1y: 790,
-  exclusiveSingle: 690,
-  exclusiveProject: 840,
-  removeFromCatalog: 190,
-  termPlus1yCommercial: 59,
-  termPlus1yExclusive: 190,
+  /** Sobre base del plazo → pack ads 2y = 169+130 = 299 */
+  adsUplift: 130,
+  /** Exclusiva media/territorio · 2 años (suelo) */
+  exclusiveFrom: 1200,
+  exclusive1y: 1100,
+  exclusiveSingle: 890,
+  exclusiveProject: 1200,
+  /** Retirada catálogo (sobre exclusiva) */
+  removeFromCatalog: 250,
+  termPlus1yCommercial: 55,
+  termPlus1yExclusive: 220,
   territoryExpand: 149,
-  moreComposition: 149,
-  buyoutFrom: 2490,
-  personalMax: 39,
+  /** Custom / ½ día composición (+ sync fee si aplica) */
+  moreComposition: 199,
+  buyoutFrom: 2990,
+  personalMax: 49,
+  /** 2.º+ tema mismo proyecto (−20 %; rango mercado −15–25 %) */
   extraTrackFactor: 0.8,
+  /** Suelos revisión (no instant) */
+  indieProFrom: 390,
+  broadcastFrom: 890,
+  saasAnnualFrom: 590,
 } as const;
 
 export type UsageOptionMeta = {
@@ -163,7 +176,7 @@ export function commercialPriceForTerm(term: LicenseTermCode = "2y"): {
     case "single":
       return {
         amount: LICENSE_PRICES.singleUse,
-        label: "Licencia comercial · un solo uso",
+        label: "Licencia micro / un solo uso",
       };
     case "1y":
       return {
@@ -373,10 +386,19 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
   // —— Revisión ——
   if (meta.base === "review" || forceReview) {
     const fromBase = commercialPriceForTerm(term === "custom" ? "2y" : term).amount;
-    const from =
-      meta.base === "ads" || input.usage === "film_feature"
-        ? fromBase + LICENSE_PRICES.adsUplift
-        : fromBase;
+    let from = fromBase;
+    if (input.usage === "film_feature" || input.usage === "series_multi") {
+      from = LICENSE_PRICES.indieProFrom;
+    } else if (input.usage === "game_liveops" || input.usage === "app_saas") {
+      from = LICENSE_PRICES.saasAnnualFrom;
+    } else if (input.usage === "tour_event") {
+      from = LICENSE_PRICES.indieProFrom;
+    } else if (meta.base === "ads" || input.usage === "ads_paid") {
+      from = fromBase + LICENSE_PRICES.adsUplift;
+    } else if (input.usage === "other" && input.needSpecialReview) {
+      // broadcast / SVOD / rarezas: suelo alto orientativo
+      from = LICENSE_PRICES.broadcastFrom;
+    }
     return {
       mode: "review",
       currency: "EUR",

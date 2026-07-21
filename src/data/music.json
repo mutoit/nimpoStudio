@@ -28,12 +28,12 @@
         {
           "id": "commercial",
           "pricing": "fixed",
-          "priceFrom": "179 €"
+          "priceFrom": "169 €"
         },
         {
           "id": "exclusive",
           "pricing": "from",
-          "priceFrom": "890 €"
+          "priceFrom": "1.200 €"
         }
       ]
     },
@@ -107,12 +107,12 @@
         {
           "id": "commercial",
           "pricing": "fixed",
-          "priceFrom": "179 €"
+          "priceFrom": "169 €"
         },
         {
           "id": "exclusive",
           "pricing": "from",
-          "priceFrom": "890 €"
+          "priceFrom": "1.200 €"
         }
       ]
     },
@@ -196,12 +196,12 @@
         {
           "id": "commercial",
           "pricing": "fixed",
-          "priceFrom": "179 €"
+          "priceFrom": "169 €"
         },
         {
           "id": "exclusive",
           "pricing": "from",
-          "priceFrom": "890 €"
+          "priceFrom": "1.200 €"
         }
       ]
     },
@@ -243,12 +243,12 @@
         {
           "id": "commercial",
           "pricing": "fixed",
-          "priceFrom": "179 €"
+          "priceFrom": "169 €"
         },
         {
           "id": "exclusive",
           "pricing": "from",
-          "priceFrom": "890 €"
+          "priceFrom": "1.200 €"
         }
       ]
     },

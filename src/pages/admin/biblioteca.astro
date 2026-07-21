@@ -144,12 +144,13 @@ import Layout from "../../components/Layout.astro";
           <p class="mix-preview__title">Escuchar mezcla (audio + ruido)</p>
           <p class="mix-protect" role="note">
             El <strong>Play aquí</strong> usa stems <strong>limpios</strong> + el ruido del
-            slider (no el archivo ya guardado con ruido). Al publicar se guardan dos copias:
-            limpia (solo admin) y con ruido (visitantes). Si la ficha es antigua sin copia limpia,
-            arrastra los stems una vez y guarda.
+            slider. Al <strong>publicar / guardar</strong> se graba esa mezcla en los archivos del
+            visitante. Si solo cambias el slider y guardas (sin re-arrastrar), se re-hornea desde la
+            copia limpia del servidor. Si no hay copia limpia, hay que arrastrar stems otra vez.
           </p>
           <p class="hint">
-            Ajusta volúmenes y dale a play hasta que el balance te convenza, luego publica.
+            🟢 bolitas verdes = media en servidor (no significa “mezcla recién recalculada”).
+            Naranja al subir/bake; si mueves el ruido y guardas, verás bake otra vez.
           </p>
           <label class="mix-slider">
             <span>Volumen audio <em data-music-pct>100%</em></span>
@@ -594,8 +595,16 @@ import Layout from "../../components/Layout.astro";
     if (noisePct) noisePct.textContent = `${Math.round(noise01 * 100)}%`;
     mixPreview.setGains(music01, noise01);
   };
-  musicRange?.addEventListener("input", syncMixLabels);
-  noiseRange?.addEventListener("input", syncMixLabels);
+  /** true si el usuario movió audio/ruido desde la última carga/guardado */
+  let mixDirty = false;
+  musicRange?.addEventListener("input", () => {
+    mixDirty = true;
+    syncMixLabels();
+  });
+  noiseRange?.addEventListener("input", () => {
+    mixDirty = true;
+    syncMixLabels();
+  });
   syncMixLabels();
 
   const setMixMsg = (msg: string, err = false) => {
@@ -1101,8 +1110,14 @@ import Layout from "../../components/Layout.astro";
     stemRows = [];
     renderStems();
     paintMediaStatus(item);
+    mixDirty = false;
+    const hasClean = Array.isArray(item.stems)
+      ? (item.stems as { cleanSrc?: string }[]).some((s) => s && s.cleanSrc)
+      : false;
     setStatus(
-      `Editando «${item.title}». Mira los avisos de archivos. Guarda moods sin re-subir media.`,
+      hasClean
+        ? `Editando «${item.title}». Puedes cambiar el ruido y guardar (re-hornea desde limpios). 🟢 = en servidor.`
+        : `Editando «${item.title}». Sin copia limpia: para cambiar ruido hay que arrastrar stems otra vez.`,
     );
   };
 
@@ -1278,10 +1293,30 @@ import Layout from "../../components/Layout.astro";
       const hasStemFiles = stemRows.some((r) => r.file);
       const hasAnyNewMedia = hasVideoFile || hasCoverFile || hasStemFiles;
 
-      // Solo metadatos / tags: POST update (no requiere re-subir stems)
-      if (editingSlug && !hasAnyNewMedia) {
+      // Cambiar solo el slider de ruido SIN stems locales → re-hornear desde cleanSrc
+      type ServerStem = { id?: string; label?: string; src?: string; cleanSrc?: string };
+      const serverStemsForMix = Array.isArray(editingItem?.stems)
+        ? (editingItem!.stems as ServerStem[])
+        : [];
+      const cleanServerStems = serverStemsForMix.filter(
+        (s) => s && String(s.cleanSrc || "").trim(),
+      );
+      const wantsRemixedNoise =
+        !!editingSlug &&
+        channel === "stems" &&
+        !hasStemFiles &&
+        mixDirty;
+
+      if (wantsRemixedNoise && !cleanServerStems.length) {
+        throw new Error(
+          "Has cambiado el ruido, pero esta ficha no tiene copia limpia en servidor. Arrastra los stems limpios otra vez y publica (solo una vez); luego podrás bajar el ruido a 0% y guardar.",
+        );
+      }
+
+      // Solo metadatos (título, moods…): NO toca audio. Si mixDirty + stems → se va al publish con re-bake.
+      if (editingSlug && !hasAnyNewMedia && !wantsRemixedNoise) {
         setLight("upload", "loading", "Guardando meta…");
-        setStatus("Guardando cambios (media se conserva)…");
+        setStatus("Guardando cambios (audio se conserva tal cual)…");
         const res = await fetch("/admin/items", {
           method: "POST",
           credentials: "same-origin",
@@ -1313,13 +1348,15 @@ import Layout from "../../components/Layout.astro";
             data.message || data.error || `Error al guardar (${res.status})`,
           );
         }
-        setStatus(`✅ ${data.message || "Guardado"}`);
-        showToast(`✅ Guardado «${title}» — media intacta en servidor`, 16000);
+        setLight("upload", "ok", "Meta OK · audio igual");
+        setStatus(`✅ ${data.message || "Guardado"} — el audio no se tocó (no moviste el ruido o no había re-bake).`);
+        showToast(`✅ «${title}» meta guardada · audio igual en servidor`, 14000);
         await loadPubs();
         const updated =
           publications.find((p) => p.slug === editingSlug) ||
           (data.item as Record<string, unknown> | undefined);
         if (updated) setEditMode(updated as Record<string, unknown>);
+        mixDirty = false;
         return;
       }
 
@@ -1355,7 +1392,23 @@ import Layout from "../../components/Layout.astro";
         if (!withFile.length && !editingSlug) {
           throw new Error("Añade al menos un stem con audio.");
         }
-        // En edición sin stems nuevos: servidor conserva stems
+
+        const fetchCleanAsFile = async (url: string, name: string) => {
+          const res = await fetch(url, { credentials: "same-origin", cache: "reload" });
+          if (!res.ok) throw new Error(`No se pudo bajar limpio (${res.status}): ${name}`);
+          const blob = await res.blob();
+          const base = name.replace(/[^\w.\-()+ ]+/g, "_") || "stem";
+          const ext = (blob.type || "").includes("wav")
+            ? "wav"
+            : (blob.type || "").includes("mpeg")
+              ? "mp3"
+              : "wav";
+          return new File([blob], `${base}.${ext}`, {
+            type: blob.type || "audio/wav",
+          });
+        };
+
+        // A) Stems locales nuevos  B) Re-mezcla desde cleanSrc del servidor
         if (withFile.length) {
           mixPreview.stop();
           setLight("stems", "loading", `Bake ${withFile.length}…`);
@@ -1368,22 +1421,47 @@ import Layout from "../../components/Layout.astro";
           for (const row of withFile) {
             if (!row.file) continue;
             setLight("stems", "loading", `${n + 1}/${layerCount} bake`);
-            // Original limpio → admin preview / re-mezcla futura
             body.set(`stem_${n}_clean`, row.file, row.file.name);
             let baked = row.file;
             try {
-              // layerCount: ruido ÷ √N para que 7 stems no suenen a ruido ×7
               baked = await bakePreviewNoise(row.file, noise01, music01, layerCount);
             } catch (err) {
               console.warn("[bake noise]", err);
               setLight("stems", "err", "Bake falló (sube original)");
             }
-            // Con ruido → catálogo público
             body.set(`stem_${n}_file`, baked, baked.name);
             body.set(`stem_${n}_label`, row.label || row.file.name);
             n++;
           }
+        } else if (wantsRemixedNoise && cleanServerStems.length) {
+          mixPreview.stop();
+          const layerCount = cleanServerStems.length;
+          setLight("stems", "loading", `Re-mezcla ${layerCount}…`);
+          setLight("upload", "loading", "Bajando limpios + bake…");
+          setStatus(
+            `Re-aplicando ruido ${Math.round(noise01 * 100)}% desde copias limpias (${layerCount} stem(s))…`,
+          );
+          let n = 0;
+          for (const st of cleanServerStems) {
+            const cleanUrl = String(st.cleanSrc || "").trim();
+            const label = String(st.label || st.id || `stem-${n + 1}`);
+            setLight("stems", "loading", `${n + 1}/${layerCount} limpio`);
+            const cleanFile = await fetchCleanAsFile(cleanUrl, label);
+            setLight("stems", "loading", `${n + 1}/${layerCount} bake`);
+            let baked = cleanFile;
+            try {
+              baked = await bakePreviewNoise(cleanFile, noise01, music01, layerCount);
+            } catch (err) {
+              console.warn("[bake noise cleanSrc]", err);
+              throw new Error(`No se pudo re-mezclar «${label}». Prueba re-subir stems.`);
+            }
+            body.set(`stem_${n}_clean`, cleanFile, cleanFile.name);
+            body.set(`stem_${n}_file`, baked, baked.name);
+            body.set(`stem_${n}_label`, label);
+            n++;
+          }
         }
+        // else: edición stems sin archivos nuevos ni mixDirty → publish conserva stems en servidor
       }
 
       mixPreview.stop();
@@ -1427,9 +1505,16 @@ import Layout from "../../components/Layout.astro";
       const msg =
         data.message ||
         `✅ ${editingSlug ? "Guardado" : "Publicado"} «${data.item?.title || title}»`;
-      setLight("upload", "ok", "Listo");
+      setLight("upload", "ok", mixDirty || hasStemFiles ? "Mezcla OK" : "Listo");
+      if (hasStemFiles || wantsRemixedNoise) setLight("stems", "ok", "En servidor");
+      mixDirty = false;
       setStatus(`✅ ${msg}`);
-      showToast(`✅ ${msg}`, 18000);
+      showToast(
+        hasStemFiles || wantsRemixedNoise
+          ? `✅ ${msg} · audio con la mezcla actual (Ctrl+F5 en biblioteca)`
+          : `✅ ${msg}`,
+        18000,
+      );
       const out = document.querySelector("[data-out]");
       if (out instanceof HTMLElement) {
         out.hidden = false;

@@ -122,6 +122,21 @@ const payload = {
     select: t("quoteSelect"),
     unavailable: t("libUnavailable"),
     noLicense: t("libNoLicense"),
+    reviewsTitle: t("reviewsTitle"),
+    reviewsDemoNote: t("reviewsDemoNote"),
+    reviewsCount: t("reviewsCount"),
+    reviewsFormTitle: t("reviewsFormTitle"),
+    reviewsYourRating: t("reviewsYourRating"),
+    reviewsName: t("reviewsName"),
+    reviewsNamePh: t("reviewsNamePh"),
+    reviewsComment: t("reviewsComment"),
+    reviewsCommentPh: t("reviewsCommentPh"),
+    reviewsSubmit: t("reviewsSubmit"),
+    reviewsSubmitNote: t("reviewsSubmitNote"),
+    reviewsComments: t("reviewsComments"),
+    reviewsUsePersonal: t("reviewsUsePersonal"),
+    reviewsUseProject: t("reviewsUseProject"),
+    reviewsUseClient: t("reviewsUseClient"),
   },
 };
 ---
@@ -169,6 +184,36 @@ const payload = {
             </div>
           </div>
           <p class="lb__protect" role="note">{t("libPreviewProtect")}</p>
+
+          {/* Valoraciones junto al player — al abrir el sonido */}
+          <section class="lb__reviews" data-lb-reviews aria-label={t("reviewsTitle")}>
+            <div class="lb__reviews-head">
+              <div>
+                <p class="lb__label lb__label--tight">{t("reviewsTitle")}</p>
+                <p class="lb__reviews-demo" data-lb-reviews-demo>{t("reviewsDemoNote")}</p>
+              </div>
+              <div class="lb__reviews-score" data-lb-reviews-score>
+                <span class="lb__reviews-num" data-lb-reviews-avg>4.6</span>
+                <span class="lb__reviews-stars" data-lb-reviews-stars aria-hidden="true">★★★★☆</span>
+                <span class="lb__reviews-count" data-lb-reviews-count></span>
+              </div>
+            </div>
+            <div class="lb__reviews-rate" data-lb-reviews-rate role="group" aria-label={t("reviewsYourRating")}>
+              <button type="button" class="lb__star-btn" data-rate="1" aria-label="1">★</button>
+              <button type="button" class="lb__star-btn" data-rate="2" aria-label="2">★</button>
+              <button type="button" class="lb__star-btn" data-rate="3" aria-label="3">★</button>
+              <button type="button" class="lb__star-btn" data-rate="4" aria-label="4">★</button>
+              <button type="button" class="lb__star-btn" data-rate="5" aria-label="5">★</button>
+            </div>
+            <div class="lb__reviews-scroll" data-lb-reviews-list tabindex="0"></div>
+            <form class="lb__reviews-form" data-lb-reviews-form>
+              <input type="hidden" name="rating" value="" data-lb-reviews-rating />
+              <input type="text" name="name" maxlength="40" placeholder={t("reviewsNamePh")} autocomplete="nickname" />
+              <textarea name="comment" rows="2" maxlength="280" placeholder={t("reviewsCommentPh")}></textarea>
+              <button type="submit" class="lb__btn lb__btn--ghost" disabled>{t("reviewsSubmit")}</button>
+              <p class="lb__reviews-note">{t("reviewsSubmitNote")}</p>
+            </form>
+          </section>
 
           <p class="lb__label">{t("libDescription")}</p>
           <p class="lb__text" data-lb-desc></p>
@@ -826,6 +871,159 @@ const payload = {
     color: #ffb38a;
     border: 1px solid rgb(255 140 80 / 0.4);
     background: rgb(50 22 12 / 0.9);
+  }
+
+  /* Valoraciones dentro del modal del sonido */
+  .lb__reviews {
+    margin: 1rem 0 0;
+    padding: 0.85rem 0.9rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.28);
+    background: linear-gradient(165deg, rgb(201 169 98 / 0.07) 0%, rgb(18 18 22 / 0.95) 50%);
+  }
+  .lb__reviews-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem 1rem;
+    margin-bottom: 0.55rem;
+  }
+  .lb__label--tight {
+    margin-bottom: 0.25rem;
+  }
+  .lb__reviews-demo {
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #c9a962;
+    opacity: 0.9;
+  }
+  .lb__reviews-score {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.45rem;
+    text-align: right;
+  }
+  .lb__reviews-num {
+    font-family: var(--font-display, Georgia, serif);
+    font-size: 1.65rem;
+    font-weight: 500;
+    line-height: 1;
+    color: #f5f5f7;
+  }
+  .lb__reviews-stars {
+    color: #c9a962;
+    letter-spacing: 0.04em;
+    font-size: 0.95rem;
+  }
+  .lb__reviews-count {
+    width: 100%;
+    font-size: 0.72rem;
+    color: rgb(140 140 150);
+  }
+  .lb__reviews-rate {
+    display: flex;
+    gap: 0.15rem;
+    margin-bottom: 0.65rem;
+  }
+  .lb__star-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0.1rem 0.15rem;
+    color: rgb(70 70 78);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.12s, transform 0.12s;
+  }
+  .lb__star-btn:hover,
+  .lb__star-btn.is-on {
+    color: #c9a962;
+  }
+  .lb__star-btn:hover {
+    transform: scale(1.08);
+  }
+  .lb__reviews-scroll {
+    max-height: 9.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-bottom: 0.7rem;
+    padding-right: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(201 169 98 / 0.4) transparent;
+  }
+  .lb__review-item {
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: rgb(10 10 12 / 0.65);
+  }
+  .lb__review-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+  }
+  .lb__review-name {
+    font-weight: 600;
+    color: #eeeef2;
+  }
+  .lb__review-stars {
+    color: #c9a962;
+    letter-spacing: 0.03em;
+    font-size: 0.75rem;
+  }
+  .lb__review-use {
+    padding: 0.08rem 0.35rem;
+    border-radius: 999px;
+    background: rgb(201 169 98 / 0.12);
+    color: #9a7d3c;
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+  .lb__review-text {
+    margin: 0.3rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgb(160 160 170);
+  }
+  .lb__reviews-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .lb__reviews-form input,
+  .lb__reviews-form textarea {
+    width: 100%;
+    padding: 0.45rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    background: #0a0a0c;
+    color: #e8e8ec;
+    font: inherit;
+    font-size: 0.82rem;
+  }
+  .lb__reviews-form textarea {
+    resize: vertical;
+    min-height: 2.8rem;
+    line-height: 1.4;
+  }
+  .lb__btn--ghost {
+    opacity: 0.75;
+    cursor: not-allowed;
+  }
+  .lb__reviews-note {
+    margin: 0;
+    font-size: 0.65rem;
+    color: rgb(120 120 130);
+    line-height: 1.35;
   }
 
   .lb__media {

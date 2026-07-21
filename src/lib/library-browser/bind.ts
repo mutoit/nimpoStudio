@@ -111,6 +111,124 @@ export function bindLibraryBrowser() {
       /** Evita que un paintFilters viejo (semilla) pise al del catálogo vivo */
       let filtersPaintGen = 0;
 
+      /** Mock estable por slug (visual; sin backend) */
+      const mockReviewsFor = (slug: string) => {
+        let h = 0;
+        for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+        const count = 5 + (h % 12);
+        const average = Math.round((3.8 + (h % 12) / 10) * 10) / 10;
+        const full = Math.min(5, Math.round(average));
+        const starsDisplay = "★★★★★"
+          .split("")
+          .map((_, i) => (i < full ? "★" : "☆"))
+          .join("");
+        const comments = [
+          {
+            name: "Marta V.",
+            stars: 5,
+            use: L.reviewsUseProject || "Proyecto",
+            text:
+              lang === "en"
+                ? "Great under picture; stems made the mix easy."
+                : lang === "fr"
+                  ? "Parfait sous image ; les stems aident le mix."
+                  : "Muy bien bajo imagen; los stems facilitan el mix.",
+          },
+          {
+            name: "Leo K.",
+            stars: 5,
+            use: L.reviewsUseClient || "Cliente",
+            text:
+              lang === "en"
+                ? "Licensed for a brand film. Clean master after deal."
+                : lang === "fr"
+                  ? "Licencié pour un brand film. Master propre après accord."
+                  : "Licenciado para brand film. Master limpio tras acuerdo.",
+          },
+          {
+            name: "Ana R.",
+            stars: 4,
+            use: L.reviewsUsePersonal || "Personal",
+            text:
+              lang === "en"
+                ? "Protected preview, but the mood comes through."
+                : lang === "fr"
+                  ? "Preview protégé, mais le mood passe bien."
+                  : "Preview protegido, pero se nota el mood.",
+          },
+          {
+            name: "Studio North",
+            stars: 5,
+            use: L.reviewsUseClient || "Cliente",
+            text:
+              lang === "en"
+                ? "Organic layers, no AI sheen."
+                : lang === "fr"
+                  ? "Couches organiques, sans vernis IA."
+                  : "Capas orgánicas, sin barniz de IA.",
+          },
+        ];
+        return { average, count, starsDisplay, comments };
+      };
+
+      const starRow = (n: number) =>
+        "★★★★★"
+          .split("")
+          .map((_, i) => (i < n ? "★" : "☆"))
+          .join("");
+
+      const paintItemReviews = (item: Item) => {
+        const mock = mockReviewsFor(item.slug || item.id || "x");
+        const avgEl = root.querySelector("[data-lb-reviews-avg]");
+        const starsEl = root.querySelector("[data-lb-reviews-stars]");
+        const countElR = root.querySelector("[data-lb-reviews-count]");
+        if (avgEl) avgEl.textContent = mock.average.toFixed(1);
+        if (starsEl) starsEl.textContent = mock.starsDisplay;
+        if (countElR) {
+          const tpl = L.reviewsCount || "{n} valoraciones";
+          countElR.textContent = tpl.replace("{n}", String(mock.count));
+        }
+        const list = root.querySelector("[data-lb-reviews-list]");
+        if (list) {
+          list.innerHTML = mock.comments
+            .map(
+              (c) =>
+                `<article class="lb__review-item"><div class="lb__review-top"><span class="lb__review-name">${escapeHtml(c.name)}</span><span class="lb__review-stars" aria-hidden="true">${starRow(c.stars)}</span><span class="lb__review-use">${escapeHtml(c.use)}</span></div><p class="lb__review-text">${escapeHtml(c.text)}</p></article>`,
+            )
+            .join("");
+        }
+        // Reset rate UI
+        root.querySelectorAll("[data-lb-reviews-rate] [data-rate]").forEach((btn) => {
+          btn.classList.remove("is-on");
+          btn.setAttribute("aria-pressed", "false");
+        });
+        const ratingInput = root.querySelector("[data-lb-reviews-rating]");
+        if (ratingInput instanceof HTMLInputElement) ratingInput.value = "";
+      };
+
+      // Estrellas + form mock (una vez)
+      const reviewsRate = root.querySelector("[data-lb-reviews-rate]");
+      if (reviewsRate && reviewsRate.getAttribute("data-bound") !== "1") {
+        reviewsRate.setAttribute("data-bound", "1");
+        reviewsRate.querySelectorAll("[data-rate]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const n = Number((btn as HTMLElement).dataset.rate || 0);
+            reviewsRate.querySelectorAll("[data-rate]").forEach((b) => {
+              const v = Number((b as HTMLElement).dataset.rate || 0);
+              b.classList.toggle("is-on", v <= n);
+              b.setAttribute("aria-pressed", v === n ? "true" : "false");
+            });
+            const input = root.querySelector("[data-lb-reviews-rating]");
+            if (input instanceof HTMLInputElement) input.value = String(n);
+          });
+        });
+      }
+      const reviewsForm = root.querySelector("[data-lb-reviews-form]");
+      if (reviewsForm instanceof HTMLFormElement && reviewsForm.dataset.bound !== "1") {
+        reviewsForm.dataset.bound = "1";
+        reviewsForm.addEventListener("submit", (e) => e.preventDefault());
+      }
+
       const paintFilters = async () => {
         const gen = ++filtersPaintGen;
         // Snapshot: no usar filterMoods tras el await (puede haber cambiado)
@@ -737,6 +855,9 @@ export function bindLibraryBrowser() {
           ...new Set([...(item.moods || []), ...(item.tags || [])].map(String).filter(Boolean)),
         ];
         fill("[data-lb-mood-pills]", moodBag);
+
+        // Valoraciones mock dentro del modal (junto al player)
+        paintItemReviews(item);
 
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");

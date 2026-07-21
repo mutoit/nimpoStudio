@@ -499,7 +499,10 @@ export function bindLibraryBrowser() {
         }
         if (linesEl) {
           linesEl.innerHTML = q.lineItems
-            .map((l) => `<li>${escapeHtml(l.label)}: <strong>${formatEur(l.amount)}</strong></li>`)
+            .map(
+              (l) =>
+                `<li><span>${escapeHtml(l.label)}</span><strong>${formatEur(l.amount)}</strong></li>`,
+            )
             .join("");
         }
       };
@@ -770,6 +773,9 @@ export function bindLibraryBrowser() {
           if (stemsCb) stemsCb.checked = hasStems;
           const usageSel = form.elements.namedItem("usage") as HTMLSelectElement | null;
           if (usageSel) usageSel.value = "brand_video";
+          root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((r) => {
+            r.checked = r.value === "brand_video";
+          });
           const msg = root.querySelector("[data-lb-msg]");
           if (msg instanceof HTMLElement) msg.hidden = true;
           refreshLive();
@@ -910,6 +916,21 @@ export function bindLibraryBrowser() {
       });
 
       // moods/tags: se re-pintan en paintFilters()
+
+      // Lista móvil de usos ↔ select (el select sigue siendo el valor del form)
+      const usageSel = form?.elements.namedItem("usage") as HTMLSelectElement | null;
+      root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((radio) => {
+        radio.addEventListener("change", () => {
+          if (!radio.checked || !usageSel) return;
+          usageSel.value = radio.value;
+          usageSel.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+      usageSel?.addEventListener("change", () => {
+        root.querySelectorAll<HTMLInputElement>("[data-lb-usage-radio]").forEach((r) => {
+          r.checked = r.value === usageSel.value;
+        });
+      });
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);

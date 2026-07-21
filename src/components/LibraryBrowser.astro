@@ -218,9 +218,9 @@ const payload = {
               /></label
             >
 
-            <label>
-              {t("quoteUsageType")}
-              <select name="usage" required data-lb-usage>
+            <div class="lb__usage">
+              <span class="lb__usage-label">{t("quoteUsageType")}</span>
+              <select name="usage" required data-lb-usage class="lb__usage-select">
                 <option value="">{t("quoteSelect")}</option>
                 {
                   usageGroups.map((g) => (
@@ -232,7 +232,32 @@ const payload = {
                   ))
                 }
               </select>
-            </label>
+              {/* Lista densa solo móvil: el select se oculta y se sincroniza por JS */}
+              <div class="lb__usage-list" data-lb-usage-list>
+                {
+                  usageGroups.map((g) => (
+                    <div class="lb__usage-group">
+                      <p class="lb__usage-group-title">{g.label}</p>
+                      {USAGE_CATALOG.filter((u) => u.group === g.id).map((u) => {
+                        const full = usageLabelMap[u.code] || u.code;
+                        const title = full.split("—")[0].split(" - ")[0].trim();
+                        const priceMatch = full.match(
+                          /(?:desde|from|dès|~)\s*[\d.,\s]+\s*€[^)]*|micro\s*[\d.,]+\s*€/i,
+                        );
+                        const price = priceMatch ? priceMatch[0].trim() : "según plazo";
+                        return (
+                          <label class="lb__usage-row">
+                            <input type="radio" name="usage_ui" value={u.code} data-lb-usage-radio />
+                            <span class="lb__usage-row-title">{title}</span>
+                            <span class="lb__usage-row-price">{price}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
 
             <div class="lb__form-row">
               <label
@@ -930,6 +955,88 @@ const payload = {
     overflow: hidden;
     white-space: nowrap;
   }
+
+  /* Uso: select en desktop; lista densa en móvil */
+  .lb__usage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+  .lb__usage-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgb(150 150 160);
+  }
+  .lb__usage-list {
+    display: none;
+  }
+  .lb__usage-group {
+    margin: 0;
+  }
+  .lb__usage-group-title {
+    margin: 0;
+    padding: 0.35rem 0.55rem 0.2rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(201 169 98 / 0.85);
+    background: rgb(201 169 98 / 0.06);
+    border-bottom: 1px solid rgb(255 255 255 / 0.05);
+  }
+  .lb__usage-row {
+    display: grid !important;
+    grid-template-columns: 1rem minmax(0, 1fr) auto !important;
+    align-items: center;
+    column-gap: 0.45rem;
+    margin: 0 !important;
+    padding: 0.42rem 0.55rem !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+    font-size: 0.72rem !important;
+    font-weight: 400 !important;
+    color: #e8e8ec !important;
+    cursor: pointer;
+    line-height: 1.25;
+    min-height: 2.3rem;
+  }
+  .lb__usage-row:has(input:checked) {
+    background: rgb(201 169 98 / 0.1);
+  }
+  .lb__usage-row input {
+    width: 0.95rem !important;
+    height: 0.95rem !important;
+    min-width: 0.95rem !important;
+    max-width: 0.95rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    accent-color: #c9a962;
+  }
+  .lb__usage-row-title {
+    min-width: 0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .lb__usage-row-price {
+    justify-self: end;
+    font-size: 0.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: #c9a962;
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    background: rgb(201 169 98 / 0.12);
+    border: 1px solid rgb(201 169 98 / 0.22);
+    max-width: 7.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .lb__fieldset {
     margin: 0;
     padding: 0.85rem 1rem;
@@ -1257,6 +1364,77 @@ const payload = {
       gap: 0.15rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
+    }
+
+    /* Lista de usos/precios: filas densas (no select nativo enorme) */
+    .lb__usage-label {
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .lb__usage-select {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .lb__usage-list {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgb(255 255 255 / 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0a0a0c;
+      max-height: 14.5rem;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .lb__usage-group:last-child .lb__usage-row:last-child {
+      border-bottom: none;
+    }
+
+    .lb__live-lines {
+      list-style: none;
+      padding: 0 !important;
+      margin: 0.3rem 0 0 !important;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid rgb(255 255 255 / 0.08);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .lb__live-lines li {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid rgb(255 255 255 / 0.06);
+      font-size: 0.68rem;
+      line-height: 1.25;
+      color: rgb(170 170 180);
+    }
+
+    .lb__live-lines li:last-child {
+      border-bottom: none;
+    }
+
+    .lb__live-lines li strong {
+      color: #e8c97a;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
     .lb__form input,

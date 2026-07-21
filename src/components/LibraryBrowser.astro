@@ -916,6 +916,24 @@ const payload = {
     gap: 0.4rem;
     font-size: 0.85rem;
     cursor: pointer;
+    padding: 0.2rem 0.35rem;
+    border-radius: 6px;
+    user-select: none;
+    transition: background 0.12s, box-shadow 0.12s;
+  }
+  .lb__mix-row:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+  .lb__mix-row.is-solo {
+    background: rgb(201 169 98 / 0.12);
+    box-shadow: inset 0 0 0 1px rgb(201 169 98 / 0.35);
+  }
+  .lb__mix-row.is-solo .lb__mix-label {
+    color: #e8c97a;
+    font-weight: 600;
+  }
+  .lb__mix-label {
+    min-width: 0;
   }
   .lb__preview-mix {
     margin-top: 0.75rem;

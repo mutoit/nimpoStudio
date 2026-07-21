@@ -42,16 +42,17 @@ export function bindLibraryBrowser() {
         moods: string[];
         labels: Record<string, string>;
       };
-      // items mutables: semilla del build + catálogo vivo /api/library
-      let items: Item[] = Array.isArray(data.items) ? [...data.items] : [];
+      // Semilla del build = SOLO fallback si falla la API. No se pinta al inicio
+      // (evita flash de demos/álbumes ya borrados en R2).
+      const seedItems: Item[] = Array.isArray(data.items) ? [...data.items] : [];
+      let items: Item[] = [];
       const lang = data.lang;
       /** Vocabulario global desde API (catalog/moods.json + obras) */
-      let serverMoods: string[] = Array.isArray((data as { moods?: string[] }).moods)
-        ? ((data as { moods: string[] }).moods).map(String)
-        : [];
+      let serverMoods: string[] = [];
       let filterMoods: string[] = [];
       let filterTags: string[] = [];
       const L = data.labels;
+      let catalogReady = false;
 
       const grid = root.querySelector("[data-lb-grid]");
       const overlay = root.querySelector("[data-lb-overlay]");
@@ -125,9 +126,7 @@ export function bindLibraryBrowser() {
           if (block instanceof HTMLElement) block.hidden = true;
         }
       };
-      // Semilla: filtros provisionales; el fetch vivo re-pinta con vocabulario R2
-      collectFilters(items);
-      void paintFilters();
+      // Filtros se pintan tras el fetch vivo (o fallback semilla)
       let active: Item | null = null;
       /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
       const stemsTx = new StemTransport();
@@ -519,6 +518,11 @@ export function bindLibraryBrowser() {
 
       const renderGrid = () => {
         if (!grid) return;
+        if (!catalogReady) {
+          if (countEl) countEl.textContent = "…";
+          grid.innerHTML = `<p class="lb__empty lb__empty--loading" role="status">…</p>`;
+          return;
+        }
         const list = filtered();
         if (countEl) countEl.textContent = String(list.length);
         if (!list.length) {
@@ -986,65 +990,72 @@ export function bindLibraryBrowser() {
         }
       });
 
+      // Loading hasta /api/library (no mostrar demos del build)
       renderGrid();
 
-      // Catálogo vivo (R2) — un publish/delete en admin se ve sin redeploy
+      const mapLiveItem = (raw: Item): Item => ({
+        ...raw,
+        id: safeDomId(raw.id),
+        aspect: safeAspectLabel(raw.aspect),
+        title: String(raw.title || ""),
+        moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
+        tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+        filterMoods: Array.isArray(raw.filterMoods) ? raw.filterMoods.map(String) : [],
+        filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
+        video: safeMediaUrl(raw.video) || null,
+        cover: safeMediaUrl(raw.cover) || null,
+        updatedAt:
+          typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
+            ? String((raw as { updatedAt: string }).updatedAt)
+            : undefined,
+        stems: Array.isArray(raw.stems)
+          ? raw.stems
+              .map((s) => ({
+                id: safeDomId(s.id),
+                label: String(s.label || ""),
+                src: safeMediaUrl(s.src),
+              }))
+              .filter((s) => s.src)
+          : undefined,
+      });
+
+      // Catálogo vivo (R2) = fuente de verdad. Semilla solo si la API falla.
       void (async () => {
+        let usedLive = false;
         try {
           const res = await fetch("/api/library", {
             credentials: "same-origin",
-            cache: "reload",
+            cache: "no-store",
           });
-          if (!res.ok) return;
-          const live = await res.json();
-          // Solo sustituir semilla si hay catálogo R2 real (aunque sea 1 ítem)
-          if (!live?.ok || !Array.isArray(live.items) || !live.items.length) return;
-          // Vocabulario global: unir, no encoger (evita parpadeo a lista corta)
-          if (Array.isArray(live.moods) && live.moods.length) {
-            const merged = new Set([
-              ...serverMoods.map((x) => String(x).toLowerCase()),
-              ...live.moods.map((x: unknown) => String(x).toLowerCase()),
-            ]);
-            serverMoods = [...merged].filter(Boolean);
+          if (res.ok) {
+            const live = await res.json();
+            if (live?.ok && Array.isArray(live.items)) {
+              usedLive = true;
+              if (Array.isArray(live.moods) && live.moods.length) {
+                serverMoods = live.moods.map((x: unknown) => String(x).toLowerCase());
+              }
+              stemsTx.dispose();
+              stopAll();
+              // Array vacío de R2 = catálogo vacío (no rescatar demos del build)
+              items = (live.items as Item[]).map(mapLiveItem);
+            }
           }
-          // Vaciar audio en memoria (evita seguir oyendo un ítem ya borrado del catálogo)
-          stemsTx.dispose();
-          stopAll();
-          items = (live.items as Item[]).map((raw) => ({
-            ...raw,
-            id: safeDomId(raw.id),
-            aspect: safeAspectLabel(raw.aspect),
-            title: String(raw.title || ""),
-            moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
-            tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-            filterMoods: Array.isArray(raw.filterMoods)
-              ? raw.filterMoods.map(String)
-              : [],
-            filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
-            video: safeMediaUrl(raw.video) || null,
-            cover: safeMediaUrl(raw.cover) || null,
-            updatedAt:
-              typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
-                ? String((raw as { updatedAt: string }).updatedAt)
-                : undefined,
-            stems: Array.isArray(raw.stems)
-              ? raw.stems
-                  .map((s) => ({
-                    id: safeDomId(s.id),
-                    label: String(s.label || ""),
-                    src: safeMediaUrl(s.src),
-                  }))
-                  .filter((s) => s.src)
-              : undefined,
-          }));
-          collectFilters(items);
-          // Invalida paints en vuelo de la semilla y pinta la lista definitiva
-          filtersPaintGen += 1;
-          await paintFilters();
-          renderGrid();
         } catch {
-          /* keep build seed */
+          /* red: fallback semilla */
         }
+
+        if (!usedLive) {
+          items = seedItems.map(mapLiveItem);
+          serverMoods = Array.isArray((data as { moods?: string[] }).moods)
+            ? ((data as { moods: string[] }).moods).map((x) => String(x).toLowerCase())
+            : [];
+        }
+
+        catalogReady = true;
+        collectFilters(items);
+        filtersPaintGen += 1;
+        await paintFilters();
+        renderGrid();
       })();
     });
   }

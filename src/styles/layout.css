@@ -26,6 +26,20 @@
   padding-block: 1.5rem;
 }
 
+@media (max-width: 720px) {
+  .section--pad {
+    padding-block: 1.5rem;
+  }
+
+  .section--pad-sm {
+    padding-block: 1rem;
+  }
+
+  .section--band {
+    padding-block: 1.5rem;
+  }
+}
+
 /* Fondo y borde a todo el ancho del viewport */
 .section--full {
   width: 100%;

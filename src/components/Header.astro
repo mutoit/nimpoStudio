@@ -21,14 +21,32 @@ const nav = [
 ];
 ---
 
-<header class="header">
+<header class="header" data-header>
   <div class="container header__inner">
     <a href={localizePath("/", lang)} class="logo">
       <span class="logo__mark" aria-hidden="true"></span>
       <span class="logo__name">{site.name}</span>
       <span class="logo__status" aria-label={t("construction")}>{t("construction")}</span>
     </a>
-    <nav class="nav" aria-label="Principal">
+
+    <div class="header__tools">
+      <UiSizeSelector lang={lang} />
+      <LanguageSelector lang={lang} currentPath={currentPath} />
+      <button
+        type="button"
+        class="header__menu-btn"
+        data-menu-toggle
+        data-label-open={t("navMenuOpen")}
+        data-label-close={t("navMenuClose")}
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label={t("navMenuOpen")}
+      >
+        <span class="header__menu-icon" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <nav class="nav" id="site-nav" data-nav aria-label="Principal">
       {
         nav.map((item) => {
           const href = localizePath(item.href, lang);
@@ -45,11 +63,56 @@ const nav = [
         })
       }
       <span class="nav__soon" title={t("navStoreSoon")}>{t("navStoreSoon")}</span>
-      <UiSizeSelector lang={lang} />
-      <LanguageSelector lang={lang} currentPath={currentPath} />
     </nav>
   </div>
 </header>
+
+<script>
+  function bindHeaderMenu() {
+    const header = document.querySelector<HTMLElement>("[data-header]");
+    if (!header || header.dataset.bound === "1") return;
+    header.dataset.bound = "1";
+
+    const btn = header.querySelector<HTMLButtonElement>("[data-menu-toggle]");
+    const nav = header.querySelector<HTMLElement>("[data-nav]");
+    if (!btn || !nav) return;
+
+    const openLabel = btn.dataset.labelOpen || "Menu";
+    const closeLabel = btn.dataset.labelClose || openLabel;
+
+    const setOpen = (open: boolean) => {
+      header.classList.toggle("is-nav-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.setAttribute("aria-label", open ? closeLabel : openLabel);
+      document.body.classList.toggle("nav-open", open);
+    };
+
+    btn.addEventListener("click", () => {
+      setOpen(!header.classList.contains("is-nav-open"));
+    });
+
+    nav.querySelectorAll("a").forEach((a) => {
+      a.addEventListener("click", () => setOpen(false));
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setOpen(false);
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.matchMedia("(min-width: 768px)").matches) setOpen(false);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", bindHeaderMenu);
+  document.addEventListener("astro:page-load", bindHeaderMenu);
+</script>
+
+<style is:global>
+  body.nav-open {
+    overflow: hidden;
+  }
+</style>
 
 <style>
   .header {
@@ -57,43 +120,54 @@ const nav = [
     top: 0;
     z-index: 50;
     border-bottom: 1px solid var(--color-border);
-    background: rgb(8 8 10 / 0.88);
+    background: rgb(8 8 10 / 0.92);
     backdrop-filter: blur(16px);
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .header__inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    min-height: 4.25rem;
+    gap: 0.75rem;
+    min-height: 3.75rem;
+    position: relative;
+  }
+
+  @media (min-width: 768px) {
+    .header__inner {
+      min-height: 4.25rem;
+    }
   }
 
   .logo {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.5rem;
     text-decoration: none;
     color: var(--color-fg);
     min-width: 0;
+    flex: 1;
   }
 
   .logo__name {
     font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     font-weight: 500;
     letter-spacing: 0.02em;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .logo__status {
     position: relative;
     flex-shrink: 0;
-    padding: 0.2rem 0.55rem;
+    padding: 0.18rem 0.45rem;
     font-family: var(--font-body);
-    font-size: 0.58rem;
+    font-size: 0.52rem;
     font-weight: 600;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #fff3d4;
     border-radius: 999px;
@@ -161,15 +235,21 @@ const nav = [
     }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 400px) {
+    .logo__status {
+      display: none;
+    }
+  }
+
+  @media (min-width: 768px) {
     .logo__name {
-      font-size: 1.15rem;
+      font-size: 1.4rem;
     }
 
     .logo__status {
-      font-size: 0.5rem;
-      letter-spacing: 0.12em;
-      padding: 0.15rem 0.4rem;
+      font-size: 0.58rem;
+      letter-spacing: 0.16em;
+      padding: 0.2rem 0.55rem;
     }
   }
 
@@ -188,16 +268,145 @@ const nav = [
   .logo__mark {
     width: 6px;
     height: 6px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: var(--color-accent);
     box-shadow: 0 0 12px var(--color-accent);
   }
 
-  .nav {
+  .header__tools {
     display: flex;
     align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .header__menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .header__menu-icon {
+    display: block;
+    width: 1.1rem;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+    box-shadow:
+      0 -6px 0 currentColor,
+      0 6px 0 currentColor;
+    transition: box-shadow 0.2s, transform 0.2s, background 0.2s;
+  }
+
+  .header.is-nav-open .header__menu-icon {
+    background: transparent;
+    box-shadow: none;
+    transform: rotate(45deg);
+  }
+
+  .header.is-nav-open .header__menu-icon::before,
+  .header.is-nav-open .header__menu-icon::after {
+    content: "";
+    position: absolute;
+    width: 1.1rem;
+    height: 2px;
+    background: var(--color-fg);
+    border-radius: 1px;
+  }
+
+  .header.is-nav-open .header__menu-icon {
+    position: relative;
+  }
+
+  .header.is-nav-open .header__menu-icon::before {
+    transform: rotate(0deg);
+  }
+
+  .header.is-nav-open .header__menu-icon::after {
+    transform: rotate(90deg);
+  }
+
+  .nav {
+    display: none;
+    align-items: center;
     gap: 0.2rem;
-    flex-wrap: wrap;
+  }
+
+  .header.is-nav-open .nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    margin: 0;
+    padding: 0.75rem max(0.9rem, env(safe-area-inset-left)) 1rem
+      max(0.9rem, env(safe-area-inset-right));
+    border-bottom: 1px solid var(--color-border);
+    background: rgb(8 8 10 / 0.98);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
+    gap: 0.25rem;
+  }
+
+  .header.is-nav-open .nav .nav__link,
+  .header.is-nav-open .nav .nav__soon {
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .header.is-nav-open .nav .nav__soon {
+    display: flex;
+    opacity: 0.45;
+  }
+
+  @media (min-width: 768px) {
+    .header__menu-btn {
+      display: none;
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: row;
+      position: static;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+      gap: 0.2rem;
+    }
+
+    .header__tools {
+      order: 3;
+    }
+
+    .nav {
+      order: 2;
+    }
+
+    .header__inner {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 1rem;
+    }
   }
 
   .nav__link {
@@ -209,7 +418,10 @@ const nav = [
     text-transform: uppercase;
     text-decoration: none;
     color: var(--color-muted);
-    transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+    transition:
+      color 0.2s,
+      background 0.2s,
+      box-shadow 0.2s;
   }
 
   .nav__link:hover {
@@ -234,7 +446,7 @@ const nav = [
     cursor: not-allowed;
   }
 
-  @media (min-width: 640px) {
+  @media (min-width: 768px) {
     .nav__soon {
       display: inline-block;
     }

@@ -31,6 +31,8 @@ export const translations = {
     navAbout: "Sobre",
     navContact: "Contacto",
     navStoreSoon: "Tienda",
+    navMenuOpen: "Abrir menú",
+    navMenuClose: "Cerrar menú",
 
     libEyebrow: "Catálogo unificado",
     libTitle: "Biblioteca",
@@ -316,6 +318,8 @@ export const translations = {
     navAbout: "About",
     navContact: "Contact",
     navStoreSoon: "Store",
+    navMenuOpen: "Open menu",
+    navMenuClose: "Close menu",
 
     libEyebrow: "Unified catalog",
     libTitle: "Library",
@@ -583,6 +587,8 @@ export const translations = {
     navAbout: "À propos",
     navContact: "Contact",
     navStoreSoon: "Boutique",
+    navMenuOpen: "Ouvrir le menu",
+    navMenuClose: "Fermer le menu",
 
     libEyebrow: "Catalogue unifié",
     libTitle: "Bibliothèque",

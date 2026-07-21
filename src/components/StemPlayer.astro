@@ -298,12 +298,67 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
     50% { height: 85%; }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 720px) {
+    .stem-player {
+      padding: 0.75rem 0.85rem;
+      margin: 1rem 0;
+    }
+
+    .player-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.65rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .master-controls {
+      min-width: 0;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .play-btn {
+      width: 2.75rem;
+      height: 2.75rem;
+      flex-shrink: 0;
+    }
+
+    .master-mute {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+      touch-action: manipulation;
+    }
+
     .layer {
       grid-template-columns: 1fr;
+      gap: 0.45rem;
+      padding: 0.45rem 0.55rem;
     }
+
+    .layer-name {
+      min-width: 0;
+      font-size: 0.82rem;
+    }
+
     .layer-controls {
       justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      min-height: 2.25rem;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.72rem;
+      touch-action: manipulation;
+    }
+
+    .volume {
+      width: min(7rem, 40vw);
+    }
+
+    .player-visual {
+      max-height: 200px;
+      margin: 0.5rem 0 0.75rem;
     }
   }
 </style>

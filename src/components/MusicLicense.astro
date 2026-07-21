@@ -815,6 +815,101 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
     cursor: pointer;
   }
 
+  /* Móvil: cotizador compacto (mismas densidades que biblioteca) */
+  @media (max-width: 720px) {
+    .license__tiers {
+      gap: 0.5rem;
+      margin-bottom: 1.15rem;
+    }
+
+    .license__tier {
+      padding: 0.7rem 0.75rem;
+    }
+
+    .license__tier-name {
+      font-size: 0.88rem;
+    }
+
+    .license__tier-desc {
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .quote__title {
+      font-size: 1rem;
+    }
+
+    .quote__lead {
+      margin: 0.3rem 0 0.7rem;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .quote__form {
+      gap: 0.55rem;
+    }
+
+    .quote__grid {
+      gap: 0.55rem;
+    }
+
+    .quote__field {
+      font-size: 0.7rem;
+      gap: 0.2rem;
+    }
+
+    .quote__field input,
+    .quote__field select,
+    .quote__field textarea {
+      padding: 0.45rem 0.55rem;
+      font-size: 16px;
+    }
+
+    .quote__checks,
+    .quote__special {
+      padding: 0.55rem 0.65rem;
+    }
+
+    .quote__checks legend,
+    .quote__special legend {
+      font-size: 0.68rem;
+    }
+
+    .quote__special-help {
+      margin: 0 0 0.4rem;
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+
+    .quote__checks label,
+    .quote__special-check {
+      margin-top: 0.28rem;
+      font-size: 0.76rem;
+      line-height: 1.3;
+      gap: 0.4rem;
+    }
+
+    .quote__live {
+      padding: 0.65rem 0.75rem;
+    }
+
+    .quote__live-total {
+      font-size: 1.35rem;
+    }
+
+    .quote__live-lines {
+      font-size: 0.75rem;
+    }
+
+    .quote__submit {
+      width: 100%;
+      min-height: 2.75rem;
+      padding: 0.55rem 1rem;
+      font-size: 0.82rem;
+      align-self: stretch;
+    }
+  }
+
   .quote__submit:disabled {
     opacity: 0.6;
     cursor: wait;

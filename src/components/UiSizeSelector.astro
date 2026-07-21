@@ -99,6 +99,21 @@ const t = useTranslations(lang);
     letter-spacing: 0.04em;
     cursor: pointer;
     line-height: 1.2;
+    min-width: 2rem;
+    min-height: 2rem;
+    touch-action: manipulation;
+  }
+
+  @media (max-width: 720px) {
+    .ui-size__label {
+      display: none;
+    }
+
+    .ui-size__btn {
+      min-width: 2.25rem;
+      min-height: 2.35rem;
+      padding: 0.3rem 0.5rem;
+    }
   }
 
   .ui-size__btn:last-child {

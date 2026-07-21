@@ -52,6 +52,16 @@ const t = useTranslations(lang);
     cursor: pointer;
     min-width: 5.5rem;
     transition: border-color 0.2s, color 0.2s;
+    touch-action: manipulation;
+  }
+
+  @media (max-width: 720px) {
+    .lang-switcher__select {
+      min-height: 2.35rem;
+      min-width: 4.25rem;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.72rem;
+    }
   }
 
   .lang-switcher__select:hover {

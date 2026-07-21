@@ -41,3 +41,24 @@ html[data-ui-size="l"] {
   --ui-scale: 1.38;
   --max-width: 88rem;
 }
+
+/* Teléfono: cap de escala — M/L no deben hinchar formularios y modales */
+@media (max-width: 720px) {
+  html {
+    font-size: calc(16px * var(--ui-scale));
+  }
+
+  html[data-ui-size="s"] {
+    --ui-scale: 1;
+  }
+
+  html[data-ui-size="m"] {
+    --ui-scale: 1.04;
+    --max-width: 72rem;
+  }
+
+  html[data-ui-size="l"] {
+    --ui-scale: 1.1;
+    --max-width: 72rem;
+  }
+}

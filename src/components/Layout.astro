@@ -34,7 +34,10 @@ const ogLocale = localeMap[currentLang] ?? "es_ES";
 <html lang={currentLang}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonical} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -91,5 +94,12 @@ const ogLocale = localeMap[currentLang] ?? "es_ES";
   .main {
     flex: 1;
     padding-block: 2.5rem 4rem;
+  }
+
+  @media (max-width: 720px) {
+    .main {
+      padding-block: 1.25rem 3rem;
+      padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
+    }
   }
 </style>

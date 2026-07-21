@@ -8,14 +8,28 @@ Estrategia y guía de configuración. El código ya está montado; algunos servi
 
 | Área | Estado | Notas |
 |------|--------|-------|
-| Cloudflare Web Analytics | **Activo** | Configurado en panel; visitas + CWV |
-| First-party collector (`/api/track`) | **Activo** | Siempre recoge `music_*` events (incluso sin consentimiento) |
+| Cloudflare Web Analytics | **Activo** | Panel CF; visitas + Core Web Vitals |
+| First-party collector (`/api/track`) | **Activo** | Plays/stems/etc.; **respeta opt-out del estudio** |
+| Opt-out estudio | **Hecho** | `?nimpo_no_stats=1` una vez por navegador; `/admin/` siempre fuera |
 | SEO técnico (sitemap, robots, meta) | **Hecho** | En producción |
-| Google Search Console | **Pendiente** | Falta verificar propiedad y enviar sitemap |
+| Google Search Console | **Pendiente** | Verificar propiedad + enviar sitemap |
 | Bing Webmaster | **Pendiente** | Recomendado |
 | GA4 | **Pendiente** | Código listo |
 | Microsoft Clarity | **Recomendado gratis** | Session recordings + heatmaps (añade ID) |
 | Meta Pixel | **Opcional** | Solo publicidad de pago |
+
+---
+
+## Glosario rápido (panel de stats)
+
+| Término | Significado |
+|---------|-------------|
+| **Visitantes** (visitors / unique) | Personas distintas aproximadas en el periodo. La misma persona dos veces el mismo día ≈ **1** visitante. |
+| **Vistas de página** (page views) | Cargas de página. Una persona que ve 5 URLs = **5** vistas y **1** visitante. |
+| **Si vistas ≫ visitantes** | Navegan varias páginas o recargan. |
+| **Si vistas ≈ visitantes** | Entran y se van en 1 página. |
+
+No son “usuarios registrados”: son estimaciones del navegador/cookie.
 
 ---
 
@@ -41,13 +55,24 @@ Tras añadir variables: **nuevo deploy** (`git push` o redeploy manual).
 
 ## 0. No contar mis visitas (estudio)
 
+### Cómo se usa (importante)
+
+| | |
+|--|--|
+| **¿Hay que entrar siempre con el enlace?** | **No.** Solo **una vez** por navegador (Chrome, Firefox…). Luego entras normal (`/es/`, biblioteca…). |
+| **¿Se ve distinta la web?** | **No.** Mismo diseño y tamaños que el visitante. Solo deja de **enviar** stats. |
+| **Tamaños S/M/L del header** | No tienen que ver con stats; si “todo se ve más grande”, bájalo a **M** o **S**. |
+
 | Método | Qué hace |
 |--------|----------|
-| Abrir **una vez** `https://www.nimpo3dstudio.com/?nimpo_no_stats=1` | Guarda opt-out en ese navegador (localStorage). No envía a `/api/track`, GA, Clarity, Meta. |
-| Reactivar | `?nimpo_stats=1` |
-| Rutas `/admin/` | Siempre excluidas del collector propio |
+| Abrir **una vez** `https://www.nimpo3dstudio.com/?nimpo_no_stats=1` | Guarda opt-out en **ese** navegador (`localStorage`). No envía a `/api/track`, GA, Clarity, Meta. |
+| Reactivar | `https://www.nimpo3dstudio.com/?nimpo_stats=1` |
+| Rutas `/admin/` | Siempre excluidas del collector propio (código) |
+| Otro navegador / incógnito | Hay que repetir el enlace una vez (otro almacén) |
 
-**Cloudflare Web Analytics** (beacon automático del panel CF) no lee nuestro localStorage. Para no contarte ahí: filtro de IP en el panel de CF si está disponible, o un navegador / perfil aparte solo para mirar stats. Lo que sí controlamos al 100 % es el collector first-party y los scripts de marketing.
+**Código:** `src/lib/analytics/opt-out.ts` + `client.ts` (`track` / marketing no corren si opt-out).
+
+**Cloudflare Web Analytics** (beacon del **panel CF**, auto-inject) **no** lee nuestro localStorage. Ahí no te excluye el `?nimpo_no_stats=1`. Opciones: mirar CF en otro perfil, o filtro de IP en el panel si CF lo ofrece. El collector first-party y GA/Clarity/Meta sí respetan el opt-out.
 
 ---
 
@@ -165,7 +190,7 @@ GA4 no es obligatorio para indexación; Search Console basta para SEO. GA4 sirve
 Para **máximos datos sin pagar** combinamos:
 
 - **Cloudflare Web Analytics** (ya activo): visitas + rendimiento agregado (sin cookies)
-- **Colector first-party** (`/api/track`): **todos** los eventos de música se guardan siempre (play, complete, stems, interacciones). Se ven en **Cloudflare → Pages → Logs**. Datos propios.
+- **Colector first-party** (`/api/track`): eventos de música (play, complete, stems…) si el visitante **no** tiene opt-out de estudio. Logs en **Cloudflare → Pages → Logs**.
 - **Microsoft Clarity** (gratis): grabaciones de sesiones reales + heatmaps + rage clicks. Ideal para ver exactamente cómo interactúan con el reproductor de stems y previews. 
 - **GA4** (gratis): métricas y funnels cuando configures el ID.
 

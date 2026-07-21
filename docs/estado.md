@@ -1,6 +1,6 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-07-20  
+Última actualización: 2026-07-21  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
@@ -8,7 +8,7 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 ## Resumen en una línea
 
 **Biblioteca de licencias en producción** (preview + cotizador + admin un clic → R2).  
-**Aún no hay checkout/pago automático.** Contenido real y tienda (Stripe) pendientes.
+Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago automático** aún.
 
 ---
 
@@ -32,13 +32,14 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 - [x] Precios conservadores en `src/lib/license-quote.ts` + mirror `functions/lib/license-quote.ts`
 - [x] `POST /api/quote` — cotización + email estudio (rate limit, CORS restringido)
 - [x] Catálogo **vivo** en R2: `catalog/library.json`
-- [x] `GET /api/library` — front hidrata desde API (fallback: `src/data/library.json` del build)
+- [x] `GET /api/library` — fuente de verdad en prod; **no se pinta la semilla del build** (evita flash de ítems borrados)
+- [x] `catalog/moods.json` — vocabulario global de moods (admin + filtros biblioteca)
 - [x] Admin **un clic**: `/admin/biblioteca/` → **Publicar en la web** → `POST /admin/publish`  
-  (sube media a R2 + upsert catálogo; **sin copiar JSON ni redeploy**)
-- [x] Login admin cookie httpOnly; rate limit login/publish; sin confiar JWT CF Access spoofable
-- [x] Seed R2 hecho (`wrangler r2 object put … catalog/library.json --remote`)
-- [x] Docs precios: `docs/licencias/TABLA-RAPIDA-PRECIOS.md`, plan `PLAN-BIBLIOTECA-Y-PRECIOS.md`
+  (media R2 + catálogo; re-bake ruido desde cleanSrc al cambiar slider; semáforos subida)
+- [x] Login admin cookie httpOnly; rate limit login/publish
+- [x] Precios canon 2026 + founder plan: `docs/licencias/` (TABLA-RAPIDA, ESTRATEGIA-LANZAMIENTO, etc.)
 - [x] Admin: `docs/admin-acceso.md`
+- [x] Opt-out stats estudio: `?nimpo_no_stats=1` — ver `docs/analytics-publi.md`
 
 ### Web base (fase 1, sigue viva)
 - [x] Home, Sobre, Contacto, Privacidad, Términos
@@ -48,7 +49,7 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 - [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
 
 ### Datos / código de apoyo
-- [x] `src/data/library.json` — **semilla / fallback** (no es la fuente de verdad en prod)
+- [x] `src/data/library.json` — semilla de **build** (fallback solo si falla `/api/library`; no se muestra al cargar)
 - [x] `src/data/music.json`, `products.json`, `updates.json`
 - [x] Previews en `public/previews/music/` (MP3 demo Deep in the forest, etc.)
 - [x] `functions/`: middleware, session, publish, upload, library, quote, track
@@ -153,27 +154,26 @@ No editar `library.json` a mano salvo semilla local o fallback.
 | `functions/` | API + admin + middleware |
 | `src/lib/library-browser/bind.ts` | UI biblioteca + hydrate API |
 | `src/lib/license-quote.ts` | Cálculo precios (front) |
-| `src/data/library.json` | Semilla / fallback (no fuente de verdad prod) |
+| `src/data/library.json` | Semilla build (fallback API down; no se pinta al inicio) |
+| `catalog/moods.json` (R2) | Vocabulario global moods |
 | `wrangler.toml` | R2 binding + `LIBRARY_PUBLIC_BASE` |
+| `docs/analytics-publi.md` | Stats, opt-out, glosario visitas/vistas |
 
 ---
 
 ## Próximo paso recomendado
 
-1. **Tú:** smoke — 1 publish real desde admin → recargar biblioteca  
-2. **Tú:** quitar demos / marcar provisional falso en obras reales  
-3. **Tú:** Search Console + sitemap  
-4. **Dev (cuando digas):** badges availability + checkout Stripe cuando haya 1 master listo para vender  
+1. **Tú:** una vez por navegador de trabajo: `/?nimpo_no_stats=1` (no contarte en stats propias)  
+2. **Tú:** Search Console + sitemap si aún no  
+3. **Tú:** catálogo real + cuando haya masa, founder prices (`docs/licencias/ESTRATEGIA-LANZAMIENTO.md`)  
+4. **Dev (cuando digas):** badges availability + checkout Stripe  
 
 ---
 
 ## Historial reciente (producto)
 
-- **Hardening seguridad (ola 7 puntos):** XSS catálogo, allowlist subidas, sesión ≠ password, cuotas, upload 410, quote anti-spam, Access/Turnstile docs
-- Biblioteca densa + stems + cotizador de licencias (canon 2026: micro 79 · comercial 169 · ads 299 · exclusiva 1.200 · buyout 2.990)
-- Admin cookie + rate limits; endurecimiento auth (sin JWT spoof)
-- R2 `nimpo-library` + **Publicar en la web** (media + catálogo vivo)
-- `GET /api/library` — front sin redeploy al publicar
-- Seek stems con Web Audio (`StemTransport`); previews MP3
-- Nav centrada en biblioteca (música/catálogo fuera del menú principal)
-- Fase 1 web estática, analytics, SEO, email contacto (previo)
+- Biblioteca: **live-first** (sin flash de demos borrados); moods globales R2; ratio 9:16 quitado de thumbs  
+- Admin: moods UI simple (dorado = seleccionado); re-bake ruido desde cleanSrc al guardar; empresa en quote  
+- Precios 2026 + exclusiva fuerte / buyout alto; doc founder/testimonios  
+- Analytics: **opt-out estudio** (`?nimpo_no_stats=1`); glosario visitas vs vistas en analytics-publi  
+- Hardening, stems Web Audio, admin publish R2, cotizador licencias

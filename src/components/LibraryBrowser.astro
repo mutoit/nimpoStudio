@@ -293,16 +293,67 @@ const payload = {
                   placeholder="ES / EU / mundial"
                 /></label
               >
-              <label>
-                {t("quoteTerm")}
-                <select name="term">
+              <div class="lb__term" data-lb-term-dd>
+                <span class="lb__term-label" id="lb-term-label">{t("quoteTerm")}</span>
+                <select name="term" data-lb-term class="lb__term-select">
                   <option value="single">{t("quoteTermSingle")}</option>
                   <option value="1y">{t("quoteTerm1y")}</option>
                   <option value="project">{t("quoteTermProject")}</option>
                   <option value="2y" selected>{t("quoteTerm2y")}</option>
                   <option value="custom">{t("quoteTermCustom")}</option>
                 </select>
-              </label>
+                <button
+                  type="button"
+                  class="lb__term-trigger"
+                  data-lb-term-trigger
+                  aria-expanded="false"
+                  aria-controls="lb-term-panel"
+                  aria-labelledby="lb-term-label"
+                >
+                  <span class="lb__term-trigger-text" data-lb-term-value
+                    >{t("quoteTerm2y").split("—")[0].trim()}</span
+                  >
+                  <span class="lb__term-chevron" aria-hidden="true">▾</span>
+                </button>
+                <div
+                  class="lb__term-panel"
+                  id="lb-term-panel"
+                  data-lb-term-list
+                  hidden
+                  role="listbox"
+                  aria-labelledby="lb-term-label"
+                >
+                  {
+                    (
+                      [
+                        { value: "single", full: t("quoteTermSingle") },
+                        { value: "1y", full: t("quoteTerm1y") },
+                        { value: "project", full: t("quoteTermProject") },
+                        { value: "2y", full: t("quoteTerm2y") },
+                        { value: "custom", full: t("quoteTermCustom") },
+                      ] as const
+                    ).map((opt) => {
+                      const title = opt.full.split("—")[0].split(" - ")[0].trim();
+                      const priceMatch = opt.full.match(/[\d.,\s]+\s*€|€\s*[\d.,]+/i);
+                      const price = priceMatch ? priceMatch[0].trim() : "";
+                      return (
+                        <button
+                          type="button"
+                          class:list={["lb__term-row", { "is-on": opt.value === "2y" }]}
+                          role="option"
+                          data-lb-term-option
+                          data-value={opt.value}
+                          data-title={title}
+                          data-price={price}
+                        >
+                          <span class="lb__term-row-title">{title}</span>
+                          {price ? <span class="lb__term-row-price">{price}</span> : null}
+                        </button>
+                      );
+                    })
+                  }
+                </div>
+              </div>
             </div>
 
             <label>
@@ -982,21 +1033,25 @@ const payload = {
     white-space: nowrap;
   }
 
-  /* Uso: select nativo en desktop; desplegable denso en móvil */
-  .lb__usage {
+  /* Uso / plazo: select nativo en desktop; desplegable denso en móvil */
+  .lb__usage,
+  .lb__term {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     min-width: 0;
     position: relative;
   }
-  .lb__usage-label {
+  .lb__usage-label,
+  .lb__term-label {
     font-size: 0.75rem;
     font-weight: 600;
     color: rgb(150 150 160);
   }
   .lb__usage-trigger,
-  .lb__usage-panel {
+  .lb__usage-panel,
+  .lb__term-trigger,
+  .lb__term-panel {
     display: none;
   }
   .lb__usage-group {
@@ -1013,7 +1068,8 @@ const payload = {
     background: rgb(201 169 98 / 0.06);
     border-bottom: 1px solid rgb(255 255 255 / 0.05);
   }
-  .lb__usage-row {
+  .lb__usage-row,
+  .lb__term-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -1035,10 +1091,13 @@ const payload = {
     min-height: 2.35rem;
   }
   .lb__usage-row:hover,
-  .lb__usage-row.is-on {
+  .lb__usage-row.is-on,
+  .lb__term-row:hover,
+  .lb__term-row.is-on {
     background: rgb(201 169 98 / 0.1);
   }
-  .lb__usage-row-title {
+  .lb__usage-row-title,
+  .lb__term-row-title {
     min-width: 0;
     font-size: 0.72rem;
     font-weight: 500;
@@ -1048,7 +1107,8 @@ const payload = {
     -webkit-line-clamp: 2;
     overflow: hidden;
   }
-  .lb__usage-row-price {
+  .lb__usage-row-price,
+  .lb__term-row-price {
     justify-self: end;
     font-size: 0.6rem;
     font-weight: 700;
@@ -1392,14 +1452,16 @@ const payload = {
       text-transform: uppercase;
     }
 
-    /* Uso plegable: un campo cerrado como el plazo; se abre al tocar */
-    .lb__usage-label {
+    /* Uso y plazo plegables: campo cerrado; lista densa al abrir */
+    .lb__usage-label,
+    .lb__term-label {
       font-size: 0.62rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
-    .lb__usage-select {
+    .lb__usage-select,
+    .lb__term-select {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -1413,7 +1475,8 @@ const payload = {
       pointer-events: none;
     }
 
-    .lb__usage-trigger {
+    .lb__usage-trigger,
+    .lb__term-trigger {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1434,7 +1497,8 @@ const payload = {
       touch-action: manipulation;
     }
 
-    .lb__usage-trigger-text {
+    .lb__usage-trigger-text,
+    .lb__term-trigger-text {
       min-width: 0;
       flex: 1;
       overflow: hidden;
@@ -1442,23 +1506,27 @@ const payload = {
       white-space: nowrap;
     }
 
-    .lb__usage-chevron {
+    .lb__usage-chevron,
+    .lb__term-chevron {
       flex-shrink: 0;
       font-size: 0.7rem;
       color: rgb(150 150 160);
       transition: transform 0.15s;
     }
 
-    .lb__usage.is-open .lb__usage-chevron {
+    .lb__usage.is-open .lb__usage-chevron,
+    .lb__term.is-open .lb__term-chevron {
       transform: rotate(180deg);
       color: #c9a962;
     }
 
-    .lb__usage.is-open .lb__usage-trigger {
+    .lb__usage.is-open .lb__usage-trigger,
+    .lb__term.is-open .lb__term-trigger {
       border-color: rgb(201 169 98 / 0.45);
     }
 
-    .lb__usage-panel {
+    .lb__usage-panel,
+    .lb__term-panel {
       display: none;
       flex-direction: column;
       margin-top: 0.35rem;
@@ -1471,12 +1539,19 @@ const payload = {
       -webkit-overflow-scrolling: touch;
     }
 
-    .lb__usage-panel:not([hidden]) {
+    .lb__usage-panel:not([hidden]),
+    .lb__term-panel:not([hidden]) {
       display: flex;
     }
 
-    .lb__usage-group:last-child .lb__usage-row:last-child {
+    .lb__usage-group:last-child .lb__usage-row:last-child,
+    .lb__term-row:last-child {
       border-bottom: none;
+    }
+
+    /* Plazo a ancho completo en móvil (mejor lectura) */
+    .lb__form-row {
+      grid-template-columns: 1fr;
     }
 
     .lb__live-lines {

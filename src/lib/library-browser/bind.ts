@@ -773,8 +773,11 @@ export function bindLibraryBrowser() {
           if (stemsCb) stemsCb.checked = hasStems;
           const usageSel = form.elements.namedItem("usage") as HTMLSelectElement | null;
           if (usageSel) usageSel.value = "brand_video";
-          syncUsageDropdown();
-          setUsageOpen(false);
+          const termSel = form.elements.namedItem("term") as HTMLSelectElement | null;
+          if (termSel && !termSel.value) termSel.value = "2y";
+          (
+            root as HTMLElement & { __syncUsage?: () => void }
+          ).__syncUsage?.();
           const msg = root.querySelector("[data-lb-msg]");
           if (msg instanceof HTMLElement) msg.hidden = true;
           refreshLive();
@@ -916,76 +919,126 @@ export function bindLibraryBrowser() {
 
       // moods/tags: se re-pintan en paintFilters()
 
-      // Desplegable de usos (móvil): cerrado por defecto, lista densa al abrir
-      const usageSel = form?.elements.namedItem("usage") as HTMLSelectElement | null;
-      const usageDd = root.querySelector<HTMLElement>("[data-lb-usage-dd]");
-      const usageTrigger = root.querySelector<HTMLButtonElement>("[data-lb-usage-trigger]");
-      const usagePanel = root.querySelector<HTMLElement>("[data-lb-usage-list]");
-      const usageValueEl = root.querySelector<HTMLElement>("[data-lb-usage-value]");
-      const usagePlaceholder =
-        usageValueEl?.textContent?.trim() || usageSel?.options?.[0]?.textContent || "…";
-
-      const setUsageOpen = (open: boolean) => {
-        usageDd?.classList.toggle("is-open", open);
-        usageTrigger?.setAttribute("aria-expanded", open ? "true" : "false");
-        if (usagePanel) {
-          if (open) usagePanel.removeAttribute("hidden");
-          else usagePanel.setAttribute("hidden", "");
-        }
+      // Desplegables uso + plazo (móvil): cerrados por defecto, lista densa al abrir
+      type Dd = {
+        sel: HTMLSelectElement | null;
+        wrap: HTMLElement | null;
+        trigger: HTMLButtonElement | null;
+        panel: HTMLElement | null;
+        valueEl: HTMLElement | null;
+        optionSel: string;
+        placeholder: string;
       };
 
-      const syncUsageDropdown = () => {
-        const val = usageSel?.value || "";
-        root.querySelectorAll<HTMLElement>("[data-lb-usage-option]").forEach((btn) => {
-          const on = btn.dataset.value === val && val !== "";
-          btn.classList.toggle("is-on", on);
-          btn.setAttribute("aria-selected", on ? "true" : "false");
-        });
-        const onBtn = root.querySelector<HTMLElement>(
-          `[data-lb-usage-option][data-value="${CSS.escape(val)}"]`,
-        );
-        if (usageValueEl) {
-          if (onBtn) {
-            const title = onBtn.dataset.title || "";
-            const price = onBtn.dataset.price || "";
-            usageValueEl.textContent = price ? `${title} · ${price}` : title;
-          } else {
-            usageValueEl.textContent = usagePlaceholder;
+      const wireDropdown = (dd: Dd, onPick?: () => void) => {
+        const setOpen = (open: boolean) => {
+          dd.wrap?.classList.toggle("is-open", open);
+          dd.trigger?.setAttribute("aria-expanded", open ? "true" : "false");
+          if (dd.panel) {
+            if (open) dd.panel.removeAttribute("hidden");
+            else dd.panel.setAttribute("hidden", "");
           }
-        }
+        };
+
+        const sync = () => {
+          const val = dd.sel?.value || "";
+          root.querySelectorAll<HTMLElement>(dd.optionSel).forEach((btn) => {
+            const on = btn.dataset.value === val && val !== "";
+            btn.classList.toggle("is-on", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          const onBtn =
+            val &&
+            root.querySelector<HTMLElement>(
+              `${dd.optionSel}[data-value="${CSS.escape(val)}"]`,
+            );
+          if (dd.valueEl) {
+            if (onBtn) {
+              const title = onBtn.dataset.title || "";
+              const price = onBtn.dataset.price || "";
+              dd.valueEl.textContent = price ? `${title} · ${price}` : title;
+            } else {
+              dd.valueEl.textContent = dd.placeholder;
+            }
+          }
+        };
+
+        dd.trigger?.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // Cerrar el otro desplegable si estaba abierto
+          root.querySelectorAll<HTMLElement>(".lb__usage.is-open, .lb__term.is-open").forEach((el) => {
+            if (el !== dd.wrap) {
+              el.classList.remove("is-open");
+              const p = el.querySelector<HTMLElement>("[data-lb-usage-list], [data-lb-term-list]");
+              if (p) p.setAttribute("hidden", "");
+              el.querySelector("[data-lb-usage-trigger], [data-lb-term-trigger]")?.setAttribute(
+                "aria-expanded",
+                "false",
+              );
+            }
+          });
+          setOpen(!dd.wrap?.classList.contains("is-open"));
+        });
+
+        root.querySelectorAll<HTMLButtonElement>(dd.optionSel).forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (!dd.sel) return;
+            dd.sel.value = btn.dataset.value || "";
+            dd.sel.dispatchEvent(new Event("change", { bubbles: true }));
+            sync();
+            setOpen(false);
+            onPick?.();
+          });
+        });
+
+        dd.sel?.addEventListener("change", sync);
+
+        document.addEventListener("click", (e) => {
+          if (!dd.wrap || !dd.wrap.classList.contains("is-open")) return;
+          const t = e.target;
+          if (t instanceof Node && dd.wrap.contains(t)) return;
+          setOpen(false);
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") setOpen(false);
+        });
+
+        sync();
+        return { setOpen, sync };
       };
 
-      usageTrigger?.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setUsageOpen(!usageDd?.classList.contains("is-open"));
+      const usageDdApi = wireDropdown({
+        sel: form?.elements.namedItem("usage") as HTMLSelectElement | null,
+        wrap: root.querySelector<HTMLElement>("[data-lb-usage-dd]"),
+        trigger: root.querySelector<HTMLButtonElement>("[data-lb-usage-trigger]"),
+        panel: root.querySelector<HTMLElement>("[data-lb-usage-list]"),
+        valueEl: root.querySelector<HTMLElement>("[data-lb-usage-value]"),
+        optionSel: "[data-lb-usage-option]",
+        placeholder:
+          root.querySelector<HTMLElement>("[data-lb-usage-value]")?.textContent?.trim() || "…",
       });
 
-      root.querySelectorAll<HTMLButtonElement>("[data-lb-usage-option]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (!usageSel) return;
-          usageSel.value = btn.dataset.value || "";
-          usageSel.dispatchEvent(new Event("change", { bubbles: true }));
-          syncUsageDropdown();
-          setUsageOpen(false);
-        });
+      const termDdApi = wireDropdown({
+        sel: form?.elements.namedItem("term") as HTMLSelectElement | null,
+        wrap: root.querySelector<HTMLElement>("[data-lb-term-dd]"),
+        trigger: root.querySelector<HTMLButtonElement>("[data-lb-term-trigger]"),
+        panel: root.querySelector<HTMLElement>("[data-lb-term-list]"),
+        valueEl: root.querySelector<HTMLElement>("[data-lb-term-value]"),
+        optionSel: "[data-lb-term-option]",
+        placeholder:
+          root.querySelector<HTMLElement>("[data-lb-term-value]")?.textContent?.trim() || "…",
       });
 
-      usageSel?.addEventListener("change", syncUsageDropdown);
-
-      // Cerrar al pulsar fuera del desplegable
-      document.addEventListener("click", (e) => {
-        if (!usageDd || !usageDd.classList.contains("is-open")) return;
-        const t = e.target;
-        if (t instanceof Node && usageDd.contains(t)) return;
-        setUsageOpen(false);
-      });
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") setUsageOpen(false);
-      });
-
-      syncUsageDropdown();
+      // Exponer sync para openModal
+      (root as HTMLElement & { __syncUsage?: () => void; __closeUsage?: () => void }).__syncUsage =
+        () => {
+          usageDdApi.sync();
+          usageDdApi.setOpen(false);
+          termDdApi.sync();
+          termDdApi.setOpen(false);
+        };
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);

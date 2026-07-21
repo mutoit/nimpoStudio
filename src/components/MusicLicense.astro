@@ -284,16 +284,67 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
             placeholder={t("quoteTerritoryPh")}
           />
         </label>
-        <label class="quote__field">
-          <span>{t("quoteTerm")}</span>
-          <select name="term" data-quote-term>
+        <div class="quote__term" data-quote-term-dd>
+          <span class="quote__term-label" id="quote-term-label">{t("quoteTerm")}</span>
+          <select name="term" data-quote-term class="quote__term-select">
             <option value="single">{t("quoteTermSingle")}</option>
             <option value="1y">{t("quoteTerm1y")}</option>
             <option value="project">{t("quoteTermProject")}</option>
             <option value="2y" selected>{t("quoteTerm2y")}</option>
             <option value="custom">{t("quoteTermCustom")}</option>
           </select>
-        </label>
+          <button
+            type="button"
+            class="quote__term-trigger"
+            data-quote-term-trigger
+            aria-expanded="false"
+            aria-controls="quote-term-panel"
+            aria-labelledby="quote-term-label"
+          >
+            <span class="quote__term-trigger-text" data-quote-term-value
+              >{t("quoteTerm2y").split("—")[0].trim()}</span
+            >
+            <span class="quote__term-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div
+            class="quote__term-panel"
+            id="quote-term-panel"
+            data-quote-term-list
+            hidden
+            role="listbox"
+            aria-labelledby="quote-term-label"
+          >
+            {
+              (
+                [
+                  { value: "single", full: t("quoteTermSingle") },
+                  { value: "1y", full: t("quoteTerm1y") },
+                  { value: "project", full: t("quoteTermProject") },
+                  { value: "2y", full: t("quoteTerm2y") },
+                  { value: "custom", full: t("quoteTermCustom") },
+                ] as const
+              ).map((opt) => {
+                const title = opt.full.split("—")[0].split(" - ")[0].trim();
+                const priceMatch = opt.full.match(/[\d.,\s]+\s*€|€\s*[\d.,]+/i);
+                const price = priceMatch ? priceMatch[0].trim() : "";
+                return (
+                  <button
+                    type="button"
+                    class:list={["quote__term-row", { "is-on": opt.value === "2y" }]}
+                    role="option"
+                    data-quote-term-option
+                    data-value={opt.value}
+                    data-title={title}
+                    data-price={price}
+                  >
+                    <span class="quote__term-row-title">{title}</span>
+                    {price ? <span class="quote__term-row-price">{price}</span> : null}
+                  </button>
+                );
+              })
+            }
+          </div>
+        </div>
       </div>
 
       <label class="quote__field">
@@ -498,76 +549,116 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
         }
       };
 
-      const usageSel = form.querySelector<HTMLSelectElement>("[data-quote-usage]");
-      const usageDd = root.querySelector<HTMLElement>("[data-quote-usage-dd]");
-      const usageTrigger = root.querySelector<HTMLButtonElement>("[data-quote-usage-trigger]");
-      const usagePanel = root.querySelector<HTMLElement>("[data-quote-usage-list]");
-      const usageValueEl = root.querySelector<HTMLElement>("[data-quote-usage-value]");
-      const usagePlaceholder =
-        usageValueEl?.textContent?.trim() || usageSel?.options?.[0]?.textContent || "…";
-
-      const setUsageOpen = (open: boolean) => {
-        usageDd?.classList.toggle("is-open", open);
-        usageTrigger?.setAttribute("aria-expanded", open ? "true" : "false");
-        if (usagePanel) {
-          if (open) usagePanel.removeAttribute("hidden");
-          else usagePanel.setAttribute("hidden", "");
-        }
+      type Dd = {
+        sel: HTMLSelectElement | null;
+        wrap: HTMLElement | null;
+        trigger: HTMLButtonElement | null;
+        panel: HTMLElement | null;
+        valueEl: HTMLElement | null;
+        optionSel: string;
+        placeholder: string;
       };
 
-      const syncUsageDropdown = () => {
-        const val = usageSel?.value || "";
-        root.querySelectorAll<HTMLElement>("[data-quote-usage-option]").forEach((btn) => {
-          const on = btn.dataset.value === val && val !== "";
-          btn.classList.toggle("is-on", on);
-          btn.setAttribute("aria-selected", on ? "true" : "false");
-        });
-        const onBtn =
-          val &&
-          root.querySelector<HTMLElement>(
-            `[data-quote-usage-option][data-value="${CSS.escape(val)}"]`,
-          );
-        if (usageValueEl) {
-          if (onBtn) {
-            const title = onBtn.dataset.title || "";
-            const price = onBtn.dataset.price || "";
-            usageValueEl.textContent = price ? `${title} · ${price}` : title;
-          } else {
-            usageValueEl.textContent = usagePlaceholder;
+      const wireDropdown = (dd: Dd) => {
+        const setOpen = (open: boolean) => {
+          dd.wrap?.classList.toggle("is-open", open);
+          dd.trigger?.setAttribute("aria-expanded", open ? "true" : "false");
+          if (dd.panel) {
+            if (open) dd.panel.removeAttribute("hidden");
+            else dd.panel.setAttribute("hidden", "");
           }
-        }
+        };
+
+        const sync = () => {
+          const val = dd.sel?.value || "";
+          root.querySelectorAll<HTMLElement>(dd.optionSel).forEach((btn) => {
+            const on = btn.dataset.value === val && val !== "";
+            btn.classList.toggle("is-on", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          const onBtn =
+            val &&
+            root.querySelector<HTMLElement>(
+              `${dd.optionSel}[data-value="${CSS.escape(val)}"]`,
+            );
+          if (dd.valueEl) {
+            if (onBtn) {
+              const title = onBtn.dataset.title || "";
+              const price = onBtn.dataset.price || "";
+              dd.valueEl.textContent = price ? `${title} · ${price}` : title;
+            } else {
+              dd.valueEl.textContent = dd.placeholder;
+            }
+          }
+        };
+
+        dd.trigger?.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          root
+            .querySelectorAll<HTMLElement>(".quote__usage.is-open, .quote__term.is-open")
+            .forEach((el) => {
+              if (el !== dd.wrap) {
+                el.classList.remove("is-open");
+                const p = el.querySelector<HTMLElement>(
+                  "[data-quote-usage-list], [data-quote-term-list]",
+                );
+                if (p) p.setAttribute("hidden", "");
+                el
+                  .querySelector("[data-quote-usage-trigger], [data-quote-term-trigger]")
+                  ?.setAttribute("aria-expanded", "false");
+              }
+            });
+          setOpen(!dd.wrap?.classList.contains("is-open"));
+        });
+
+        root.querySelectorAll<HTMLButtonElement>(dd.optionSel).forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (!dd.sel) return;
+            dd.sel.value = btn.dataset.value || "";
+            dd.sel.dispatchEvent(new Event("change", { bubbles: true }));
+            sync();
+            setOpen(false);
+          });
+        });
+
+        dd.sel?.addEventListener("change", sync);
+        document.addEventListener("click", (e) => {
+          if (!dd.wrap || !dd.wrap.classList.contains("is-open")) return;
+          const t = e.target;
+          if (t instanceof Node && dd.wrap.contains(t)) return;
+          setOpen(false);
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") setOpen(false);
+        });
+        sync();
       };
 
-      usageTrigger?.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setUsageOpen(!usageDd?.classList.contains("is-open"));
+      wireDropdown({
+        sel: form.querySelector<HTMLSelectElement>("[data-quote-usage]"),
+        wrap: root.querySelector<HTMLElement>("[data-quote-usage-dd]"),
+        trigger: root.querySelector<HTMLButtonElement>("[data-quote-usage-trigger]"),
+        panel: root.querySelector<HTMLElement>("[data-quote-usage-list]"),
+        valueEl: root.querySelector<HTMLElement>("[data-quote-usage-value]"),
+        optionSel: "[data-quote-usage-option]",
+        placeholder:
+          root.querySelector<HTMLElement>("[data-quote-usage-value]")?.textContent?.trim() ||
+          "…",
       });
 
-      root.querySelectorAll<HTMLButtonElement>("[data-quote-usage-option]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (!usageSel) return;
-          usageSel.value = btn.dataset.value || "";
-          usageSel.dispatchEvent(new Event("change", { bubbles: true }));
-          syncUsageDropdown();
-          setUsageOpen(false);
-        });
+      wireDropdown({
+        sel: form.querySelector<HTMLSelectElement>("[data-quote-term]"),
+        wrap: root.querySelector<HTMLElement>("[data-quote-term-dd]"),
+        trigger: root.querySelector<HTMLButtonElement>("[data-quote-term-trigger]"),
+        panel: root.querySelector<HTMLElement>("[data-quote-term-list]"),
+        valueEl: root.querySelector<HTMLElement>("[data-quote-term-value]"),
+        optionSel: "[data-quote-term-option]",
+        placeholder:
+          root.querySelector<HTMLElement>("[data-quote-term-value]")?.textContent?.trim() ||
+          "…",
       });
 
-      usageSel?.addEventListener("change", syncUsageDropdown);
-
-      document.addEventListener("click", (e) => {
-        if (!usageDd || !usageDd.classList.contains("is-open")) return;
-        const t = e.target;
-        if (t instanceof Node && usageDd.contains(t)) return;
-        setUsageOpen(false);
-      });
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") setUsageOpen(false);
-      });
-
-      syncUsageDropdown();
       form.addEventListener("change", refreshLive);
       form.addEventListener("input", refreshLive);
       refreshLive();
@@ -1005,22 +1096,26 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     margin-top: 0.25rem;
   }
 
-  /* Uso: select desktop / desplegable denso móvil */
-  .quote__usage {
+  /* Uso / plazo: select desktop / desplegable denso móvil */
+  .quote__usage,
+  .quote__term {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
     position: relative;
   }
 
-  .quote__usage-label {
+  .quote__usage-label,
+  .quote__term-label {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-muted);
   }
 
   .quote__usage-trigger,
-  .quote__usage-panel {
+  .quote__usage-panel,
+  .quote__term-trigger,
+  .quote__term-panel {
     display: none;
   }
 
@@ -1036,7 +1131,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     border-bottom: 1px solid rgb(255 255 255 / 0.05);
   }
 
-  .quote__usage-row {
+  .quote__usage-row,
+  .quote__term-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -1058,11 +1154,14 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
   }
 
   .quote__usage-row:hover,
-  .quote__usage-row.is-on {
+  .quote__usage-row.is-on,
+  .quote__term-row:hover,
+  .quote__term-row.is-on {
     background: rgb(201 169 98 / 0.1);
   }
 
-  .quote__usage-row-title {
+  .quote__usage-row-title,
+  .quote__term-row-title {
     min-width: 0;
     font-weight: 500;
     display: -webkit-box;
@@ -1071,7 +1170,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     overflow: hidden;
   }
 
-  .quote__usage-row-price {
+  .quote__usage-row-price,
+  .quote__term-row-price {
     justify-self: end;
     font-size: 0.6rem;
     font-weight: 700;
@@ -1179,7 +1279,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       letter-spacing: normal;
     }
 
-    .quote__usage-label {
+    .quote__usage-label,
+    .quote__term-label {
       font-size: 0.62rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -1187,7 +1288,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       color: var(--color-muted);
     }
 
-    .quote__usage-select {
+    .quote__usage-select,
+    .quote__term-select {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -1201,7 +1303,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       pointer-events: none;
     }
 
-    .quote__usage-trigger {
+    .quote__usage-trigger,
+    .quote__term-trigger {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1222,7 +1325,8 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       touch-action: manipulation;
     }
 
-    .quote__usage-trigger-text {
+    .quote__usage-trigger-text,
+    .quote__term-trigger-text {
       min-width: 0;
       flex: 1;
       overflow: hidden;
@@ -1230,23 +1334,27 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       white-space: nowrap;
     }
 
-    .quote__usage-chevron {
+    .quote__usage-chevron,
+    .quote__term-chevron {
       flex-shrink: 0;
       font-size: 0.7rem;
       color: var(--color-muted);
       transition: transform 0.15s;
     }
 
-    .quote__usage.is-open .quote__usage-chevron {
+    .quote__usage.is-open .quote__usage-chevron,
+    .quote__term.is-open .quote__term-chevron {
       transform: rotate(180deg);
       color: var(--color-accent);
     }
 
-    .quote__usage.is-open .quote__usage-trigger {
+    .quote__usage.is-open .quote__usage-trigger,
+    .quote__term.is-open .quote__term-trigger {
       border-color: rgb(201 169 98 / 0.45);
     }
 
-    .quote__usage-panel {
+    .quote__usage-panel,
+    .quote__term-panel {
       display: none;
       flex-direction: column;
       margin-top: 0.35rem;
@@ -1259,12 +1367,18 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       -webkit-overflow-scrolling: touch;
     }
 
-    .quote__usage-panel:not([hidden]) {
+    .quote__usage-panel:not([hidden]),
+    .quote__term-panel:not([hidden]) {
       display: flex;
     }
 
-    .quote__usage-group:last-child .quote__usage-row:last-child {
+    .quote__usage-group:last-child .quote__usage-row:last-child,
+    .quote__term-row:last-child {
       border-bottom: none;
+    }
+
+    .quote__grid {
+      grid-template-columns: 1fr;
     }
 
     .quote__live-lines {

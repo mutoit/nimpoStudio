@@ -243,6 +243,7 @@ const payload = {
                 aria-labelledby="lb-usage-label"
               >
                 <span class="lb__usage-trigger-text" data-lb-usage-value>{t("quoteSelect")}</span>
+                <span class="lb__usage-trigger-price" data-lb-usage-price hidden></span>
                 <span class="lb__usage-chevron" aria-hidden="true">▾</span>
               </button>
               <div
@@ -313,6 +314,18 @@ const payload = {
                   <span class="lb__term-trigger-text" data-lb-term-value
                     >{t("quoteTerm2y").split("—")[0].trim()}</span
                   >
+                  {
+                    (() => {
+                      const p = t("quoteTerm2y").match(/[\d.,\s]+\s*€|€\s*[\d.,]+/i);
+                      return p ? (
+                        <span class="lb__term-trigger-price" data-lb-term-price>
+                          {p[0].trim()}
+                        </span>
+                      ) : (
+                        <span class="lb__term-trigger-price" data-lb-term-price hidden></span>
+                      );
+                    })()
+                  }
                   <span class="lb__term-chevron" aria-hidden="true">▾</span>
                 </button>
                 <div
@@ -1033,7 +1046,7 @@ const payload = {
     white-space: nowrap;
   }
 
-  /* Uso / plazo: select nativo en desktop; desplegable denso en móvil */
+  /* Uso / plazo: desplegable estilo formulario + precio en etiqueta dorada (desktop y móvil) */
   .lb__usage,
   .lb__term {
     display: flex;
@@ -1048,24 +1061,116 @@ const payload = {
     font-weight: 600;
     color: rgb(150 150 160);
   }
+  /* Select nativo solo para valor del form (accesible / submit) */
+  .lb__usage-select,
+  .lb__term-select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
   .lb__usage-trigger,
+  .lb__term-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.5rem;
+    margin: 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    background: #0a0a0c;
+    color: #f0f0f2;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 400;
+    text-align: left;
+    cursor: pointer;
+  }
+  .lb__usage-trigger:hover,
+  .lb__term-trigger:hover {
+    border-color: rgb(201 169 98 / 0.35);
+  }
+  .lb__usage-trigger-text,
+  .lb__term-trigger-text {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lb__usage-trigger-price,
+  .lb__term-trigger-price {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: #e8c97a;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    background: rgb(201 169 98 / 0.14);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.12);
+  }
+  .lb__usage-trigger-price[hidden],
+  .lb__term-trigger-price[hidden] {
+    display: none !important;
+  }
+  .lb__usage-chevron,
+  .lb__term-chevron {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: rgb(150 150 160);
+    transition: transform 0.15s;
+  }
+  .lb__usage.is-open .lb__usage-chevron,
+  .lb__term.is-open .lb__term-chevron {
+    transform: rotate(180deg);
+    color: #c9a962;
+  }
+  .lb__usage.is-open .lb__usage-trigger,
+  .lb__term.is-open .lb__term-trigger {
+    border-color: rgb(201 169 98 / 0.45);
+  }
   .lb__usage-panel,
-  .lb__term-trigger,
   .lb__term-panel {
     display: none;
+    flex-direction: column;
+    margin-top: 0.35rem;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0a0a0c;
+    max-height: 16rem;
+    overflow-y: auto;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  }
+  .lb__usage-panel:not([hidden]),
+  .lb__term-panel:not([hidden]) {
+    display: flex;
   }
   .lb__usage-group {
     margin: 0;
   }
   .lb__usage-group-title {
     margin: 0;
-    padding: 0.35rem 0.55rem 0.2rem;
-    font-size: 0.58rem;
+    padding: 0.4rem 0.65rem 0.25rem;
+    font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgb(201 169 98 / 0.85);
-    background: rgb(201 169 98 / 0.06);
+    color: rgb(201 169 98 / 0.9);
+    background: rgb(201 169 98 / 0.08);
     border-bottom: 1px solid rgb(255 255 255 / 0.05);
   }
   .lb__usage-row,
@@ -1073,22 +1178,26 @@ const payload = {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 0.45rem;
+    column-gap: 0.65rem;
     width: 100%;
     margin: 0;
-    padding: 0.48rem 0.55rem;
+    padding: 0.55rem 0.7rem;
     border: none;
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
     border-radius: 0;
     background: transparent;
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     font-weight: 400;
     color: #e8e8ec;
     text-align: left;
     cursor: pointer;
-    line-height: 1.25;
-    min-height: 2.35rem;
+    line-height: 1.3;
+    min-height: 2.5rem;
+  }
+  .lb__usage-group:last-child .lb__usage-row:last-child,
+  .lb__term-row:last-child {
+    border-bottom: none;
   }
   .lb__usage-row:hover,
   .lb__usage-row.is-on,
@@ -1099,29 +1208,24 @@ const payload = {
   .lb__usage-row-title,
   .lb__term-row-title {
     min-width: 0;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+    line-height: 1.3;
   }
   .lb__usage-row-price,
   .lb__term-row-price {
     justify-self: end;
-    font-size: 0.6rem;
+    flex-shrink: 0;
+    font-size: 0.68rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    color: #c9a962;
-    padding: 0.1rem 0.35rem;
+    color: #e8c97a;
+    padding: 0.18rem 0.5rem;
     border-radius: 999px;
-    background: rgb(201 169 98 / 0.12);
-    border: 1px solid rgb(201 169 98 / 0.22);
-    max-width: 7.2rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: rgb(201 169 98 / 0.14);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.12);
   }
   .lb__fieldset {
     margin: 0;
@@ -1452,7 +1556,6 @@ const payload = {
       text-transform: uppercase;
     }
 
-    /* Uso y plazo plegables: campo cerrado; lista densa al abrir */
     .lb__usage-label,
     .lb__term-label {
       font-size: 0.62rem;
@@ -1460,96 +1563,38 @@ const payload = {
       text-transform: uppercase;
     }
 
-    .lb__usage-select,
-    .lb__term-select {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-      opacity: 0;
-      pointer-events: none;
-    }
-
     .lb__usage-trigger,
     .lb__term-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      width: 100%;
       min-height: 2.4rem;
-      margin: 0;
-      padding: 0.4rem 0.55rem;
-      border-radius: 6px;
-      border: 1px solid rgb(255 255 255 / 0.12);
-      background: #0a0a0c;
-      color: #f0f0f2;
-      font: inherit;
       font-size: 0.85rem;
-      font-weight: 400;
-      text-align: left;
-      cursor: pointer;
       touch-action: manipulation;
     }
 
-    .lb__usage-trigger-text,
-    .lb__term-trigger-text {
-      min-width: 0;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .lb__usage-row,
+    .lb__term-row {
+      font-size: 0.72rem;
+      padding: 0.48rem 0.55rem;
+      min-height: 2.35rem;
     }
 
-    .lb__usage-chevron,
-    .lb__term-chevron {
-      flex-shrink: 0;
-      font-size: 0.7rem;
-      color: rgb(150 150 160);
-      transition: transform 0.15s;
+    .lb__usage-row-title,
+    .lb__term-row-title {
+      font-size: 0.72rem;
     }
 
-    .lb__usage.is-open .lb__usage-chevron,
-    .lb__term.is-open .lb__term-chevron {
-      transform: rotate(180deg);
-      color: #c9a962;
-    }
-
-    .lb__usage.is-open .lb__usage-trigger,
-    .lb__term.is-open .lb__term-trigger {
-      border-color: rgb(201 169 98 / 0.45);
+    .lb__usage-row-price,
+    .lb__term-row-price {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.35rem;
     }
 
     .lb__usage-panel,
     .lb__term-panel {
-      display: none;
-      flex-direction: column;
-      margin-top: 0.35rem;
-      border: 1px solid rgb(255 255 255 / 0.1);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #0a0a0c;
       max-height: 14rem;
-      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
 
-    .lb__usage-panel:not([hidden]),
-    .lb__term-panel:not([hidden]) {
-      display: flex;
-    }
-
-    .lb__usage-group:last-child .lb__usage-row:last-child,
-    .lb__term-row:last-child {
-      border-bottom: none;
-    }
-
-    /* Plazo a ancho completo en móvil (mejor lectura) */
+    /* Plazo a ancho completo en móvil */
     .lb__form-row {
       grid-template-columns: 1fr;
     }

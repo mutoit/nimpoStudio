@@ -926,6 +926,7 @@ export function bindLibraryBrowser() {
         trigger: HTMLButtonElement | null;
         panel: HTMLElement | null;
         valueEl: HTMLElement | null;
+        priceEl: HTMLElement | null;
         optionSel: string;
         placeholder: string;
       };
@@ -954,11 +955,26 @@ export function bindLibraryBrowser() {
             );
           if (dd.valueEl) {
             if (onBtn) {
-              const title = onBtn.dataset.title || "";
+              dd.valueEl.textContent = onBtn.dataset.title || "";
               const price = onBtn.dataset.price || "";
-              dd.valueEl.textContent = price ? `${title} · ${price}` : title;
+              if (dd.priceEl) {
+                if (price) {
+                  dd.priceEl.textContent = price;
+                  dd.priceEl.hidden = false;
+                  dd.priceEl.removeAttribute("hidden");
+                } else {
+                  dd.priceEl.textContent = "";
+                  dd.priceEl.hidden = true;
+                  dd.priceEl.setAttribute("hidden", "");
+                }
+              }
             } else {
               dd.valueEl.textContent = dd.placeholder;
+              if (dd.priceEl) {
+                dd.priceEl.textContent = "";
+                dd.priceEl.hidden = true;
+                dd.priceEl.setAttribute("hidden", "");
+              }
             }
           }
         };
@@ -1015,6 +1031,7 @@ export function bindLibraryBrowser() {
         trigger: root.querySelector<HTMLButtonElement>("[data-lb-usage-trigger]"),
         panel: root.querySelector<HTMLElement>("[data-lb-usage-list]"),
         valueEl: root.querySelector<HTMLElement>("[data-lb-usage-value]"),
+        priceEl: root.querySelector<HTMLElement>("[data-lb-usage-price]"),
         optionSel: "[data-lb-usage-option]",
         placeholder:
           root.querySelector<HTMLElement>("[data-lb-usage-value]")?.textContent?.trim() || "…",
@@ -1026,6 +1043,7 @@ export function bindLibraryBrowser() {
         trigger: root.querySelector<HTMLButtonElement>("[data-lb-term-trigger]"),
         panel: root.querySelector<HTMLElement>("[data-lb-term-list]"),
         valueEl: root.querySelector<HTMLElement>("[data-lb-term-value]"),
+        priceEl: root.querySelector<HTMLElement>("[data-lb-term-price]"),
         optionSel: "[data-lb-term-option]",
         placeholder:
           root.querySelector<HTMLElement>("[data-lb-term-value]")?.textContent?.trim() || "…",

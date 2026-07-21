@@ -230,6 +230,7 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
           aria-labelledby="quote-usage-label"
         >
           <span class="quote__usage-trigger-text" data-quote-usage-value>{t("quoteSelect")}</span>
+          <span class="quote__usage-trigger-price" data-quote-usage-price hidden></span>
           <span class="quote__usage-chevron" aria-hidden="true">▾</span>
         </button>
         <div
@@ -304,6 +305,18 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
             <span class="quote__term-trigger-text" data-quote-term-value
               >{t("quoteTerm2y").split("—")[0].trim()}</span
             >
+            {
+              (() => {
+                const p = t("quoteTerm2y").match(/[\d.,\s]+\s*€|€\s*[\d.,]+/i);
+                return p ? (
+                  <span class="quote__term-trigger-price" data-quote-term-price>
+                    {p[0].trim()}
+                  </span>
+                ) : (
+                  <span class="quote__term-trigger-price" data-quote-term-price hidden></span>
+                );
+              })()
+            }
             <span class="quote__term-chevron" aria-hidden="true">▾</span>
           </button>
           <div
@@ -555,6 +568,7 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
         trigger: HTMLButtonElement | null;
         panel: HTMLElement | null;
         valueEl: HTMLElement | null;
+        priceEl: HTMLElement | null;
         optionSel: string;
         placeholder: string;
       };
@@ -583,11 +597,26 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
             );
           if (dd.valueEl) {
             if (onBtn) {
-              const title = onBtn.dataset.title || "";
+              dd.valueEl.textContent = onBtn.dataset.title || "";
               const price = onBtn.dataset.price || "";
-              dd.valueEl.textContent = price ? `${title} · ${price}` : title;
+              if (dd.priceEl) {
+                if (price) {
+                  dd.priceEl.textContent = price;
+                  dd.priceEl.hidden = false;
+                  dd.priceEl.removeAttribute("hidden");
+                } else {
+                  dd.priceEl.textContent = "";
+                  dd.priceEl.hidden = true;
+                  dd.priceEl.setAttribute("hidden", "");
+                }
+              }
             } else {
               dd.valueEl.textContent = dd.placeholder;
+              if (dd.priceEl) {
+                dd.priceEl.textContent = "";
+                dd.priceEl.hidden = true;
+                dd.priceEl.setAttribute("hidden", "");
+              }
             }
           }
         };
@@ -641,6 +670,7 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
         trigger: root.querySelector<HTMLButtonElement>("[data-quote-usage-trigger]"),
         panel: root.querySelector<HTMLElement>("[data-quote-usage-list]"),
         valueEl: root.querySelector<HTMLElement>("[data-quote-usage-value]"),
+        priceEl: root.querySelector<HTMLElement>("[data-quote-usage-price]"),
         optionSel: "[data-quote-usage-option]",
         placeholder:
           root.querySelector<HTMLElement>("[data-quote-usage-value]")?.textContent?.trim() ||
@@ -653,6 +683,7 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
         trigger: root.querySelector<HTMLButtonElement>("[data-quote-term-trigger]"),
         panel: root.querySelector<HTMLElement>("[data-quote-term-list]"),
         valueEl: root.querySelector<HTMLElement>("[data-quote-term-value]"),
+        priceEl: root.querySelector<HTMLElement>("[data-quote-term-price]"),
         optionSel: "[data-quote-term-option]",
         placeholder:
           root.querySelector<HTMLElement>("[data-quote-term-value]")?.textContent?.trim() ||
@@ -1096,7 +1127,7 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     margin-top: 0.25rem;
   }
 
-  /* Uso / plazo: select desktop / desplegable denso móvil */
+  /* Uso / plazo: desplegable formulario + precio etiqueta dorada (desktop y móvil) */
   .quote__usage,
   .quote__term {
     display: flex;
@@ -1112,22 +1143,123 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     color: var(--color-muted);
   }
 
+  .quote__usage-select,
+  .quote__term-select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .quote__usage-trigger,
+  .quote__term-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.5rem;
+    margin: 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: rgb(8 8 10 / 0.5);
+    color: var(--color-fg);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 400;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .quote__usage-trigger:hover,
+  .quote__term-trigger:hover {
+    border-color: rgb(201 169 98 / 0.35);
+  }
+
+  .quote__usage-trigger-text,
+  .quote__term-trigger-text {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .quote__usage-trigger-price,
+  .quote__term-trigger-price {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: #e8c97a;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    background: rgb(201 169 98 / 0.14);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.12);
+  }
+
+  .quote__usage-trigger-price[hidden],
+  .quote__term-trigger-price[hidden] {
+    display: none !important;
+  }
+
+  .quote__usage-chevron,
+  .quote__term-chevron {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--color-muted);
+    transition: transform 0.15s;
+  }
+
+  .quote__usage.is-open .quote__usage-chevron,
+  .quote__term.is-open .quote__term-chevron {
+    transform: rotate(180deg);
+    color: var(--color-accent);
+  }
+
+  .quote__usage.is-open .quote__usage-trigger,
+  .quote__term.is-open .quote__term-trigger {
+    border-color: rgb(201 169 98 / 0.45);
+  }
+
   .quote__usage-panel,
-  .quote__term-trigger,
   .quote__term-panel {
     display: none;
+    flex-direction: column;
+    margin-top: 0.35rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgb(8 8 10 / 0.92);
+    max-height: 16rem;
+    overflow-y: auto;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  }
+
+  .quote__usage-panel:not([hidden]),
+  .quote__term-panel:not([hidden]) {
+    display: flex;
   }
 
   .quote__usage-group-title {
     margin: 0;
-    padding: 0.35rem 0.55rem 0.2rem;
-    font-size: 0.58rem;
+    padding: 0.4rem 0.65rem 0.25rem;
+    font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgb(201 169 98 / 0.85);
-    background: rgb(201 169 98 / 0.06);
+    color: rgb(201 169 98 / 0.9);
+    background: rgb(201 169 98 / 0.08);
     border-bottom: 1px solid rgb(255 255 255 / 0.05);
   }
 
@@ -1136,21 +1268,26 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    column-gap: 0.45rem;
+    column-gap: 0.65rem;
     width: 100%;
     margin: 0;
-    padding: 0.48rem 0.55rem;
+    padding: 0.55rem 0.7rem;
     border: none;
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
     border-radius: 0;
     background: transparent;
     font: inherit;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     color: var(--color-fg);
     text-align: left;
     cursor: pointer;
-    min-height: 2.35rem;
-    line-height: 1.25;
+    min-height: 2.5rem;
+    line-height: 1.3;
+  }
+
+  .quote__usage-group:last-child .quote__usage-row:last-child,
+  .quote__term-row:last-child {
+    border-bottom: none;
   }
 
   .quote__usage-row:hover,
@@ -1164,26 +1301,21 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
   .quote__term-row-title {
     min-width: 0;
     font-weight: 500;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
   }
 
   .quote__usage-row-price,
   .quote__term-row-price {
     justify-self: end;
-    font-size: 0.6rem;
+    flex-shrink: 0;
+    font-size: 0.68rem;
     font-weight: 700;
     white-space: nowrap;
-    color: var(--color-accent);
-    padding: 0.1rem 0.35rem;
+    color: #e8c97a;
+    padding: 0.18rem 0.5rem;
     border-radius: 999px;
-    background: rgb(201 169 98 / 0.12);
-    border: 1px solid rgb(201 169 98 / 0.22);
-    max-width: 7.2rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: rgb(201 169 98 / 0.14);
+    border: 1px solid rgb(201 169 98 / 0.35);
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.12);
   }
 
   .quote__live {
@@ -1285,96 +1417,32 @@ const licenseExtras: { name: string; title: string; price: string }[] = [
       letter-spacing: 0.04em;
       text-transform: uppercase;
       font-weight: 600;
-      color: var(--color-muted);
-    }
-
-    .quote__usage-select,
-    .quote__term-select {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-      opacity: 0;
-      pointer-events: none;
     }
 
     .quote__usage-trigger,
     .quote__term-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      width: 100%;
       min-height: 2.4rem;
-      margin: 0;
-      padding: 0.4rem 0.55rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--color-border);
-      background: rgb(8 8 10 / 0.5);
-      color: var(--color-fg);
-      font: inherit;
       font-size: 0.85rem;
-      font-weight: 400;
-      text-align: left;
-      cursor: pointer;
       touch-action: manipulation;
     }
 
-    .quote__usage-trigger-text,
-    .quote__term-trigger-text {
-      min-width: 0;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .quote__usage-row,
+    .quote__term-row {
+      font-size: 0.72rem;
+      padding: 0.48rem 0.55rem;
+      min-height: 2.35rem;
     }
 
-    .quote__usage-chevron,
-    .quote__term-chevron {
-      flex-shrink: 0;
-      font-size: 0.7rem;
-      color: var(--color-muted);
-      transition: transform 0.15s;
-    }
-
-    .quote__usage.is-open .quote__usage-chevron,
-    .quote__term.is-open .quote__term-chevron {
-      transform: rotate(180deg);
-      color: var(--color-accent);
-    }
-
-    .quote__usage.is-open .quote__usage-trigger,
-    .quote__term.is-open .quote__term-trigger {
-      border-color: rgb(201 169 98 / 0.45);
+    .quote__usage-row-price,
+    .quote__term-row-price {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.35rem;
     }
 
     .quote__usage-panel,
     .quote__term-panel {
-      display: none;
-      flex-direction: column;
-      margin-top: 0.35rem;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      overflow: hidden;
-      background: rgb(8 8 10 / 0.75);
       max-height: 14rem;
-      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-    }
-
-    .quote__usage-panel:not([hidden]),
-    .quote__term-panel:not([hidden]) {
-      display: flex;
-    }
-
-    .quote__usage-group:last-child .quote__usage-row:last-child,
-    .quote__term-row:last-child {
-      border-bottom: none;
     }
 
     .quote__grid {

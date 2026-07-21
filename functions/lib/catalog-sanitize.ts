@@ -100,6 +100,9 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     availability,
     publishedAt:
       typeof o.publishedAt === "string" ? clipText(o.publishedAt, 40) : undefined,
+    // Para cache-bust de media en el cliente tras re-publicar
+    updatedAt:
+      typeof o.updatedAt === "string" ? clipText(o.updatedAt, 40) : undefined,
   };
 }
 

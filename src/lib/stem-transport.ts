@@ -15,6 +15,12 @@ type Layer = {
   on: boolean;
 };
 
+export type StemLoadProgress = {
+  loaded: number;
+  total: number;
+  label?: string;
+};
+
 /** r2.dev / library/… → /api/media/… (same-origin). */
 export function resolveStemUrl(src: string): string {
   let u = String(src || "").trim();
@@ -43,12 +49,37 @@ export function resolveStemUrl(src: string): string {
   }
 }
 
+/** Añade ?v= para invalidar caché del navegador tras re-publicar. */
+export function withCacheBust(url: string, bust?: string | null): string {
+  const u = String(url || "").trim();
+  if (!u || !bust) return u;
+  const v = encodeURIComponent(String(bust).slice(0, 40));
+  return u.includes("?") ? `${u}&v=${v}` : `${u}?v=${v}`;
+}
+
 function normSrc(s: string) {
   try {
-    return decodeURIComponent(s).replace(/\\/g, "/");
+    return decodeURIComponent(s.split("?")[0] || s).replace(/\\/g, "/");
   } catch {
-    return s.replace(/\\/g, "/");
+    return s.replace(/\\/g, "/").split("?")[0] || s;
   }
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]!, i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 export class StemTransport {
@@ -60,6 +91,8 @@ export class StemTransport {
   private startCtx = 0;
   private startOffset = 0;
   private pauseAt = 0;
+  /** Firma de la última carga (item + urls) para invalidar si re-publican. */
+  private loadKey: string | null = null;
   duration = 0;
   /** Último error legible (UI). */
   lastError: string | null = null;
@@ -99,13 +132,30 @@ export class StemTransport {
     if (ctx.state === "suspended") await ctx.resume();
   }
 
-  async load(itemId: string, stems: StemDef[]) {
-    // Mismo ítem ya cargado con capas
-    if (this.itemId === itemId && this.layers.length > 0) return;
+  /**
+   * @param cacheBust p.ej. updatedAt del ítem — fuerza re-fetch tras re-mezcla
+   * @param onProgress progreso de capas (UI "Cargando 2/7…")
+   */
+  async load(
+    itemId: string,
+    stems: StemDef[],
+    opts?: {
+      cacheBust?: string | null;
+      onProgress?: (p: StemLoadProgress) => void;
+      /** Si true, ignora caché en memoria aunque sea el mismo itemId */
+      forceReload?: boolean;
+    },
+  ) {
+    const list = stems.filter((s) => s?.src);
+    const key = `${itemId}::${list.map((s) => s.src).join("|")}::${opts?.cacheBust || ""}`;
+
+    // Mismo ítem + mismas URLs ya cargadas
+    if (!opts?.forceReload && this.loadKey === key && this.layers.length > 0) return;
 
     this.stopSources();
     this.layers = [];
     this.itemId = itemId;
+    this.loadKey = null;
     this.pauseAt = 0;
     this.playing = false;
     this.duration = 0;
@@ -117,28 +167,32 @@ export class StemTransport {
       this.master.connect(ctx.destination);
     }
 
-    const list = stems.filter((s) => s?.src);
     if (!list.length) {
       this.lastError = "Sin stems con URL";
       throw new Error(this.lastError);
     }
 
-    // Carga en serie (evita saturar Functions con 9 fetch paralelos)
     const loaded: Layer[] = [];
     const errors: string[] = [];
+    let done = 0;
 
-    for (const s of list) {
-      const url = resolveStemUrl(s.src);
+    // 3 en paralelo: más rápido que serie, sin saturar Functions
+    await mapPool(list, 3, async (s) => {
+      const url = withCacheBust(resolveStemUrl(s.src), opts?.cacheBust);
       try {
-        const res = await fetch(url, { credentials: "same-origin", cache: "force-cache" });
+        const res = await fetch(url, {
+          credentials: "same-origin",
+          // no force-cache: tras re-publicar el mismo path debe verse el audio nuevo
+          cache: "no-cache",
+        });
         if (!res.ok) {
           errors.push(`${res.status} ${url}`);
-          continue;
+          return;
         }
         const raw = await res.arrayBuffer();
         if (raw.byteLength < 64) {
           errors.push(`vacío ${url}`);
-          continue;
+          return;
         }
         const buffer = await ctx.decodeAudioData(raw.slice(0));
         const gain = ctx.createGain();
@@ -154,13 +208,21 @@ export class StemTransport {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         errors.push(`${msg} @ ${url}`);
+      } finally {
+        done++;
+        opts?.onProgress?.({
+          loaded: done,
+          total: list.length,
+          label: s.label,
+        });
       }
-    }
+    });
 
     if (!loaded.length) {
       this.lastError =
         errors.slice(0, 3).join(" · ") || "No se pudo cargar ningún stem";
       this.itemId = null;
+      this.loadKey = null;
       throw new Error(this.lastError);
     }
 
@@ -171,6 +233,7 @@ export class StemTransport {
 
     this.layers = loaded;
     this.duration = loaded.reduce((m, l) => Math.max(m, l.buffer.duration), 0);
+    this.loadKey = key;
   }
 
   private stopSources() {
@@ -277,6 +340,7 @@ export class StemTransport {
     }
     this.layers = [];
     this.itemId = null;
+    this.loadKey = null;
     this.duration = 0;
   }
 }

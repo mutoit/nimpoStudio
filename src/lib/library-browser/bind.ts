@@ -27,6 +27,8 @@ type Item = {
     provisional?: boolean;
     licenseEnabled?: boolean;
     availability?: string;
+    /** ISO; cache-bust media tras re-publicar */
+    updatedAt?: string;
   };
 
 export function bindLibraryBrowser() {
@@ -276,48 +278,69 @@ export function bindLibraryBrowser() {
         stemsTx.applyMix(on.size ? on : null);
       };
 
-      const showStemError = (msg: string) => {
+      const showStemError = (msg: string, kind: "err" | "info" = "err") => {
         let el = root.querySelector("[data-lb-stem-err]");
         if (!el) {
           el = document.createElement("p");
           el.setAttribute("data-lb-stem-err", "");
-          el.setAttribute("role", "alert");
-          (el as HTMLElement).style.cssText =
-            "margin:0.5rem 0;padding:0.5rem 0.75rem;border-radius:8px;background:rgb(240 80 80/0.12);color:#f0a0a0;font-size:0.8rem";
+          el.setAttribute("role", "status");
           grid?.parentElement?.insertBefore(el, grid);
         }
         el.textContent = msg;
-        (el as HTMLElement).hidden = false;
+        const node = el as HTMLElement;
+        node.hidden = false;
+        node.style.cssText =
+          kind === "info"
+            ? "margin:0.5rem 0;padding:0.5rem 0.75rem;border-radius:8px;background:rgb(100 160 255/0.12);color:#b0d0ff;font-size:0.8rem"
+            : "margin:0.5rem 0;padding:0.5rem 0.75rem;border-radius:8px;background:rgb(240 80 80/0.12);color:#f0a0a0;font-size:0.8rem";
       };
       const hideStemError = () => {
         const el = root.querySelector("[data-lb-stem-err]");
         if (el instanceof HTMLElement) el.hidden = true;
       };
 
+      const setPlayLoading = (playId: string, text: string) => {
+        const thumb = root.querySelector(`[data-thumb-play="${CSS.escape(playId)}"]`);
+        if (thumb) thumb.textContent = text;
+        if (playId.startsWith("modal-") || playingId?.startsWith("modal-")) {
+          const prev = root.querySelector("[data-lb-preview-play]");
+          if (prev) prev.textContent = text;
+        }
+      };
+
       const playStems = async (item: Item, playId: string) => {
         if (!item.stems?.length || loadingStems) return;
         loadingStems = true;
         hideStemError();
+        playingId = playId;
+        markPlayingButtons(playId);
+        setPlayLoading(playId, "…");
+        showStemError(`Cargando audio 0/${item.stems.length}…`, "info");
         try {
           await stemsTx.resumeCtx();
-          if (gridVideo) {
-            gridVideo.pause();
-            gridVideo = null;
-          }
-          // Re-mapear src por si el catálogo aún trae r2.dev
+          // No pausar gridVideo aquí: el thumb puede llevar vídeo muted de fondo.
           const stems = item.stems.map((s) => ({
             ...s,
             src: safeMediaUrl(s.src) || s.src,
           }));
-          await stemsTx.load(item.id, stems);
+          await stemsTx.load(item.id, stems, {
+            cacheBust: item.updatedAt || item.slug || item.id,
+            onProgress: ({ loaded, total }) => {
+              setPlayLoading(playId, `${loaded}/${total}`);
+              showStemError(`Cargando audio ${loaded}/${total}…`, "info");
+            },
+          });
           applyStemMixFromUi();
+          await stemsTx.resumeCtx();
           stemsTx.play();
           playingId = playId;
           transportPlaying = true;
           markPlayingButtons(playId);
           startProgressLoop();
           updateProgressUI();
+          hideStemError();
           if (stemsTx.lastError) {
+            // Carga parcial: avisa pero no bloquea
             showStemError(stemsTx.lastError);
           }
         } catch (e) {
@@ -325,7 +348,7 @@ export function bindLibraryBrowser() {
             e instanceof Error ? e.message : "No se pudieron cargar los stems";
           console.warn("[lb] stems load/play fail", e);
           showStemError(
-            `Audio: ${msg}. Prueba recarga forzada (Ctrl+F5). Si sigue, re-publica la obra.`,
+            `Audio: ${msg}. Prueba Ctrl+F5. Si sigue: en admin, re-arrastre stems y publica (mezcla ligera).`,
           );
           playingId = null;
           transportPlaying = false;
@@ -965,6 +988,10 @@ export function bindLibraryBrowser() {
             filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
             video: safeMediaUrl(raw.video) || null,
             cover: safeMediaUrl(raw.cover) || null,
+            updatedAt:
+              typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
+                ? String((raw as { updatedAt: string }).updatedAt)
+                : undefined,
             stems: Array.isArray(raw.stems)
               ? raw.stems
                   .map((s) => ({

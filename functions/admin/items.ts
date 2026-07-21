@@ -18,6 +18,8 @@ import {
   deleteMediaPrefix,
   findCatalogItem,
   readCatalog,
+  removeMoodFromVocabulary,
+  resolveMoodsVocabulary,
   upsertCatalogItem,
   type CatalogBucket,
 } from "../lib/library-catalog";
@@ -73,7 +75,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
   if (request.method === "GET") {
     const raw = (await readCatalog(bucket)) || [];
     const items = sanitizeCatalogItems(raw, { includeOffCatalog: true });
-    return json({ ok: true, items, count: items.length });
+    const moods = await resolveMoodsVocabulary(bucket, [], { persist: true });
+    return json({ ok: true, items, moods, count: items.length });
   }
 
   if (request.method === "DELETE") {
@@ -125,9 +128,19 @@ export async function onRequest(context: { request: Request; env: Env }) {
       return json({ ok: false, error: "invalid_json" }, 400);
     }
 
-    // POST genérico: exigir action o slug de update
+    // POST: update ítem | remove_mood del vocabulario global
     if (request.method === "POST") {
       const action = String(body.action || "update");
+      if (action === "remove_mood") {
+        const mood = clipText(body.mood, 40).toLowerCase();
+        if (!mood) return json({ ok: false, error: "missing_mood" }, 400);
+        const moods = await removeMoodFromVocabulary(bucket, mood);
+        return json({
+          ok: true,
+          moods,
+          message: `Mood «${mood}» quitado del vocabulario global.`,
+        });
+      }
       if (action !== "update" && action !== "patch") {
         return json({ ok: false, error: "unknown_action" }, 400);
       }
@@ -153,18 +166,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
     const title = clipText(body.title ?? existing.title, 200);
     if (!title) return json({ ok: false, error: "missing_title" }, 400);
 
+    const nextMoods =
+      body.moods != null ? clipStringList(body.moods) : (existing.moods as string[]);
+    const nextFilterMoods =
+      body.filterMoods != null
+        ? clipStringList(body.filterMoods)
+        : (existing.filterMoods as string[]);
+
     const next = {
       ...existing,
       title,
       aspect: safeAspect(String(body.aspect ?? existing.aspect ?? "1:1")),
       description: clipText(body.description ?? existing.description, 2000),
       notes: clipText(body.notes ?? existing.notes, 2000),
-      moods: body.moods != null ? clipStringList(body.moods) : existing.moods,
+      moods: nextMoods,
       tags: body.tags != null ? clipStringList(body.tags) : existing.tags,
-      filterMoods:
-        body.filterMoods != null
-          ? clipStringList(body.filterMoods)
-          : existing.filterMoods,
+      filterMoods: nextFilterMoods,
       filterTags:
         body.filterTags != null
           ? clipStringList(body.filterTags)
@@ -185,8 +202,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
     };
 
     const catalog = await upsertCatalogItem(bucket, next);
+    const moods = await resolveMoodsVocabulary(
+      bucket,
+      [...(Array.isArray(nextMoods) ? nextMoods : []), ...(Array.isArray(nextFilterMoods) ? nextFilterMoods : [])],
+      { persist: true },
+    );
     return json({
       ok: true,
+      moods,
       item: next,
       catalogCount: catalog.length,
       message: "Cambios guardados. Media en servidor sin tocar.",

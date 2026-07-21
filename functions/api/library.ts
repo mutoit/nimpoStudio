@@ -2,7 +2,11 @@
  * GET /api/library — catálogo público vivo (R2), sanitizado.
  */
 
-import { readCatalog, type CatalogBucket } from "../lib/library-catalog";
+import {
+  readCatalog,
+  resolveMoodsVocabulary,
+  type CatalogBucket,
+} from "../lib/library-catalog";
 import { sanitizeCatalogItems } from "../lib/catalog-sanitize";
 
 type Env = {
@@ -43,27 +47,37 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       source: "none",
       items: [],
+      moods: [],
       message: "LIBRARY_BUCKET no configurado",
     });
   }
 
   const raw = await readCatalog(env.LIBRARY_BUCKET);
   if (!raw) {
+    const moods = await resolveMoodsVocabulary(env.LIBRARY_BUCKET, [], {
+      persist: false,
+    });
     return json({
       ok: true,
       source: "empty",
       items: [],
+      moods,
       message: "Catálogo R2 vacío — publica desde /admin/biblioteca/",
     });
   }
 
   // Público: solo stems con ruido (sin cleanSrc)
   const items = sanitizeCatalogItems(raw, { stripCleanSrc: true });
+  // Todos los moods del vocabulario global + los de las obras
+  const moods = await resolveMoodsVocabulary(env.LIBRARY_BUCKET, [], {
+    persist: true,
+  });
 
   return json({
     ok: true,
     source: "r2",
     items,
+    moods,
     count: items.length,
   });
 }

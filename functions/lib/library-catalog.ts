@@ -4,6 +4,8 @@
  */
 
 export const CATALOG_KEY = "catalog/library.json";
+/** Vocabulario global de moods (admin + filtros biblioteca). */
+export const MOODS_KEY = "catalog/moods.json";
 
 export type CatalogBucket = {
   get: (key: string) => Promise<{
@@ -26,6 +28,99 @@ export type CatalogBucket = {
   }>;
   delete?: (key: string) => Promise<void>;
 };
+
+function normalizeMoodLabel(raw: unknown): string {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+}
+
+/** Moods/tags en ítems del catálogo. */
+export function collectMoodsFromItems(items: unknown[]): string[] {
+  const s = new Set<string>();
+  for (const raw of items) {
+    if (!raw || typeof raw !== "object") continue;
+    const o = raw as Record<string, unknown>;
+    for (const key of ["moods", "tags", "filterMoods", "filterTags"] as const) {
+      const arr = o[key];
+      if (!Array.isArray(arr)) continue;
+      for (const x of arr) {
+        const m = normalizeMoodLabel(x);
+        if (m) s.add(m);
+      }
+    }
+  }
+  return [...s].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+export async function readMoodsCatalog(
+  bucket: CatalogBucket | undefined,
+): Promise<string[]> {
+  if (!bucket) return [];
+  const obj = await bucket.get(MOODS_KEY);
+  if (!obj) return [];
+  try {
+    const data = await obj.json<unknown>();
+    if (!Array.isArray(data)) return [];
+    return [
+      ...new Set(data.map(normalizeMoodLabel).filter(Boolean)),
+    ].sort((a, b) => a.localeCompare(b, "es"));
+  } catch {
+    return [];
+  }
+}
+
+export async function writeMoodsCatalog(
+  bucket: CatalogBucket,
+  moods: string[],
+): Promise<void> {
+  const list = [
+    ...new Set(moods.map(normalizeMoodLabel).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, "es"));
+  await bucket.put(MOODS_KEY, JSON.stringify(list, null, 2), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+}
+
+/**
+ * Unión: archivo moods.json + moods en ítems + extras (p.ej. al publicar).
+ * Escribe el archivo si crece o no existía.
+ */
+export async function resolveMoodsVocabulary(
+  bucket: CatalogBucket,
+  extra: string[] = [],
+  opts?: { persist?: boolean },
+): Promise<string[]> {
+  const items = (await readCatalog(bucket)) || [];
+  const fromItems = collectMoodsFromItems(items);
+  const stored = await readMoodsCatalog(bucket);
+  const set = new Set<string>([...fromItems, ...stored]);
+  for (const x of extra) {
+    const m = normalizeMoodLabel(x);
+    if (m) set.add(m);
+  }
+  const list = [...set].sort((a, b) => a.localeCompare(b, "es"));
+  const persist = opts?.persist !== false;
+  if (persist) {
+    const same =
+      list.length === stored.length && list.every((m, i) => m === stored[i]);
+    if (!same) await writeMoodsCatalog(bucket, list);
+  }
+  return list;
+}
+
+export async function removeMoodFromVocabulary(
+  bucket: CatalogBucket,
+  mood: string,
+): Promise<string[]> {
+  const n = normalizeMoodLabel(mood);
+  const current = await resolveMoodsVocabulary(bucket, [], { persist: false });
+  const next = current.filter((m) => m !== n);
+  await writeMoodsCatalog(bucket, next);
+  return next;
+}
 
 export async function readCatalog(
   bucket: CatalogBucket | undefined,

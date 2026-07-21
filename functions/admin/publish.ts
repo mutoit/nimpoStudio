@@ -14,6 +14,7 @@ import {
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
 import {
   findCatalogItem,
+  resolveMoodsVocabulary,
   upsertCatalogItem,
   type CatalogBucket,
 } from "../lib/library-catalog";
@@ -261,10 +262,16 @@ export async function onRequest(context: {
     };
 
     const catalog = await upsertCatalogItem(env.LIBRARY_BUCKET, item);
+    const moodsVocab = await resolveMoodsVocabulary(
+      env.LIBRARY_BUCKET,
+      [...moods, ...filterMoods],
+      { persist: true },
+    );
 
     return json({
       ok: true,
       item,
+      moods: moodsVocab,
       uploaded,
       merged: Boolean(existing),
       keptMedia: {

@@ -990,6 +990,9 @@ export function bindLibraryBrowser() {
           const live = await res.json();
           // Solo sustituir semilla si hay catálogo R2 real (aunque sea 1 ítem)
           if (!live?.ok || !Array.isArray(live.items) || !live.items.length) return;
+          if (Array.isArray(live.moods)) {
+            serverMoods = live.moods.map(String);
+          }
           // Vaciar audio en memoria (evita seguir oyendo un ítem ya borrado del catálogo)
           stemsTx.dispose();
           stopAll();

@@ -751,9 +751,13 @@ import Layout from "../../components/Layout.astro";
     } catch { /* */ }
   };
 
+  /** Moods del servidor (R2 catalog/moods.json + ítems) */
+  let serverMoods: string[] = [];
+
   const moodVocabulary = (): string[] => {
     const deny = loadDeniedMoods();
     const s = new Set(DEFAULT_MOODS.map(normalizeMood));
+    for (const m of serverMoods) s.add(normalizeMood(m));
     for (const m of loadStoredMoods()) s.add(m);
     for (const p of publications) {
       for (const m of (p.moods as string[]) || []) s.add(normalizeMood(m));
@@ -845,10 +849,26 @@ import Layout from "../../components/Layout.astro";
         del.innerHTML =
           '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>';
         del.addEventListener("click", () => {
-          if (!confirm("¿Quitar «" + m + "» de la lista?")) return;
+          if (!confirm("¿Quitar «" + m + "» de la lista global?")) return;
           forgetMood(m);
-          rebuildMoodPick({ selected: readSelectedMoods().filter((x) => x !== m) });
-          setStatus("Mood «" + m + "» quitado.");
+          void (async () => {
+            try {
+              const res = await fetch("/admin/items", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "remove_mood", mood: m }),
+              });
+              const data = await res.json();
+              if (res.ok && data.ok && Array.isArray(data.moods)) {
+                serverMoods = data.moods.map(String);
+              }
+            } catch {
+              /* local deny ya aplicado */
+            }
+            rebuildMoodPick({ selected: readSelectedMoods().filter((x) => x !== m) });
+            setStatus("Mood «" + m + "» quitado de la lista.");
+          })();
         });
         const span = document.createElement("span");
         span.className = "mood-manage-name";
@@ -1234,9 +1254,12 @@ import Layout from "../../components/Layout.astro";
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo cargar");
       publications = Array.isArray(data.items) ? data.items : [];
+      if (Array.isArray(data.moods)) {
+        serverMoods = data.moods.map(String);
+      }
       pubPage = 0;
       renderPubs();
-      // Incorporar moods del catálogo al vocabulario del picker
+      // Vocabulario global R2 + obras → mismos moods que en biblioteca pública
       rebuildMoodPick();
     } catch (e) {
       if (grid instanceof HTMLElement) {

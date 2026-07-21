@@ -3,6 +3,7 @@ import Layout from "../../../components/Layout.astro";
 import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
 import MusicLicense from "../../../components/MusicLicense.astro";
 import MusicTracklist from "../../../components/MusicTracklist.astro";
+import MusicReviews from "../../../components/MusicReviews.astro";
 import StemPlayer from "../../../components/StemPlayer.astro";
 import {
   getReleaseBySlug,
@@ -114,6 +115,12 @@ const provisional = release ? isProvisionalRelease(release) : false;
         <p class="release__lead">
           {t("musicOriginal")} {release.shortDescription}
         </p>
+        {/* Mock score — sustituir por media real cuando haya API */}
+        <p class="release__rating" aria-label={t("reviewsScoreAria").replace("{avg}", "4.6").replace("{n}", "11")}>
+          <span class="release__rating-stars" aria-hidden="true">★★★★☆</span>
+          <span class="release__rating-num">4.6</span>
+          <span class="release__rating-count">· {t("reviewsCount").replace("{n}", "11")}</span>
+        </p>
         <div class="release__presentation">
           <h2 class="release__presentation-title">{t("musicPresentation")}</h2>
           <p>{release.description}</p>
@@ -154,6 +161,8 @@ const provisional = release ? isProvisionalRelease(release) : false;
       releaseSlug={release.slug}
       lang={lang}
     />
+
+    <MusicReviews releaseName={release.name} releaseSlug={release.slug} lang={lang} />
 
     <MusicLicense release={release} lang={lang} />
 
@@ -294,6 +303,31 @@ const provisional = release ? isProvisionalRelease(release) : false;
     font-size: 1.1rem;
     line-height: 1.6;
     color: var(--color-muted);
+  }
+
+  .release__rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.55rem;
+    margin: 1rem 0 0;
+    font-size: 0.9rem;
+  }
+
+  .release__rating-stars {
+    color: var(--color-accent);
+    letter-spacing: 0.06em;
+    font-size: 0.95rem;
+  }
+
+  .release__rating-num {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .release__rating-count {
+    color: var(--color-muted);
+    font-size: 0.85rem;
   }
 
   .release__presentation {

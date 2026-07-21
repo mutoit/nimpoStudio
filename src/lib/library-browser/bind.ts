@@ -59,10 +59,9 @@ export function bindLibraryBrowser() {
       const form = root.querySelector("[data-lb-form]");
       const countEl = root.querySelector("[data-lb-count]");
       const moodsBar = root.querySelector("[data-lb-moods]");
-      const tagsBar = root.querySelector("[data-lb-tags]");
 
       const collectFilters = (list: Item[]) => {
-        // Vocabulario R2 + todos los moods de las obras
+        // Vocabulario R2 + moods/tags de obras (unificado en un solo filtro Mood)
         const m = new Set<string>(
           serverMoods.map((x) => String(x).trim().toLowerCase()).filter(Boolean),
         );
@@ -121,10 +120,6 @@ export function bindLibraryBrowser() {
         paintChipBar(moodsBar, list, moodLabels, "mood", () => moodFilter, (v) => {
           moodFilter = v;
         });
-        if (tagsBar instanceof HTMLElement) {
-          const block = tagsBar.closest("[data-lb-tags-block]");
-          if (block instanceof HTMLElement) block.hidden = true;
-        }
       };
       // Filtros se pintan tras el fetch vivo (o fallback semilla)
       let active: Item | null = null;
@@ -737,12 +732,11 @@ export function bindLibraryBrowser() {
           if (!ul) return;
           ul.innerHTML = arr.length ? arr.map((x) => `<li>${escapeHtml(x)}</li>`).join("") : "<li>—</li>";
         };
-        // Unificado: mostrar moods (+ tags legacy si aún existen en el ítem)
+        // Unificado: moods + tags legacy del ítem (sin sección Tags aparte)
         const moodBag = [
           ...new Set([...(item.moods || []), ...(item.tags || [])].map(String).filter(Boolean)),
         ];
         fill("[data-lb-mood-pills]", moodBag);
-        fill("[data-lb-tag-pills]", []);
 
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");

@@ -86,7 +86,8 @@ const payload = {
       <span class="lb__filter-label">{t("libMoods")}</span>
       <div class="lb__chips lb__chips--wrap" data-lb-moods></div>
     </div>
-    <div class="lb__filter-block">
+    <!-- Tags unificados en moods; barra tags oculta por compat -->
+    <div class="lb__filter-block" data-lb-tags-block hidden>
       <span class="lb__filter-label">{t("libTags")}</span>
       <div class="lb__chips lb__chips--wrap" data-lb-tags></div>
     </div>
@@ -130,8 +131,7 @@ const payload = {
           <p class="lb__text" data-lb-notes></p>
           <p class="lb__label">{t("libMoods")}</p>
           <ul class="lb__pills" data-lb-mood-pills></ul>
-          <p class="lb__label">Tags</p>
-          <ul class="lb__pills" data-lb-tag-pills></ul>
+          <ul class="lb__pills" data-lb-tag-pills hidden></ul>
           <div data-lb-stems-wrap hidden>
             <p class="lb__label">{t("libStemsTitle")}</p>
             <div class="lb__mixer" data-lb-mixer></div>

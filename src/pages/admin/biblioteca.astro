@@ -185,78 +185,18 @@ import Layout from "../../components/Layout.astro";
         <fieldset class="chips-field">
           <legend>Moods</legend>
           <p class="hint">
-            Marca el mood de la obra. El check <strong>filtro</strong> lo muestra en la biblioteca
-            pública.
+            Una sola lista (tags unificados aquí). Marca el mood de la obra; el
+            <strong>F</strong> lo muestra como filtro en la biblioteca. Cuando haya buscador, la
+            gente buscará por estos nombres.
           </p>
           <div class="pick" data-mood-pick>
-            {
-              [
-                "oscuro",
-                "orgánico",
-                "inmersivo",
-                "nocturno",
-                "lento",
-                "energético",
-                "etérea",
-                "apertura",
-                "cinematic",
-                "minimal",
-              ].map((m) => (
-                <div class="pick-item">
-                  <label class="pick-main">
-                    <input type="checkbox" name="moodPick" value={m} data-chip-main />
-                    {m}
-                  </label>
-                  <label class="pick-filter" title="Mostrar en filtros de biblioteca">
-                    <input type="checkbox" name="moodFilter" value={m} data-chip-filter />
-                    <span>F</span>
-                  </label>
-                </div>
-              ))
-            }
+            <!-- Rellenado por JS (vocabulario + custom + catálogo) -->
           </div>
           <div class="add-chip">
-            <input type="text" placeholder="Nuevo mood…" data-mood-custom maxlength="40" />
+            <input type="text" placeholder="Nuevo mood… (ej. esperanza)" data-mood-custom maxlength="40" />
             <button type="button" class="btn btn--sm" data-mood-add>Añadir</button>
           </div>
-        </fieldset>
-
-        <fieldset class="chips-field">
-          <legend>Tags</legend>
-          <p class="hint">
-            Igual: tag de la obra + opcional <strong>filtro</strong> en la biblioteca.
-          </p>
-          <div class="pick" data-tag-pick>
-            {
-              [
-                "ambient",
-                "cinematic",
-                "forest",
-                "immersive",
-                "electronic",
-                "groove",
-                "pads",
-                "nocturno",
-                "strings",
-                "synth",
-              ].map((t) => (
-                <div class="pick-item">
-                  <label class="pick-main">
-                    <input type="checkbox" name="tagPick" value={t} data-chip-main />
-                    {t}
-                  </label>
-                  <label class="pick-filter" title="Mostrar en filtros de biblioteca">
-                    <input type="checkbox" name="tagFilter" value={t} data-chip-filter />
-                    <span>F</span>
-                  </label>
-                </div>
-              ))
-            }
-          </div>
-          <div class="add-chip">
-            <input type="text" placeholder="Nuevo tag…" data-tag-custom maxlength="40" />
-            <button type="button" class="btn btn--sm" data-tag-add>Añadir</button>
-          </div>
+          <p class="hint" data-mood-hint hidden></p>
         </fieldset>
 
         <label>
@@ -745,100 +685,197 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
-  // Moods / tags: chip principal + check “filtro” en biblioteca
-  const makeChipRow = (
-    name: "moodPick" | "tagPick",
-    filterName: "moodFilter" | "tagFilter",
-    value: string,
-    opts?: { main?: boolean; filter?: boolean },
-  ) => {
-    const row = document.createElement("div");
-    row.className = "pick-item";
-    const mainLab = document.createElement("label");
-    mainLab.className = "pick-main";
+  // Moods unificados (sin tags). Vocabulario = defaults + localStorage + catálogo.
+  const MOOD_LS_KEY = "nimpo-admin-moods-v1";
+  const DEFAULT_MOODS = [
+    "oscuro",
+    "orgánico",
+    "inmersivo",
+    "nocturno",
+    "lento",
+    "energético",
+    "etérea",
+    "apertura",
+    "cinematic",
+    "minimal",
+    "esperanza",
+    "ambient",
+    "forest",
+    "electronic",
+    "groove",
+    "pads",
+    "strings",
+    "synth",
+  ];
+
+  const normalizeMood = (raw: string) =>
+    String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
+
+  const loadStoredMoods = (): string[] => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(MOOD_LS_KEY) || "[]");
+      return Array.isArray(raw) ? raw.map(normalizeMood).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const rememberMood = (v: string) => {
+    const n = normalizeMood(v);
+    if (!n) return;
+    const set = new Set(loadStoredMoods());
+    set.add(n);
+    try {
+      localStorage.setItem(
+        MOOD_LS_KEY,
+        JSON.stringify([...set].sort((a, b) => a.localeCompare(b, "es"))),
+      );
+    } catch {
+      /* */
+    }
+  };
+
+  const moodVocabulary = (): string[] => {
+    const s = new Set(DEFAULT_MOODS.map(normalizeMood));
+    for (const m of loadStoredMoods()) s.add(m);
+    for (const p of publications) {
+      for (const m of (p.moods as string[]) || []) s.add(normalizeMood(m));
+      for (const t of (p.tags as string[]) || []) s.add(normalizeMood(t));
+    }
+    return [...s].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
+  };
+
+  const makeMoodChip = (value: string, opts?: { main?: boolean; filter?: boolean }) => {
+    const v = normalizeMood(value);
+    const row = document.createElement("label");
+    row.className = "mood-chip";
+    row.dataset.mood = v;
+
     const mainCb = document.createElement("input");
     mainCb.type = "checkbox";
-    mainCb.name = name;
-    mainCb.value = value;
+    mainCb.name = "moodPick";
+    mainCb.value = v;
     mainCb.dataset.chipMain = "1";
-    mainCb.checked = opts?.main ?? true;
-    mainLab.appendChild(mainCb);
-    mainLab.appendChild(document.createTextNode(" " + value));
-    const filLab = document.createElement("label");
-    filLab.className = "pick-filter";
-    filLab.title = "Mostrar en filtros de biblioteca";
+    mainCb.checked = !!opts?.main;
+    mainCb.title = "Incluir en la obra";
+
+    const label = document.createElement("span");
+    label.className = "mood-chip__txt";
+    label.textContent = v;
+
     const filCb = document.createElement("input");
     filCb.type = "checkbox";
-    filCb.name = filterName;
-    filCb.value = value;
+    filCb.name = "moodFilter";
+    filCb.value = v;
     filCb.dataset.chipFilter = "1";
-    filCb.checked = opts?.filter ?? false;
-    filLab.appendChild(filCb);
-    filLab.appendChild(document.createElement("span")).textContent = "F";
-    // Si quitas el mood/tag, quita el filtro
+    filCb.checked = !!opts?.filter;
+    filCb.className = "mood-chip__f";
+    filCb.title = "Mostrar en filtros de biblioteca";
+
+    const fMark = document.createElement("span");
+    fMark.className = "mood-chip__fmark";
+    fMark.textContent = "F";
+    fMark.title = "Filtro biblioteca";
+
+    const syncCls = () => {
+      row.classList.toggle("is-on", mainCb.checked);
+      row.classList.toggle("is-filter", filCb.checked);
+    };
     mainCb.addEventListener("change", () => {
       if (!mainCb.checked) filCb.checked = false;
+      syncCls();
     });
     filCb.addEventListener("change", () => {
       if (filCb.checked) mainCb.checked = true;
+      syncCls();
     });
-    row.appendChild(mainLab);
-    row.appendChild(filLab);
+    fMark.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      filCb.checked = !filCb.checked;
+      filCb.dispatchEvent(new Event("change"));
+    });
+    syncCls();
+
+    row.appendChild(mainCb);
+    row.appendChild(label);
+    row.appendChild(filCb);
+    row.appendChild(fMark);
     return row;
   };
 
-  const wireChipPair = (pick: HTMLElement) => {
-    pick.querySelectorAll("[data-chip-main]").forEach((el) => {
-      if (!(el instanceof HTMLInputElement) || el.dataset.wired) return;
-      el.dataset.wired = "1";
-      const val = el.value;
-      const fil = pick.querySelector(
-        `[data-chip-filter][value="${CSS.escape(val)}"]`,
-      ) as HTMLInputElement | null;
-      el.addEventListener("change", () => {
-        if (!el.checked && fil) fil.checked = false;
-      });
-      fil?.addEventListener("change", () => {
-        if (fil.checked) el.checked = true;
-      });
-    });
+  const rebuildMoodPick = (opts?: { selected?: string[]; filters?: string[] }) => {
+    const pick = document.querySelector("[data-mood-pick]");
+    if (!(pick instanceof HTMLElement)) return;
+    const selected = new Set<string>();
+    const filters = new Set<string>();
+    if (opts?.selected) {
+      for (const m of opts.selected) selected.add(normalizeMood(m));
+    } else {
+      pick
+        .querySelectorAll<HTMLInputElement>("[data-chip-main]:checked")
+        .forEach((el) => selected.add(normalizeMood(el.value)));
+    }
+    if (opts?.filters) {
+      for (const m of opts.filters) filters.add(normalizeMood(m));
+    } else {
+      pick
+        .querySelectorAll<HTMLInputElement>("[data-chip-filter]:checked")
+        .forEach((el) => filters.add(normalizeMood(el.value)));
+    }
+    for (const m of selected) rememberMood(m);
+    pick.innerHTML = "";
+    for (const m of moodVocabulary()) {
+      pick.appendChild(
+        makeMoodChip(m, { main: selected.has(m), filter: filters.has(m) }),
+      );
+    }
+    const hint = document.querySelector("[data-mood-hint]");
+    if (hint instanceof HTMLElement) {
+      hint.hidden = false;
+      hint.textContent = `${pick.querySelectorAll(".mood-chip").length} moods · marca obra + F para filtro. Nuevos se guardan aquí y en catálogo al publicar.`;
+    }
   };
 
-  const addCustomChip = (
-    pickSel: string,
-    inputSel: string,
-    name: "moodPick" | "tagPick",
-    filterName: "moodFilter" | "tagFilter",
-  ) => {
-    const pick = document.querySelector(pickSel);
-    const input = document.querySelector(inputSel);
-    if (!(pick instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
-    wireChipPair(pick);
-    const add = () => {
-      const v = input.value.trim().toLowerCase().slice(0, 40);
-      if (!v) return;
-      const exists = pick.querySelector(`[data-chip-main][value="${CSS.escape(v)}"]`);
-      if (exists instanceof HTMLInputElement) {
-        exists.checked = true;
-        input.value = "";
-        return;
-      }
-      pick.appendChild(makeChipRow(name, filterName, v, { main: true, filter: false }));
-      wireChipPair(pick);
-      input.value = "";
-    };
-    document
-      .querySelector(inputSel === "[data-mood-custom]" ? "[data-mood-add]" : "[data-tag-add]")
-      ?.addEventListener("click", add);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        add();
-      }
-    });
+  const addMoodFromInput = () => {
+    const input = document.querySelector("[data-mood-custom]");
+    if (!(input instanceof HTMLInputElement)) return;
+    const v = normalizeMood(input.value);
+    if (!v) {
+      setStatus("Escribe un mood para añadir.", false);
+      return;
+    }
+    rememberMood(v);
+    const selected = [
+      ...[
+        ...document.querySelectorAll<HTMLInputElement>("[data-chip-main]:checked"),
+      ].map((el) => normalizeMood(el.value)),
+      v,
+    ];
+    const filters = [
+      ...document.querySelectorAll<HTMLInputElement>("[data-chip-filter]:checked"),
+    ].map((el) => normalizeMood(el.value));
+    rebuildMoodPick({ selected, filters });
+    input.value = "";
+    setStatus(`Mood «${v}» añadido y marcado.`);
   };
-  addCustomChip("[data-mood-pick]", "[data-mood-custom]", "moodPick", "moodFilter");
-  addCustomChip("[data-tag-pick]", "[data-tag-custom]", "tagPick", "tagFilter");
+
+  document.querySelector("[data-mood-add]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    addMoodFromInput();
+  });
+  document.querySelector("[data-mood-custom]")?.addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key === "Enter") {
+      e.preventDefault();
+      addMoodFromInput();
+    }
+  });
+
+  rebuildMoodPick();
 
   const setChannel = (ch: "video" | "stems") => {
     channel = ch;
@@ -1048,50 +1085,23 @@ import Layout from "../../components/Layout.astro";
       : "video";
     setChannel(kind);
 
-    const ensureChip = (
-      pickSel: string,
-      name: "moodPick" | "tagPick",
-      filterName: "moodFilter" | "tagFilter",
-      value: string,
-      asFilter: boolean,
-    ) => {
-      const pick = document.querySelector(pickSel);
-      if (!(pick instanceof HTMLElement)) return;
-      let main = pick.querySelector(
-        `[data-chip-main][value="${CSS.escape(value)}"]`,
-      ) as HTMLInputElement | null;
-      if (!main) {
-        pick.appendChild(
-          makeChipRow(name, filterName, value, { main: true, filter: asFilter }),
-        );
-        wireChipPair(pick);
-        main = pick.querySelector(
-          `[data-chip-main][value="${CSS.escape(value)}"]`,
-        ) as HTMLInputElement | null;
-      }
-      if (main) main.checked = true;
-      const fil = pick.querySelector(
-        `[data-chip-filter][value="${CSS.escape(value)}"]`,
-      ) as HTMLInputElement | null;
-      if (fil) fil.checked = asFilter;
-    };
-    document.querySelectorAll("[name=moodPick], [name=moodFilter], [name=tagPick], [name=tagFilter]").forEach((el) => {
-      if (el instanceof HTMLInputElement) el.checked = false;
-    });
-    const fMoods = new Set((item.filterMoods as string[]) || []);
-    const fTags = new Set((item.filterTags as string[]) || []);
-    for (const m of (item.moods as string[]) || []) {
-      ensureChip("[data-mood-pick]", "moodPick", "moodFilter", m, fMoods.has(m));
-    }
-    for (const t of (item.tags as string[]) || []) {
-      ensureChip("[data-tag-pick]", "tagPick", "tagFilter", t, fTags.has(t));
-    }
+    // Unificar moods + tags legacy en una sola lista
+    const selectedMoods = [
+      ...((item.moods as string[]) || []),
+      ...((item.tags as string[]) || []),
+    ].map(normalizeMood).filter(Boolean);
+    const filterMoods = [
+      ...((item.filterMoods as string[]) || []),
+      ...((item.filterTags as string[]) || []),
+    ].map(normalizeMood).filter(Boolean);
+    for (const m of selectedMoods) rememberMood(m);
+    rebuildMoodPick({ selected: selectedMoods, filters: filterMoods });
 
     stemRows = [];
     renderStems();
     paintMediaStatus(item);
     setStatus(
-      `Editando «${item.title}». Mira los avisos verdes/rojos junto a los archivos. Guarda tags sin re-subir.`,
+      `Editando «${item.title}». Mira los avisos de archivos. Guarda moods sin re-subir media.`,
     );
   };
 
@@ -1199,6 +1209,8 @@ import Layout from "../../components/Layout.astro";
       publications = Array.isArray(data.items) ? data.items : [];
       pubPage = 0;
       renderPubs();
+      // Incorporar moods del catálogo al vocabulario del picker
+      rebuildMoodPick();
     } catch (e) {
       if (grid instanceof HTMLElement) {
         grid.innerHTML = `<p class="pub-empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
@@ -1245,10 +1257,14 @@ import Layout from "../../components/Layout.astro";
         return;
       }
 
-      const moods = fd.getAll("moodPick").map(String);
-      const tags = fd.getAll("tagPick").map(String);
-      const filterMoods = fd.getAll("moodFilter").map(String).filter((m) => moods.includes(m));
-      const filterTags = fd.getAll("tagFilter").map(String).filter((t) => tags.includes(t));
+      // Solo moods (tags unificados); vaciamos tags en catálogo
+      const moods = [...new Set(fd.getAll("moodPick").map((x) => normalizeMood(String(x))).filter(Boolean))];
+      const filterMoods = [...new Set(
+        fd.getAll("moodFilter").map((x) => normalizeMood(String(x))).filter((m) => moods.includes(m)),
+      )];
+      const tags: string[] = [];
+      const filterTags: string[] = [];
+      for (const m of moods) rememberMood(m);
 
       const hasVideoFile =
         channel === "video"
@@ -2030,49 +2046,79 @@ import Layout from "../../components/Layout.astro";
   .chips-field {
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    padding: 0.75rem;
+    padding: 0.65rem 0.75rem;
     margin: 0;
   }
   .pick {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.3rem;
+    max-height: 11rem;
+    overflow-y: auto;
+    padding: 0.15rem 0;
   }
-  .pick-item {
+  .mood-chip {
     display: inline-flex;
-    flex-direction: row;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.45rem 0.35rem 0.55rem;
+    gap: 0.28rem;
+    max-width: 100%;
+    padding: 0.22rem 0.4rem 0.22rem 0.35rem;
     border-radius: 999px;
     border: 1px solid var(--color-border);
     background: var(--color-bg-elevated);
-    font-size: 1.2rem;
-  }
-  .pick-main {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    cursor: pointer;
-    color: var(--color-fg);
-    font-size: 1.2rem;
+    font-size: 0.78rem;
     font-weight: 500;
+    color: var(--color-fg);
+    cursor: pointer;
+    user-select: none;
   }
-  .pick-filter {
+  .mood-chip.is-on {
+    border-color: rgb(201 169 98 / 0.55);
+    background: rgb(201 169 98 / 0.12);
+  }
+  .mood-chip.is-filter {
+    box-shadow: inset 0 0 0 1px rgb(201 169 98 / 0.35);
+  }
+  .mood-chip input[type="checkbox"] {
+    width: 0.85rem;
+    height: 0.85rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .mood-chip__txt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 9rem;
+  }
+  .mood-chip__f {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+  .mood-chip__fmark {
     display: inline-flex;
     align-items: center;
-    gap: 0.15rem;
-    padding: 0.12rem 0.3rem;
-    border-radius: 6px;
-    border: 1px solid rgb(201 169 98 / 0.3);
-    background: rgb(201 169 98 / 0.08);
-    font-size: 0.7rem;
-    font-weight: 700;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.2rem;
+    border-radius: 4px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(0 0 0 / 0.25);
+    font-size: 0.62rem;
+    font-weight: 800;
     letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--color-accent);
-    cursor: pointer;
+    color: var(--color-muted);
     flex-shrink: 0;
+  }
+  .mood-chip.is-filter .mood-chip__fmark {
+    background: rgb(201 169 98 / 0.25);
+    color: var(--color-accent);
+    border-color: rgb(201 169 98 / 0.55);
   }
   .btn {
     display: inline-flex;

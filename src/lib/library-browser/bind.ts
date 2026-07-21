@@ -57,22 +57,22 @@ export function bindLibraryBrowser() {
       const tagsBar = root.querySelector("[data-lb-tags]");
 
       const collectFilters = (list: Item[]) => {
+        // Unificado: filterMoods + filterTags legacy + fallback a moods/tags de obra
         const m = new Set<string>();
-        const t = new Set<string>();
         for (const i of list) {
           const fm = Array.isArray(i.filterMoods) ? i.filterMoods : [];
           const ft = Array.isArray(i.filterTags) ? i.filterTags : [];
           for (const x of fm) if (x) m.add(String(x));
-          for (const x of ft) if (x) t.add(String(x));
+          for (const x of ft) if (x) m.add(String(x));
         }
-        // Fallback: ítems antiguos sin filterMoods → moods usados
         if (!m.size) {
           for (const i of list) {
             for (const x of i.moods || []) if (x) m.add(String(x));
+            for (const x of i.tags || []) if (x) m.add(String(x));
           }
         }
-        filterMoods = [...m].sort();
-        filterTags = [...t].sort();
+        filterMoods = [...m].sort((a, b) => a.localeCompare(b, "es"));
+        filterTags = []; // tags unificados en moods
       };
 
       const paintChipBar = (
@@ -107,17 +107,18 @@ export function bindLibraryBrowser() {
 
       let typeFilter = "all";
       let moodFilter: string | null = null;
-      let tagFilter: string | null = null;
+      let tagFilter: string | null = null; // legacy unused
 
       const paintFilters = async () => {
         const moodLabels = await translateFilterLabels(filterMoods, lang);
-        const tagLabels = await translateFilterLabels(filterTags, lang);
         paintChipBar(moodsBar, filterMoods, moodLabels, "mood", () => moodFilter, (v) => {
           moodFilter = v;
         });
-        paintChipBar(tagsBar, filterTags, tagLabels, "tag", () => tagFilter, (v) => {
-          tagFilter = v;
-        });
+        // Tags unificados en moods
+        if (tagsBar instanceof HTMLElement) {
+          const block = tagsBar.closest("[data-lb-tags-block]");
+          if (block instanceof HTMLElement) block.hidden = true;
+        }
       };
       collectFilters(items);
       void paintFilters();
@@ -439,8 +440,10 @@ export function bindLibraryBrowser() {
           if (typeFilter === "stems") {
             if (!(i.kind === "stems" || (i.stems && i.stems.length))) return false;
           }
-          if (moodFilter && !(i.moods || []).includes(moodFilter)) return false;
-          if (tagFilter && !(i.tags || []).includes(tagFilter)) return false;
+          if (moodFilter) {
+            const bag = new Set([...(i.moods || []), ...(i.tags || [])].map(String));
+            if (!bag.has(moodFilter)) return false;
+          }
           return true;
         });
 
@@ -723,8 +726,12 @@ export function bindLibraryBrowser() {
           if (!ul) return;
           ul.innerHTML = arr.length ? arr.map((x) => `<li>${escapeHtml(x)}</li>`).join("") : "<li>—</li>";
         };
-        fill("[data-lb-mood-pills]", item.moods || []);
-        fill("[data-lb-tag-pills]", item.tags || []);
+        // Unificado: mostrar moods (+ tags legacy si aún existen en el ítem)
+        const moodBag = [
+          ...new Set([...(item.moods || []), ...(item.tags || [])].map(String).filter(Boolean)),
+        ];
+        fill("[data-lb-mood-pills]", moodBag);
+        fill("[data-lb-tag-pills]", []);
 
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");

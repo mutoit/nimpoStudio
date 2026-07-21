@@ -108,18 +108,24 @@ export function bindLibraryBrowser() {
       let typeFilter = "all";
       let moodFilter: string | null = null;
       let tagFilter: string | null = null; // legacy unused
+      /** Evita que un paintFilters viejo (semilla) pise al del catálogo vivo */
+      let filtersPaintGen = 0;
 
       const paintFilters = async () => {
-        const moodLabels = await translateFilterLabels(filterMoods, lang);
-        paintChipBar(moodsBar, filterMoods, moodLabels, "mood", () => moodFilter, (v) => {
+        const gen = ++filtersPaintGen;
+        // Snapshot: no usar filterMoods tras el await (puede haber cambiado)
+        const list = [...filterMoods];
+        const moodLabels = await translateFilterLabels(list, lang);
+        if (gen !== filtersPaintGen) return;
+        paintChipBar(moodsBar, list, moodLabels, "mood", () => moodFilter, (v) => {
           moodFilter = v;
         });
-        // Tags unificados en moods
         if (tagsBar instanceof HTMLElement) {
           const block = tagsBar.closest("[data-lb-tags-block]");
           if (block instanceof HTMLElement) block.hidden = true;
         }
       };
+      // Semilla: filtros provisionales; el fetch vivo re-pinta con vocabulario R2
       collectFilters(items);
       void paintFilters();
       let active: Item | null = null;
@@ -995,8 +1001,13 @@ export function bindLibraryBrowser() {
           const live = await res.json();
           // Solo sustituir semilla si hay catálogo R2 real (aunque sea 1 ítem)
           if (!live?.ok || !Array.isArray(live.items) || !live.items.length) return;
-          if (Array.isArray(live.moods)) {
-            serverMoods = live.moods.map(String);
+          // Vocabulario global: unir, no encoger (evita parpadeo a lista corta)
+          if (Array.isArray(live.moods) && live.moods.length) {
+            const merged = new Set([
+              ...serverMoods.map((x) => String(x).toLowerCase()),
+              ...live.moods.map((x: unknown) => String(x).toLowerCase()),
+            ]);
+            serverMoods = [...merged].filter(Boolean);
           }
           // Vaciar audio en memoria (evita seguir oyendo un ítem ya borrado del catálogo)
           stemsTx.dispose();
@@ -1029,7 +1040,9 @@ export function bindLibraryBrowser() {
               : undefined,
           }));
           collectFilters(items);
-          void paintFilters();
+          // Invalida paints en vuelo de la semilla y pinta la lista definitiva
+          filtersPaintGen += 1;
+          await paintFilters();
           renderGrid();
         } catch {
           /* keep build seed */

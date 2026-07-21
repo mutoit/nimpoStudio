@@ -915,7 +915,7 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
-  rebuildMoodPick();
+  // No rebuild aquí: loadPubs trae moods de R2 y pinta una sola vez (evita parpadeo lista corta)
 
   const setChannel = (ch: "video" | "stems") => {
     channel = ch;
@@ -1254,17 +1254,25 @@ import Layout from "../../components/Layout.astro";
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo cargar");
       publications = Array.isArray(data.items) ? data.items : [];
-      if (Array.isArray(data.moods)) {
-        serverMoods = data.moods.map(String);
+      if (Array.isArray(data.moods) && data.moods.length) {
+        // Unir, no reemplazar por lista más corta
+        const merged = new Set([
+          ...serverMoods.map((x) => normalizeMood(x)),
+          ...data.moods.map((x: unknown) => normalizeMood(String(x))),
+        ]);
+        serverMoods = [...merged].filter(Boolean);
       }
       pubPage = 0;
       renderPubs();
-      // Vocabulario global R2 + obras → mismos moods que en biblioteca pública
-      rebuildMoodPick();
+      // Una sola pintura con vocabulario R2 (misma fuente que biblioteca pública)
+      const keep = readSelectedMoods();
+      rebuildMoodPick(keep.length ? { selected: keep } : { selected: [] });
     } catch (e) {
       if (grid instanceof HTMLElement) {
         grid.innerHTML = `<p class="pub-empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
       }
+      // Fallback local si falla el API
+      rebuildMoodPick();
     }
   };
 

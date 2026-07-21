@@ -82,6 +82,8 @@ No editar `library.json` a mano salvo semilla local o fallback.
 | Turnstile (anti-bots quote) | `TURNSTILE_SECRET_KEY` + `PUBLIC_TURNSTILE_SITE_KEY` |
 | KV `RATE_LIMIT_KV` multi-edge | Opcional; ver `wrangler.toml` comentado |
 | Smoke: publish real → biblioteca | Confirmar end-to-end |
+| **Lanzamiento** (con catálogo sólido) | `docs/licencias/ESTRATEGIA-LANZAMIENTO.md` — founder 5–10 clientes, case studies |
+| **Testimonios + valoración** de obras | Pedir post-venta; UI en web cuando haya 2–3 reales |
 
 ---
 
@@ -96,6 +98,7 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] Proxy `/api/media/*` same-origin (CORS stems Web Audio)
 - [x] Moods/tags personalizados en admin
 - [ ] QA visual mobile modal full-screen
+- [ ] Bloque **testimonios / valoraciones** (cuando haya casos reales; ver ESTRATEGIA-LANZAMIENTO)
 
 ### Fase 2 — Venta / entrega automática
 - [ ] Stripe (test → live)

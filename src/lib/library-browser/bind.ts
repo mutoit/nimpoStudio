@@ -45,7 +45,11 @@ export function bindLibraryBrowser() {
       // items mutables: semilla del build + catálogo vivo /api/library
       let items: Item[] = Array.isArray(data.items) ? [...data.items] : [];
       const lang = data.lang;
-      let filterMoods: string[] = Array.isArray(data.moods) ? [...data.moods] : [];
+      /** Vocabulario global desde API (catalog/moods.json + obras) */
+      let serverMoods: string[] = Array.isArray((data as { moods?: string[] }).moods)
+        ? ((data as { moods: string[] }).moods).map(String)
+        : [];
+      let filterMoods: string[] = [];
       let filterTags: string[] = [];
       const L = data.labels;
 
@@ -57,14 +61,15 @@ export function bindLibraryBrowser() {
       const tagsBar = root.querySelector("[data-lb-tags]");
 
       const collectFilters = (list: Item[]) => {
-        // Todos los moods (y tags legacy) del catálogo → chips de filtro.
-        // Clic en un mood = mostrar solo obras que lo tienen.
-        const m = new Set<string>();
+        // Vocabulario R2 + todos los moods de las obras
+        const m = new Set<string>(
+          serverMoods.map((x) => String(x).trim().toLowerCase()).filter(Boolean),
+        );
         for (const i of list) {
-          for (const x of i.moods || []) if (x) m.add(String(x).trim());
-          for (const x of i.tags || []) if (x) m.add(String(x).trim());
-          for (const x of i.filterMoods || []) if (x) m.add(String(x).trim());
-          for (const x of i.filterTags || []) if (x) m.add(String(x).trim());
+          for (const x of i.moods || []) if (x) m.add(String(x).trim().toLowerCase());
+          for (const x of i.tags || []) if (x) m.add(String(x).trim().toLowerCase());
+          for (const x of i.filterMoods || []) if (x) m.add(String(x).trim().toLowerCase());
+          for (const x of i.filterTags || []) if (x) m.add(String(x).trim().toLowerCase());
         }
         filterMoods = [...m].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"));
         filterTags = [];

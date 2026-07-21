@@ -105,6 +105,52 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
   ...u,
   label: t(usageLabelKey[u.code] as Parameters<typeof t>[0]),
 }));
+
+const P = LICENSE_PRICES;
+const licenseExtras: { name: string; title: string; price: string }[] = [
+  { name: "stems", title: t("quoteStems"), price: `+${P.stems} €` },
+  { name: "editShort", title: t("quoteEdit"), price: `+${P.editShort} €` },
+  {
+    name: "termPlus1y",
+    title: "Extensión +1 año",
+    price: `+${P.termPlus1yCommercial} / +${P.termPlus1yExclusive} €`,
+  },
+  {
+    name: "territoryExpand",
+    title: "Ampliar territorio / medios",
+    price: `+${P.territoryExpand} €`,
+  },
+  {
+    name: "moreComposition",
+    title: "Más composición / custom ½ día",
+    price: `+${P.moreComposition} €`,
+  },
+  {
+    name: "exclusive",
+    title: t("quoteExclusive"),
+    price: `desde ${P.exclusiveFrom} €`,
+  },
+  {
+    name: "exclusiveStrong",
+    title: "Exclusiva fuerte multi-medio",
+    price: `desde ${P.exclusiveStrongFrom} €`,
+  },
+  {
+    name: "removeFromCatalog",
+    title: "Retirar del catálogo público",
+    price: `+${P.removeFromCatalog} €`,
+  },
+  {
+    name: "buyout",
+    title: t("quoteBuyout"),
+    price: `desde ${P.buyoutFrom} €`,
+  },
+  {
+    name: "buyoutHigh",
+    title: "Buyout alto / a medida",
+    price: `desde ${P.buyoutHighFrom} €`,
+  },
+];
 ---
 
 <section class="license" id="licencias" aria-labelledby="license-title" data-quote-root>
@@ -201,75 +247,31 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
 
       <label class="quote__field">
         <span>{t("quoteProject")}</span>
-        <textarea name="project" rows="3" required placeholder={t("quoteProjectPh")}
+        <textarea name="project" rows="2" required placeholder={t("quoteProjectPh")}
         ></textarea>
       </label>
 
-      <fieldset class="quote__checks">
+      <fieldset class="quote__checks quote__optlist">
         <legend>{t("quoteExtras")}</legend>
-        <label
-          ><input type="checkbox" name="stems" value="1" data-quote-flag />{
-            " "
-          }{t("quoteStems")} (+{LICENSE_PRICES.stems} €)</label
-        >
-        <label
-          ><input type="checkbox" name="editShort" value="1" data-quote-flag />{
-            " "
-          }{t("quoteEdit")} (+{LICENSE_PRICES.editShort} €)</label
-        >
-        <label
-          ><input type="checkbox" name="termPlus1y" value="1" data-quote-flag />{
-            " "
-          }Extensión +1 año (+{LICENSE_PRICES.termPlus1yCommercial} € / +{
-            LICENSE_PRICES.termPlus1yExclusive
-          } € si exclusiva)</label
-        >
-        <label
-          ><input type="checkbox" name="territoryExpand" value="1" data-quote-flag />{
-            " "
-          }Ampliar territorio / medios (+{LICENSE_PRICES.territoryExpand} €)</label
-        >
-        <label
-          ><input type="checkbox" name="moreComposition" value="1" data-quote-flag />{
-            " "
-          }Más composición / custom ½ día (+{LICENSE_PRICES.moreComposition} €)</label
-        >
-        <label
-          ><input type="checkbox" name="exclusive" value="1" data-quote-flag />{
-            " "
-          }{t("quoteExclusive")} (desde {LICENSE_PRICES.exclusiveFrom} €)</label
-        >
-        <label
-          ><input type="checkbox" name="exclusiveStrong" value="1" data-quote-flag />{
-            " "
-          }Exclusiva fuerte multi-medio (desde {LICENSE_PRICES.exclusiveStrongFrom} €)</label
-        >
-        <label
-          ><input type="checkbox" name="removeFromCatalog" value="1" data-quote-flag />{
-            " "
-          }No disponible / retirar del catálogo (+{LICENSE_PRICES.removeFromCatalog} €, con
-          exclusiva)</label
-        >
-        <label
-          ><input type="checkbox" name="buyout" value="1" data-quote-flag />{
-            " "
-          }{t("quoteBuyout")} (desde {LICENSE_PRICES.buyoutFrom} €)</label
-        >
-        <label
-          ><input type="checkbox" name="buyoutHigh" value="1" data-quote-flag />{
-            " "
-          }Buyout alto / a medida (desde {LICENSE_PRICES.buyoutHighFrom} €)</label
-        >
+        {
+          licenseExtras.map((ex) => (
+            <label class="quote__opt">
+              <input type="checkbox" name={ex.name} value="1" data-quote-flag />
+              <span class="quote__opt-title">{ex.title}</span>
+              <span class="quote__opt-price">{ex.price}</span>
+            </label>
+          ))
+        }
       </fieldset>
 
-      <fieldset class="quote__special">
+      <fieldset class="quote__special quote__optlist">
         <legend>{t("quoteSpecialLegend")}</legend>
         <p class="quote__special-help">{t("quoteSpecialHelp")}</p>
-        <label class="quote__special-check">
+        <label class="quote__opt">
           <input type="checkbox" name="needSpecialReview" value="1" data-quote-flag />
-          <span>{t("quoteSpecialCheck")}</span>
+          <span class="quote__opt-title">{t("quoteSpecialCheck")}</span>
         </label>
-        <label class="quote__field">
+        <label class="quote__field quote__opt-notes">
           <span>{t("quoteSpecialNotes")}</span>
           <textarea
             name="specialNotes"
@@ -728,7 +730,7 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
   .quote__checks,
   .quote__special {
     margin: 0;
-    padding: 0.85rem 1rem;
+    padding: 0.55rem 0.65rem 0.65rem;
     border-radius: var(--radius);
     border: 1px solid var(--color-border);
   }
@@ -747,23 +749,73 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
   }
 
   .quote__special-help {
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.45rem;
+    padding: 0 0.25rem;
     font-size: 0.82rem;
     line-height: 1.5;
     color: var(--color-muted);
     font-weight: 400;
   }
 
-  .quote__checks label,
-  .quote__special-check {
+  .quote__optlist {
     display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
-    font-size: 0.85rem;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .quote__opt {
+    display: grid;
+    grid-template-columns: 1.15rem minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.55rem;
+    margin: 0;
+    padding: 0.4rem 0.3rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
     font-weight: 400;
     color: var(--color-fg);
     cursor: pointer;
+    line-height: 1.3;
+    transition: background 0.12s;
+  }
+
+  .quote__opt:hover {
+    background: rgb(255 255 255 / 0.04);
+  }
+
+  .quote__opt:has(input:checked) {
+    background: rgb(201 169 98 / 0.1);
+  }
+
+  .quote__opt input[type="checkbox"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+  }
+
+  .quote__opt-title {
+    min-width: 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .quote__opt-price {
+    justify-self: end;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--color-accent);
+    padding: 0.12rem 0.4rem;
+    border-radius: 999px;
+    background: rgb(201 169 98 / 0.12);
+    border: 1px solid rgb(201 169 98 / 0.22);
+  }
+
+  .quote__opt-notes {
+    margin-top: 0.25rem;
   }
 
   .quote__live {
@@ -815,97 +867,154 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
     cursor: pointer;
   }
 
-  /* Móvil: cotizador compacto (mismas densidades que biblioteca) */
+  /* Móvil: cotizador denso — listas fila (escritorio intacto arriba de 720px) */
   @media (max-width: 720px) {
+    .license__header .license__intro,
+    .license__header .license__note,
+    .quote__lead {
+      display: none;
+    }
+
     .license__tiers {
-      gap: 0.5rem;
-      margin-bottom: 1.15rem;
+      gap: 0.4rem;
+      margin-bottom: 0.9rem;
     }
 
     .license__tier {
-      padding: 0.7rem 0.75rem;
+      padding: 0.55rem 0.65rem;
     }
 
     .license__tier-name {
-      font-size: 0.88rem;
+      font-size: 0.82rem;
     }
 
     .license__tier-desc {
-      font-size: 0.75rem;
-      line-height: 1.4;
+      font-size: 0.7rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
     }
 
     .quote__title {
-      font-size: 1rem;
-    }
-
-    .quote__lead {
-      margin: 0.3rem 0 0.7rem;
-      font-size: 0.8rem;
-      line-height: 1.4;
+      font-size: 0.95rem;
     }
 
     .quote__form {
-      gap: 0.55rem;
+      gap: 0.4rem;
     }
 
     .quote__grid {
-      gap: 0.55rem;
+      gap: 0.4rem;
     }
 
     .quote__field {
-      font-size: 0.7rem;
-      gap: 0.2rem;
+      font-size: 0.62rem;
+      gap: 0.15rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .quote__field input,
     .quote__field select,
     .quote__field textarea {
-      padding: 0.45rem 0.55rem;
+      padding: 0.4rem 0.5rem;
       font-size: 16px;
+      min-height: 2.4rem;
+      text-transform: none;
+      letter-spacing: normal;
     }
 
     .quote__checks,
     .quote__special {
-      padding: 0.55rem 0.65rem;
+      padding: 0;
+      overflow: hidden;
     }
 
     .quote__checks legend,
     .quote__special legend {
-      font-size: 0.68rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.45rem 0.55rem 0.2rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .quote__optlist {
+      gap: 0;
+    }
+
+    .quote__opt {
+      grid-template-columns: 1rem minmax(0, 1fr) auto;
+      column-gap: 0.45rem;
+      padding: 0.42rem 0.55rem;
+      border-radius: 0;
+      border-bottom: 1px solid rgb(255 255 255 / 0.06);
+      font-size: 0.72rem;
+      min-height: 2.35rem;
+    }
+
+    .quote__opt:last-of-type {
+      border-bottom: none;
+    }
+
+    .quote__opt:hover {
+      background: transparent;
+    }
+
+    .quote__opt input[type="checkbox"] {
+      width: 0.95rem;
+      height: 0.95rem;
+    }
+
+    .quote__opt-title {
+      font-size: 0.72rem;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .quote__opt-price {
+      font-size: 0.62rem;
+      padding: 0.1rem 0.35rem;
+      max-width: 7.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .quote__special-help {
-      margin: 0 0 0.4rem;
-      font-size: 0.72rem;
-      line-height: 1.35;
+      margin: 0;
+      padding: 0.25rem 0.55rem 0.35rem;
+      font-size: 0.68rem;
+      line-height: 1.3;
     }
 
-    .quote__checks label,
-    .quote__special-check {
-      margin-top: 0.28rem;
-      font-size: 0.76rem;
-      line-height: 1.3;
-      gap: 0.4rem;
+    .quote__opt-notes {
+      padding: 0.35rem 0.55rem 0.5rem;
+      border-top: 1px solid rgb(255 255 255 / 0.06);
+      margin: 0;
     }
 
     .quote__live {
-      padding: 0.65rem 0.75rem;
+      padding: 0.55rem 0.65rem;
     }
 
     .quote__live-total {
-      font-size: 1.35rem;
+      font-size: 1.2rem;
     }
 
     .quote__live-lines {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
     }
 
     .quote__submit {
       width: 100%;
-      min-height: 2.75rem;
-      padding: 0.55rem 1rem;
-      font-size: 0.82rem;
+      min-height: 2.6rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.78rem;
       align-self: stretch;
     }
   }

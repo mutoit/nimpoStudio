@@ -72,7 +72,14 @@ Tras añadir variables: **nuevo deploy** (`git push` o redeploy manual).
 
 **Código:** `src/lib/analytics/opt-out.ts` + `client.ts` (`track` / marketing no corren si opt-out).
 
-**Cloudflare Web Analytics** (beacon del **panel CF**, auto-inject) **no** lee nuestro localStorage. Ahí no te excluye el `?nimpo_no_stats=1`. Opciones: mirar CF en otro perfil, o filtro de IP en el panel si CF lo ofrece. El collector first-party y GA/Clarity/Meta sí respetan el opt-out.
+**Cloudflare Web Analytics** y el opt-out del estudio:
+
+1. En el **dashboard CF** → Web Analytics → **Manage site** → **desactiva Automatic setup**.  
+   Si Automatic está ON, CF inyecta el beacon por proxy y **no hay “excluirme”** ni lee localStorage.
+2. Deja el token en `PUBLIC_CF_WEB_ANALYTICS_TOKEN` (beacon manual en el sitio).
+3. Abre una vez `?nimpo_no_stats=1` → en ese navegador **no** se carga el beacon CF ni el collector/GA/Clarity.
+
+Sin desactivar Automatic, no puedes “sacarte” del panel CF: es limitación del producto free, no del sitio.
 
 ---
 

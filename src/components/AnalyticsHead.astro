@@ -2,9 +2,8 @@
 import { getAnalyticsConfig, hasCfAnalytics } from "../lib/analytics";
 
 const config = getAnalyticsConfig();
-const cfBeacon = hasCfAnalytics(config)
-  ? JSON.stringify({ token: config.cfWebAnalyticsToken })
-  : null;
+/** Token para beacon manual (solo si NO hay opt-out del estudio). */
+const cfToken = hasCfAnalytics(config) ? config.cfWebAnalyticsToken : "";
 ---
 
 {
@@ -18,11 +17,32 @@ const cfBeacon = hasCfAnalytics(config)
   )
 }
 {
-  cfBeacon && (
+  /* CF Web Analytics: carga solo si no hay opt-out (?nimpo_no_stats=1).
+     Requiere desactivar "Automatic setup" en el panel CF → Manage site;
+     si no, CF sigue inyectando el beacon por proxy y este opt-out no basta. */
+  cfToken && (
     <script
-      defer
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon={cfBeacon}
-    />
+      define:vars={{ cfToken }}
+      is:inline
+    >{`
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get("nimpo_no_stats") === "1" || q.get("nimpo_no_analytics") === "1") {
+      try { localStorage.setItem("nimpo_analytics_opt_out", "1"); } catch (e) {}
+    }
+    if (q.get("nimpo_stats") === "1" || q.get("nimpo_analytics") === "1") {
+      try { localStorage.removeItem("nimpo_analytics_opt_out"); } catch (e) {}
+    }
+    if (localStorage.getItem("nimpo_analytics_opt_out") === "1") return;
+    if (location.pathname.indexOf("/admin") !== -1) return;
+  } catch (e) { return; }
+  var s = document.createElement("script");
+  s.defer = true;
+  s.src = "https://static.cloudflareinsights.com/beacon.min.js";
+  s.setAttribute("data-cf-beacon", JSON.stringify({ token: cfToken }));
+  document.head.appendChild(s);
+})();
+`}</script>
   )
 }

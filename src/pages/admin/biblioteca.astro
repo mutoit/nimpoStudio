@@ -1177,7 +1177,10 @@ import Layout from "../../components/Layout.astro";
           });
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || data.message || "Error");
-          setStatus(`✅ ${data.message || "Borrado"}`);
+          setStatus(
+            `✅ ${data.message || "Borrado"} · media R2: ${data.mediaDeleted ?? "?"} archivo(s). Si la biblioteca aún lo muestra: Ctrl+F5.`,
+          );
+          showToast(`Borrado «${slug}» del catálogo`, 12000);
           if (editingSlug === slug) setEditMode(null);
           await loadPubs();
         } catch (e) {
@@ -1344,14 +1347,16 @@ import Layout from "../../components/Layout.astro";
             `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
           );
           let n = 0;
+          const layerCount = withFile.length;
           for (const row of withFile) {
             if (!row.file) continue;
-            setLight("stems", "loading", `${n + 1}/${withFile.length} bake`);
+            setLight("stems", "loading", `${n + 1}/${layerCount} bake`);
             // Original limpio → admin preview / re-mezcla futura
             body.set(`stem_${n}_clean`, row.file, row.file.name);
             let baked = row.file;
             try {
-              baked = await bakePreviewNoise(row.file, noise01, music01);
+              // layerCount: ruido ÷ √N para que 7 stems no suenen a ruido ×7
+              baked = await bakePreviewNoise(row.file, noise01, music01, layerCount);
             } catch (err) {
               console.warn("[bake noise]", err);
               setLight("stems", "err", "Bake falló (sube original)");

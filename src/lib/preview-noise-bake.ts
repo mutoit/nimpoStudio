@@ -51,14 +51,19 @@ function encodeWavMono(buffer: AudioBuffer): Blob {
 /**
  * @param noise01 0 = sin ruido, 0.12 típico, 1 = solo ruido
  * @param music01 volumen de la música en la mezcla final (default 1)
+ * @param layerCount nº de stems que se publican juntos. El ruido se reparte en √N
+ *   para que, al sonar todas las capas, el ruido total ≈ el del preview admin
+ *   (1 bus de ruido). Sin esto, 7 stems suenan a “ruido al máximo”.
  */
 export async function bakePreviewNoise(
   file: File,
   noise01: number,
   music01 = 1,
+  layerCount = 1,
 ): Promise<File> {
   const nLevel = Math.max(0, Math.min(1, noise01));
   const mLevel = Math.max(0, Math.min(1, music01));
+  const layers = Math.max(1, Math.min(24, Math.floor(layerCount) || 1));
 
   const AC =
     window.AudioContext ||
@@ -87,8 +92,8 @@ export async function bakePreviewNoise(
       const noiseSrc = offline.createBufferSource();
       noiseSrc.buffer = noiseBuf;
       const noiseGain = offline.createGain();
-      // Misma curva que admin-mix-preview (×0.22)
-      noiseGain.gain.value = nLevel * 0.22;
+      // Admin preview: 1× (noise01 × 0.22). Público: N stems → ÷ √N
+      noiseGain.gain.value = (nLevel * 0.22) / Math.sqrt(layers);
       noiseSrc.connect(noiseGain);
       noiseGain.connect(offline.destination);
       noiseSrc.start(0);

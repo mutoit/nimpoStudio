@@ -752,7 +752,7 @@ export function bindLibraryBrowser() {
           mixer.innerHTML = item.stems
             .map((s) => {
               const src = escapeHtml(safeMediaUrl(s.src));
-              return `<label class="lb__mix-row" title="Doble clic: solo esta capa · otra vez: todas"><input type="checkbox" checked data-stem-src="${src}" /> <span class="lb__mix-label">${escapeHtml(s.label)}</span></label>`;
+              return `<label class="lb__mix-row" title="Clic derecho: solo esta capa · otra vez: todas"><input type="checkbox" checked data-stem-src="${src}" /> <span class="lb__mix-label">${escapeHtml(s.label)}</span></label>`;
             })
             .join("");
         }
@@ -847,7 +847,7 @@ export function bindLibraryBrowser() {
         }
       });
 
-      /** Solo / restore: doble clic en una capa de stems */
+      /** Solo / restore: clic derecho en una capa de stems */
       const syncStemSoloUi = () => {
         const checks = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
         const checked = checks.filter((c) => c.checked);
@@ -859,7 +859,7 @@ export function bindLibraryBrowser() {
         });
       };
 
-      root.addEventListener("dblclick", (e) => {
+      root.addEventListener("contextmenu", (e) => {
         const t = e.target;
         if (!(t instanceof Element)) return;
         const row = t.closest(".lb__mix-row");
@@ -876,12 +876,12 @@ export function bindLibraryBrowser() {
         const isSoloThis = input.checked && checkedCount === 1;
 
         if (isSoloThis) {
-          // Segunda doble: volver a activar el resto
+          // Segundo clic derecho: volver a activar el resto
           all.forEach((c) => {
             c.checked = true;
           });
         } else {
-          // Primera doble: solo esta capa (las demás off)
+          // Primer clic derecho: solo esta capa (las demás off)
           all.forEach((c) => {
             c.checked = c === input;
           });

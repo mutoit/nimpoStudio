@@ -819,9 +819,9 @@ const playerId = `stem-player-${Math.random().toString(36).slice(2, 9)}`;
 
     soloBtn.addEventListener('click', toggleSolo);
 
-    // Doble clic en la fila: solo esta capa / restaurar todas
-    layerEl.title = layerEl.title || "Doble clic: solo esta capa · otra vez: todas";
-    layerEl.addEventListener('dblclick', (e) => {
+    // Clic derecho en la fila: solo esta capa / restaurar todas
+    layerEl.title = layerEl.title || "Clic derecho: solo esta capa · otra vez: todas";
+    layerEl.addEventListener('contextmenu', (e) => {
       if (e.target instanceof Element && e.target.closest('button, input')) return;
       e.preventDefault();
       toggleSolo();

@@ -79,6 +79,11 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 
 **MIDI manual sin IA + stems + clearance directo** — premium indie, no stock a 29 €.
 
+## Lanzamiento (no tarifa de lista)
+
+Cuando el catálogo esté listo: primeros **5–10** clientes → founder −15–25 % (ej. **129 €** comercial) + stems o crédito.  
+Case studies + **testimonios y valoraciones** → ver `ESTRATEGIA-LANZAMIENTO.md`.
+
 ---
 
 ## Correo

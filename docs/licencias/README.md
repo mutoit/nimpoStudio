@@ -6,6 +6,7 @@ Documentos para **vender ya**, sin “consultar por todo”.
 |---------|----------|
 | [**TABLA-RAPIDA-PRECIOS.md**](./TABLA-RAPIDA-PRECIOS.md) | **Vista rápida** uso → precio (bolsillo) |
 | [00-PRECIOS-REFERENCIA.md](./00-PRECIOS-REFERENCIA.md) | Lista completa + reglas + evidencia |
+| [**ESTRATEGIA-LANZAMIENTO.md**](./ESTRATEGIA-LANZAMIENTO.md) | Founder price 5–10 clientes, case studies, **testimonios y valoraciones** |
 | [plantilla-personal.md](./plantilla-personal.md) | Contrato corto personal |
 | [plantilla-comercial.md](./plantilla-comercial.md) | Contrato comercial **169 €** base + plazos |
 | [plantilla-exclusiva.md](./plantilla-exclusiva.md) | Contrato exclusiva **desde 1.200 €** |
@@ -51,6 +52,14 @@ Si cambias un precio: **license-quote** (src + functions) + **TABLA-RAPIDA** + *
 ## A/B y métricas (recomendado)
 
 Tras 5–10 ventas o ~4 semanas: revisar conversión por tier (micro vs 2y vs ads). Ajustar anclas solo con datos; no por “precio bonito”.
+
+## Lanzamiento (cuando el catálogo esté listo)
+
+Ver [**ESTRATEGIA-LANZAMIENTO.md**](./ESTRATEGIA-LANZAMIENTO.md):
+
+- Primeros **5–10 clientes**: founder **−15–25 %** (ej. comercial **129 €** vs lista 169) + stems gratis o crédito.  
+- Documentar **case studies**.  
+- Pedir **testimonios** y **valoración** de las obras (pendiente de UI en la web).
 
 ## Firma
 

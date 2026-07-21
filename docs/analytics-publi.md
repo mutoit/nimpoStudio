@@ -42,7 +42,7 @@ Configúralas en:
 
 | Variable | Dónde obtenerla | ¿Necesaria ahora? |
 |----------|-----------------|-------------------|
-| `PUBLIC_CF_WEB_ANALYTICS_TOKEN` | Panel Web Analytics → token beacon | **No** — ver sección CF abajo |
+| `PUBLIC_CF_WEB_ANALYTICS_TOKEN` | Panel Web Analytics → Manage site → token del snippet | **Sí** (manual) — ver sección CF abajo |
 | `PUBLIC_GA_MEASUREMENT_ID` | GA4 → Admin → Data Streams → `G-XXXXXXXX` | Cuando quieras GA4 |
 | `PUBLIC_GSC_VERIFICATION` | Search Console → Verificar → meta `content="..."` | **Sí** — para indexación Google |
 | `PUBLIC_BING_VERIFICATION` | Bing Webmaster → meta `msvalidate.01` | Recomendado |
@@ -83,20 +83,18 @@ Sin desactivar Automatic, no puedes “sacarte” del panel CF: es limitación d
 
 ---
 
-## 1. Cloudflare Web Analytics ✅ (activo)
+## 1. Cloudflare Web Analytics ✅ (manual + opt-out)
 
-**Configuración aplicada:** Cloudflare → **Web Analytics** → Add a site → `nimpo3dstudio.com`.
+**Sitio:** `nimpo3dstudio.com` (panel Web Analytics).
 
-Cloudflare inyecta el beacon **automáticamente en el proxy** (no hace falta API ni variable en el build). Los datos (visitas, Core Web Vitals, LCP, etc.) aparecen en el panel en 24–48 h.
+**Setup correcto (para poder excluir al estudio):**
 
-### No hacer (evitar doble conteo)
+1. Manage site → **Enable with JS Snippet installation** (no “Enable” automático).
+2. Token del snippet → `PUBLIC_CF_WEB_ANALYTICS_TOKEN` en `.env` y en **Pages → Settings → Environment variables** (Production + Preview).
+3. Deploy: `AnalyticsHead.astro` carga el beacon solo si **no** hay opt-out (`?nimpo_no_stats=1` / `/admin`).
+4. Una vez por navegador de prueba: `https://www.nimpo3dstudio.com/?nimpo_no_stats=1`
 
-- **No** poner `PUBLIC_CF_WEB_ANALYTICS_TOKEN` en `.env` ni en Build Variables mientras la inyección automática del panel esté activa.
-- Nuestro código en `AnalyticsHead.astro` solo inyectaría el beacon si esa variable existiera → contaría **doble**.
-
-### Alternativa por API (opcional, no necesaria)
-
-Si en el futuro quisieras controlar el beacon solo desde código: desactivar auto-inject en el panel, añadir el token a `PUBLIC_CF_WEB_ANALYTICS_TOKEN` y redeploy. Requiere token API con Account Analytics Edit (`scripts/cloudflare-web-analytics.ps1`).
+**Doble conteo:** si dejas “Enable” (auto-inject) **y** el token en el build, se cuenta dos veces. Solo uno de los dos: preferimos **manual + variable**.
 
 ---
 

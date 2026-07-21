@@ -55,7 +55,9 @@ Pages → **Settings** → **Environment variables** → Production:
 | `PUBLIC_CLARITY_PROJECT_ID` | Microsoft Clarity (gratis) |
 | `PUBLIC_META_PIXEL_ID` | Solo si haces ads |
 
-**No** pongas `PUBLIC_CF_WEB_ANALYTICS_TOKEN` — Web Analytics ya va por el panel (auto-inject).
+**Web Analytics (manual + opt-out estudio):** en el panel CF → Manage site → **Enable with JS Snippet installation**.  
+Pon el token del snippet en `PUBLIC_CF_WEB_ANALYTICS_TOKEN` (Pages → Variables + `.env` local).  
+No uses “Enable” automático: si no, el auto-inject te cuenta siempre y el opt-out `?nimpo_no_stats=1` no puede cortarlo.
 
 Tras añadir variables: **Retry deployment** o un `git push`.
 

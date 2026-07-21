@@ -38,6 +38,7 @@ const cfToken = hasCfAnalytics(config) ? config.cfWebAnalyticsToken : "";
     if (location.pathname.indexOf("/admin") !== -1) return;
   } catch (e) { return; }
   var s = document.createElement("script");
+  s.type = "module";
   s.defer = true;
   s.src = "https://static.cloudflareinsights.com/beacon.min.js";
   s.setAttribute("data-cf-beacon", JSON.stringify({ token: cfToken }));

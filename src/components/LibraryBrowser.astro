@@ -1578,6 +1578,12 @@ const payload = {
     opacity: 1;
     visibility: visible;
   }
+  /* No mostrar el «?» encima/junto a la caja del tooltip */
+  .lb__opt-help:hover,
+  .lb__opt-help:focus-visible {
+    color: transparent;
+    border-color: transparent;
+  }
   .lb__opt-title {
     min-width: 0;
     font-size: 0.82rem;

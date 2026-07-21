@@ -931,6 +931,7 @@ export function bindLibraryBrowser() {
             body: JSON.stringify({
               name: String(fd.get("name") || ""),
               email: String(fd.get("email") || ""),
+              company: String(fd.get("company") || "").trim(),
               workName: String(fd.get("workName") || active.title),
               workSlug: String(fd.get("workSlug") || active.slug),
               lang,

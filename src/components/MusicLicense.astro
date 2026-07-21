@@ -149,6 +149,15 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
           <input name="email" type="email" required autocomplete="email" />
         </label>
       </div>
+      <label class="quote__field">
+        <span>{t("quoteCompany")}</span>
+        <input
+          name="company"
+          type="text"
+          autocomplete="organization"
+          placeholder={t("quoteCompanyPh")}
+        />
+      </label>
 
       <label class="quote__field">
         <span>{t("quoteUsageType")}</span>
@@ -457,6 +466,7 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
         const payload = {
           name: String(fd.get("name") || "").trim(),
           email: String(fd.get("email") || "").trim(),
+          company: String(fd.get("company") || "").trim(),
           workName: String(fd.get("workName") || "").trim(),
           workSlug: String(fd.get("workSlug") || "").trim(),
           lang: String(fd.get("lang") || "es"),
@@ -795,12 +805,12 @@ const usageOptions = USAGE_CATALOG.map((u) => ({
 
   .quote__submit {
     align-self: flex-start;
-    padding: 0.75rem 1.25rem;
+    padding: 0.5rem 1rem;
     border: none;
     border-radius: 999px;
     background: var(--color-accent);
     color: #0a0a0c;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
   }

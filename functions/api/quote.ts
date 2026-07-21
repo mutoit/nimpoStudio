@@ -24,6 +24,7 @@ import { verifyTurnstile } from "../lib/turnstile";
 type QuoteBody = {
   name?: string;
   email?: string;
+  company?: string;
   workName?: string;
   workSlug?: string;
   lang?: string;
@@ -96,11 +97,13 @@ function buildStudioText(
     QuoteBody,
   quote: LicenseQuoteResult,
 ): string {
+  const company = oneLine(String(body.company || ""), 160);
   const lines = [
     "═══ SOLICITUD DE LICENCIA / PRESUPUESTO ═══",
     "",
     `Obra: ${body.workName} (${body.workSlug})`,
     `Cliente: ${body.name} <${body.email}>`,
+    `Empresa: ${company || "—"}`,
     `Idioma UI: ${body.lang || "es"}`,
     "",
     `Uso (código): ${body.usage}`,
@@ -405,6 +408,7 @@ export async function onRequest(context: {
 
   const name = oneLine(String(body.name || ""), 120);
   const email = oneLine(String(body.email || ""), 200).toLowerCase();
+  const company = oneLine(String(body.company || ""), 160);
   const workName = oneLine(String(body.workName || ""), 200);
   const workSlug = oneLine(String(body.workSlug || ""), 120);
   const territory = oneLine(String(body.territory || ""), 80);
@@ -450,6 +454,7 @@ export async function onRequest(context: {
     ...body,
     name,
     email,
+    company,
     workName,
     workSlug,
     territory,
@@ -464,6 +469,7 @@ export async function onRequest(context: {
     JSON.stringify({
       workSlug,
       email,
+      company: company || undefined,
       usage,
       mode: quote.mode,
       total: quote.total,
@@ -473,10 +479,11 @@ export async function onRequest(context: {
   );
 
   const toStudio = (env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com").trim();
+  const who = company ? `${name} · ${company}` : name;
   const subjectStudio = oneLine(
     quote.mode === "instant"
-      ? `[Licencia ${quote.total}€] ${workName} — ${name}`
-      : `[Revisión licencia] ${workName} — ${name}`,
+      ? `[Licencia ${quote.total}€] ${workName} — ${who}`
+      : `[Revisión licencia] ${workName} — ${who}`,
     180,
   );
 

@@ -529,7 +529,6 @@ export function bindLibraryBrowser() {
         grid.innerHTML = list
           .map((item) => {
             const id = safeDomId(item.id);
-            const aspect = safeAspectLabel(item.aspect);
             const media = safeMediaUrl(item.video)
               ? `<video src="${escapeHtml(safeMediaUrl(item.video))}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(item.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`
               : item.cover
@@ -561,7 +560,6 @@ export function bindLibraryBrowser() {
                 <button type="button" class="lb__thumb" data-open="${escapeHtml(id)}" aria-label="${escapeHtml(item.title)}">
                   <span class="lb__frame">${media}</span>
                   ${prov}${stemBadge}${unavail}
-                  <span class="lb__ratio">${escapeHtml(aspect)}</span>
                 </button>
                 ${playBtn}
                 ${prog}

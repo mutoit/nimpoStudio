@@ -4,6 +4,7 @@ import MusicMidiBadge from "../../../components/MusicMidiBadge.astro";
 import MusicLicense from "../../../components/MusicLicense.astro";
 import MusicTracklist from "../../../components/MusicTracklist.astro";
 import StemPlayer from "../../../components/StemPlayer.astro";
+import ShareButton from "../../../components/ShareButton.astro";
 import {
   getReleaseBySlug,
   getStaticMusicPaths,
@@ -37,10 +38,12 @@ if (!release) {
 }
 
 const musicHref = localizePath("/musica", lang);
+const releaseHref = localizePath(`/musica/${release.slug}`, lang);
 
 const firstTrack = release?.tracks?.[0];
 const hasStems = !!(firstTrack?.stems && firstTrack.stems.length > 0);
 const provisional = release ? isProvisionalRelease(release) : false;
+const shareText = `${release.name} — ${release.shortDescription}`;
 ---
 
 <Layout
@@ -127,9 +130,20 @@ const provisional = release ? isProvisionalRelease(release) : false;
             </ul>
           )
         }
-        <a href="#licencias" class="release__license-btn">
-          {t("musicLicenseOpen")}
-        </a>
+        <div class="release__actions">
+          <a href="#licencias" class="release__license-btn">
+            {t("musicLicenseOpen")}
+          </a>
+          <ShareButton
+            url={releaseHref}
+            title={release.name}
+            text={shareText}
+            label={t("share")}
+            copiedLabel={t("shareCopied")}
+            failedLabel={t("shareFailed")}
+            variant="ghost"
+          />
+        </div>
       </div>
     </article>
 
@@ -335,9 +349,16 @@ const provisional = release ? isProvisionalRelease(release) : false;
     font-size: 0.75rem;
   }
 
+  .release__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 1.35rem;
+  }
+
   .release__license-btn {
     display: inline-flex;
-    margin-top: 1.35rem;
     padding: 0.65rem 1.15rem;
     border-radius: 999px;
     border: 1px solid rgb(201 169 98 / 0.45);

@@ -1,0 +1,197 @@
+---
+/**
+ * Botón de compartir (Web Share + copiar enlace).
+ * P: title/url de la publicación. Q: el usuario puede compartir o copiar la URL.
+ */
+type Props = {
+  /** URL a compartir (absoluta o path). Si se omite, usa la URL actual en cliente. */
+  url?: string;
+  title?: string;
+  text?: string;
+  label: string;
+  copiedLabel: string;
+  failedLabel?: string;
+  /** visual: "solid" | "ghost" | "icon" */
+  variant?: "solid" | "ghost" | "icon";
+  class?: string;
+};
+
+const {
+  url = "",
+  title = "",
+  text = "",
+  label,
+  copiedLabel,
+  failedLabel = label,
+  variant = "ghost",
+  class: className = "",
+} = Astro.props;
+---
+
+<button
+  type="button"
+  class:list={["share-btn", `share-btn--${variant}`, className]}
+  data-share-btn
+  data-share-url={url}
+  data-share-title={title}
+  data-share-text={text}
+  data-label={label}
+  data-copied={copiedLabel}
+  data-failed={failedLabel}
+  aria-label={label}
+>
+  <span class="share-btn__icon" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="18" cy="5" r="3"></circle>
+      <circle cx="6" cy="12" r="3"></circle>
+      <circle cx="18" cy="19" r="3"></circle>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    </svg>
+  </span>
+  <span class="share-btn__text" data-share-label>{label}</span>
+</button>
+
+<script>
+  import { shareUrl, absoluteShareUrl } from "../lib/share";
+
+  function bindShareButtons(root: ParentNode = document) {
+    root.querySelectorAll<HTMLButtonElement>("[data-share-btn]").forEach((btn) => {
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+
+      const labelEl = btn.querySelector<HTMLElement>("[data-share-label]");
+      let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const path = btn.dataset.shareUrl || "";
+        const url = absoluteShareUrl(path || window.location.href);
+        const title = btn.dataset.shareTitle || document.title;
+        const text = btn.dataset.shareText || "";
+        const baseLabel = btn.dataset.label || "Share";
+        const copied = btn.dataset.copied || "Copied";
+        const failed = btn.dataset.failed || baseLabel;
+
+        btn.disabled = true;
+        const result = await shareUrl({ url, title, text });
+        btn.disabled = false;
+
+        if (result === "cancelled") return;
+
+        const next =
+          result === "shared" || result === "copied" ? copied : failed;
+        if (labelEl) labelEl.textContent = next;
+        btn.setAttribute("aria-label", next);
+        btn.classList.toggle("is-ok", result === "shared" || result === "copied");
+        btn.classList.toggle("is-fail", result === "failed");
+
+        if (resetTimer) clearTimeout(resetTimer);
+        resetTimer = setTimeout(() => {
+          if (labelEl) labelEl.textContent = baseLabel;
+          btn.setAttribute("aria-label", baseLabel);
+          btn.classList.remove("is-ok", "is-fail");
+        }, 2200);
+      });
+    });
+  }
+
+  bindShareButtons();
+  document.addEventListener("astro:page-load", () => bindShareButtons());
+</script>
+
+<style>
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
+  }
+
+  .share-btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+
+  .share-btn__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .share-btn__icon svg {
+    display: block;
+  }
+
+  .share-btn--ghost {
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-fg);
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .share-btn--ghost:hover {
+    border-color: rgb(201 169 98 / 0.45);
+    color: var(--color-accent);
+    background: rgb(201 169 98 / 0.08);
+  }
+
+  .share-btn--solid {
+    padding: 0.65rem 1.15rem;
+    border-radius: 999px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: rgb(201 169 98 / 0.12);
+    color: var(--color-accent);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .share-btn--solid:hover {
+    background: rgb(201 169 98 / 0.2);
+  }
+
+  .share-btn--icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: rgb(8 8 10 / 0.55);
+    color: var(--color-fg);
+    backdrop-filter: blur(8px);
+  }
+
+  .share-btn--icon .share-btn__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .share-btn--icon:hover {
+    border-color: rgb(201 169 98 / 0.45);
+    color: var(--color-accent);
+  }
+
+  .share-btn.is-ok {
+    border-color: rgb(201 169 98 / 0.55);
+    color: var(--color-accent);
+  }
+
+  .share-btn.is-fail {
+    opacity: 0.85;
+  }
+</style>

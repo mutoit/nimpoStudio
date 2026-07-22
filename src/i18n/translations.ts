@@ -142,6 +142,9 @@ export const translations = {
       "Audio y vídeo de la web son previews protegidos (baja calidad / degradados). No otorgan derechos de uso. Para un proyecto, elige una licencia abajo.",
     musicSoon: "Próximamente disponible",
     musicLicenseOpen: "Licenciar",
+    share: "Compartir",
+    shareCopied: "Enlace copiado",
+    shareFailed: "No se pudo copiar",
 
     // Reviews (lista común es/en/fr; textos de usuario sin traducir)
     reviewsTitle: "Valoraciones y comentarios",
@@ -461,6 +464,9 @@ export const translations = {
       "Audio and video on this site are protected previews (low quality / degraded). They do not grant usage rights. For a project, choose a license below.",
     musicSoon: "Available soon",
     musicLicenseOpen: "License",
+    share: "Share",
+    shareCopied: "Link copied",
+    shareFailed: "Could not copy",
 
     reviewsTitle: "Ratings & comments",
     reviewsScoreAria: "Average rating {avg} out of 5, from {n} votes",
@@ -769,6 +775,9 @@ export const translations = {
       "L'audio et la vidéo du site sont des extraits protégés (basse qualité / dégradés). Ils ne confèrent aucun droit d'usage. Pour un projet, choisissez une licence ci-dessous.",
     musicSoon: "Disponible bientôt",
     musicLicenseOpen: "Licencier",
+    share: "Partager",
+    shareCopied: "Lien copié",
+    shareFailed: "Impossible de copier",
 
     reviewsTitle: "Notes et commentaires",
     reviewsScoreAria: "Note moyenne {avg} sur 5, basée sur {n} votes",

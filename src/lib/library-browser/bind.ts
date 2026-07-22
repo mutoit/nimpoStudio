@@ -7,6 +7,7 @@ import {
 import { StemTransport } from "../stem-transport";
 import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
 import { translateFilterLabels } from "../filter-label-i18n";
+import { absoluteShareUrl, libraryItemSharePath, shareUrl } from "../share";
 
 type Stem = { id: string; label: string; src: string };
 type Item = {
@@ -595,6 +596,15 @@ export function bindLibraryBrowser() {
       };
 
       const closeModal = () => {
+        try {
+          const u = new URL(window.location.href);
+          if (u.searchParams.has("p")) {
+            u.searchParams.delete("p");
+            history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+          }
+        } catch {
+          /* ignore */
+        }
         stopAll();
         active = null;
         if (overlay instanceof HTMLElement) overlay.hidden = true;
@@ -636,6 +646,7 @@ export function bindLibraryBrowser() {
             const lic = canLic
               ? `<button type="button" class="lb__card-lic" data-open-lic="${escapeHtml(id)}">${escapeHtml(L.license)}</button>`
               : "";
+            const share = `<button type="button" class="lb__card-share" data-share-item="${escapeHtml(id)}" aria-label="${escapeHtml(L.share || "Share")}">${escapeHtml(L.share || "Share")}</button>`;
             const canPlay = !!(item.stems?.length || safeMediaUrl(item.video));
             const isPlayingHere = playingId === item.id || playingId === id;
             const playBtn = canPlay
@@ -657,7 +668,7 @@ export function bindLibraryBrowser() {
               <div class="lb__cap">
                 <strong>${escapeHtml(item.title)}</strong>
                 <span>${(item.moods || []).slice(0, 2).map(escapeHtml).join(" · ") || (item.tags || []).slice(0, 2).map(escapeHtml).join(" · ")}</span>
-                ${lic}
+                <div class="lb__card-actions">${lic}${share}</div>
               </div>
             </article>`;
           })
@@ -680,6 +691,16 @@ export function bindLibraryBrowser() {
             const id = (btn as HTMLElement).dataset.openLic || "";
             const item = findByDomId(id);
             if (item) openModal(item, true);
+          });
+        });
+
+        grid.querySelectorAll("[data-share-item]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = (btn as HTMLElement).dataset.shareItem || "";
+            const item = findByDomId(id);
+            if (item) void shareLibraryItem(item, btn as HTMLElement);
           });
         });
 
@@ -773,12 +794,56 @@ export function bindLibraryBrowser() {
         });
       };
 
+      const shareTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+      const shareLibraryItem = async (item: Item, btn?: HTMLElement | null) => {
+        const path = libraryItemSharePath(item.slug || item.id, lang);
+        const url = absoluteShareUrl(path);
+        const result = await shareUrl({
+          url,
+          title: item.title || "",
+          text: item.description || item.title || "",
+        });
+        if (!btn || result === "cancelled") return;
+
+        const base = L.share || "Share";
+        const next =
+          result === "shared" || result === "copied"
+            ? L.shareCopied || base
+            : L.shareFailed || base;
+        btn.textContent = next;
+        btn.setAttribute("aria-label", next);
+        btn.classList.toggle("is-ok", result === "shared" || result === "copied");
+
+        const prev = shareTimers.get(btn);
+        if (prev) clearTimeout(prev);
+        shareTimers.set(
+          btn,
+          setTimeout(() => {
+            btn.textContent = base;
+            btn.setAttribute("aria-label", base);
+            btn.classList.remove("is-ok");
+          }, 2200),
+        );
+      };
+
       const openModal = (item: Item, focusLicense: boolean) => {
         stopAll();
         active = item;
         if (!(overlay instanceof HTMLElement)) return;
         overlay.hidden = false;
         lockScroll(true);
+
+        // Deep-link en la barra de URL (compartible)
+        try {
+          const path = libraryItemSharePath(item.slug || item.id, lang);
+          const next = new URL(path, window.location.origin);
+          if (window.location.search !== next.search || !window.location.pathname.endsWith("/biblioteca/")) {
+            history.replaceState(null, "", next.pathname + next.search);
+          }
+        } catch {
+          /* ignore */
+        }
 
         const set = (sel: string, v: string) => {
           const el = root.querySelector(sel);
@@ -789,6 +854,14 @@ export function bindLibraryBrowser() {
         set("[data-lb-title]", item.title || "");
         set("[data-lb-desc]", item.description || "—");
         set("[data-lb-notes]", item.notes || "—");
+
+        const shareBtn = root.querySelector("[data-lb-share]");
+        if (shareBtn instanceof HTMLElement) {
+          shareBtn.hidden = false;
+          shareBtn.textContent = L.share || "Share";
+          shareBtn.setAttribute("aria-label", L.share || "Share");
+          shareBtn.classList.remove("is-ok");
+        }
 
         const prov = root.querySelector("[data-lb-prov]");
         if (prov instanceof HTMLElement) {
@@ -882,6 +955,12 @@ export function bindLibraryBrowser() {
       };
 
       root.querySelector("[data-lb-close]")?.addEventListener("click", closeModal);
+      root.querySelector("[data-lb-share]")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!active) return;
+        void shareLibraryItem(active, e.currentTarget as HTMLElement);
+      });
       overlay?.addEventListener("click", (e) => {
         if (e.target === overlay) closeModal();
       });
@@ -1341,6 +1420,19 @@ export function bindLibraryBrowser() {
         filtersPaintGen += 1;
         await paintFilters();
         renderGrid();
+
+        // Deep-link: /biblioteca/?p=slug abre la publicación
+        try {
+          const p = new URL(window.location.href).searchParams.get("p")?.trim();
+          if (p) {
+            const match = items.find(
+              (x) => x.slug === p || x.id === p || safeDomId(x.id) === safeDomId(p),
+            );
+            if (match) openModal(match, false);
+          }
+        } catch {
+          /* ignore */
+        }
       })();
     });
   }

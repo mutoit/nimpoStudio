@@ -126,6 +126,9 @@ const payload = {
     play: t("libPlay"),
     stop: "❚❚",
     close: t("libClose"),
+    share: t("share"),
+    shareCopied: t("shareCopied"),
+    shareFailed: t("shareFailed"),
     from: t("musicLicensePriceFrom"),
     review: t("musicLicensePriceOnRequest"),
     select: t("quoteSelect"),
@@ -161,7 +164,12 @@ const payload = {
   <!-- Modal encima del catálogo -->
   <div class="lb__overlay" data-lb-overlay hidden>
     <div class="lb__modal" role="dialog" aria-modal="true" data-lb-modal>
-      <button type="button" class="lb__x" data-lb-close aria-label={t("libClose")}>×</button>
+      <div class="lb__modal-top">
+        <button type="button" class="lb__share" data-lb-share hidden>
+          {t("share")}
+        </button>
+        <button type="button" class="lb__x" data-lb-close aria-label={t("libClose")}>×</button>
+      </div>
 
       <div class="lb__modal-grid">
         <div class="lb__modal-left">
@@ -779,9 +787,15 @@ const payload = {
     font-size: 0.72rem;
     color: rgb(140 140 150);
   }
-  .lb__card-lic {
-    align-self: flex-start;
+  .lb__card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
     margin-top: 0.25rem;
+  }
+  .lb__card-lic,
+  .lb__card-share {
+    align-self: flex-start;
     padding: 0.3rem 0.65rem;
     border-radius: 999px;
     border: 1px solid rgb(201 169 98 / 0.45);
@@ -794,8 +808,21 @@ const payload = {
     text-transform: uppercase;
     cursor: pointer;
   }
+  .lb__card-share {
+    border-color: rgb(255 255 255 / 0.16);
+    color: rgb(210 210 218);
+  }
   .lb__card-lic:hover {
     background: rgb(201 169 98 / 0.12);
+  }
+  .lb__card-share:hover {
+    border-color: rgb(201 169 98 / 0.45);
+    color: #e8c97a;
+    background: rgb(201 169 98 / 0.1);
+  }
+  .lb__card-share.is-ok {
+    border-color: rgb(201 169 98 / 0.55);
+    color: #e8c97a;
   }
   .lb__empty {
     grid-column: 1 / -1;
@@ -819,6 +846,34 @@ const payload = {
     display: none !important;
   }
 
+  .lb__modal-top {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .lb__share {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    background: rgb(18 18 22 / 0.9);
+    color: #e8e8ec;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .lb__share:hover {
+    border-color: rgb(201 169 98 / 0.45);
+    color: #e8c97a;
+  }
+  .lb__share.is-ok {
+    border-color: rgb(201 169 98 / 0.55);
+    color: #e8c97a;
+  }
   .lb__modal {
     position: relative;
     width: min(68rem, 100%);
@@ -835,16 +890,20 @@ const payload = {
   }
 
   .lb__x {
-    position: absolute;
-    top: 0.65rem;
-    right: 0.85rem;
-    z-index: 2;
+    position: static;
     border: none;
     background: transparent;
     color: rgb(150 150 160);
     font-size: 1.75rem;
     line-height: 1;
     cursor: pointer;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+  }
+  .lb__x:hover {
+    color: #f0f0f2;
+    background: rgb(255 255 255 / 0.06);
   }
 
   .lb__modal-grid {
@@ -1729,19 +1788,24 @@ const payload = {
       box-shadow: none;
     }
 
-    .lb__x {
+    .lb__modal-top {
       position: sticky;
       top: 0.15rem;
       float: right;
+      margin: 0 0 0.25rem;
+      background: transparent;
+    }
+    .lb__x {
       width: 2.5rem;
       height: 2.5rem;
-      margin: 0 0 0.25rem;
-      border-radius: 999px;
       background: rgb(20 20 24 / 0.95);
       border: 1px solid rgb(255 255 255 / 0.12);
       font-size: 1.35rem;
       color: #e8e8ec;
-      z-index: 5;
+    }
+    .lb__share {
+      background: rgb(20 20 24 / 0.95);
+      border-color: rgb(255 255 255 / 0.12);
     }
 
     .lb__modal-grid {

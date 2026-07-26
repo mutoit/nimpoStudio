@@ -349,6 +349,7 @@ import Layout from "../../components/Layout.astro";
   import { bakePreviewNoise, bakeMixPreview, bakeMixPreviewFromUrls } from "../../lib/preview-noise-bake";
   import { AdminMixPreview } from "../../lib/admin-mix-preview";
   import { compressImageForUpload } from "../../lib/admin-image-compress";
+  import { runPreviewRebuild } from "../../lib/admin/preview-rebuild";
 
   type StemRow = { label: string; file: File | null };
   const mixPreview = new AdminMixPreview();
@@ -1444,160 +1445,12 @@ import Layout from "../../components/Layout.astro";
     void loadPubs();
   });
 
-  const setPreviewJob = (opts: {
-    show?: boolean;
-    msg: string;
-    detail?: string;
-    pct?: number;
-    kind?: "load" | "ok" | "err";
-  }) => {
-    const box = document.querySelector("[data-preview-job]");
-    const msgEl = document.querySelector("[data-preview-job-msg]");
-    const pctEl = document.querySelector("[data-preview-job-pct]");
-    const fill = document.querySelector("[data-preview-job-fill]");
-    const detail = document.querySelector("[data-preview-job-detail]");
-    if (!(box instanceof HTMLElement)) return;
-    box.hidden = opts.show === false;
-    box.classList.remove("is-ok", "is-err", "is-load");
-    if (opts.kind === "ok") box.classList.add("is-ok");
-    if (opts.kind === "err") box.classList.add("is-err");
-    if (opts.kind === "load") box.classList.add("is-load");
-    if (msgEl) msgEl.textContent = opts.msg;
-    const p = Math.max(0, Math.min(100, opts.pct ?? 0));
-    if (pctEl) pctEl.textContent = opts.pct != null ? `${Math.round(p)}%` : "";
-    if (fill instanceof HTMLElement) fill.style.setProperty("--p", `${p}%`);
-    if (detail) detail.textContent = opts.detail || "";
-  };
-
-  /** Rebuild mix preview (1 archivo) — barra justo bajo «🎧 = mix play». */
-  document.querySelector("[data-rebuild-previews]")?.addEventListener("click", async () => {
-    const btn = document.querySelector("[data-rebuild-previews]");
-    if (btn instanceof HTMLButtonElement) btn.disabled = true;
-    try {
-      setPreviewJob({
-        show: true,
-        msg: "Leyendo catálogo…",
-        detail: "",
-        pct: 2,
-        kind: "load",
-      });
-      await loadPubs();
-      const need = publications.filter((p) => {
-        const stems = Array.isArray(p.stems) ? p.stems : [];
-        const prev = p.preview;
-        return stems.length > 0 && !prev;
-      });
-      if (!need.length) {
-        setPreviewJob({
-          show: true,
-          msg: "✅ Nada pendiente",
-          detail: "Todas las obras con stems ya tienen mix preview (o no hay stems).",
-          pct: 100,
-          kind: "ok",
-        });
-        setStatus("✅ Todas las obras con stems ya tienen preview (o no hay stems).");
-        return;
-      }
-      setPreviewJob({
-        show: true,
-        msg: `Generando 0/${need.length}`,
-        detail: "Bajando stems → mezclando → subiendo preview…",
-        pct: 0,
-        kind: "load",
-      });
-      setStatus(`Generando previews 0/${need.length}…`);
-      let ok = 0;
-      let fail = 0;
-      for (let i = 0; i < need.length; i++) {
-        const p = need[i]!;
-        const slug = String(p.slug || "");
-        const title = String(p.title || slug);
-        const srcs = (Array.isArray(p.stems) ? p.stems : [])
-          .map((s: { src?: string }) => String(s.src || "").trim())
-          .filter(Boolean);
-        const pct = ((i + 0.15) / need.length) * 100;
-        setPreviewJob({
-          show: true,
-          msg: `${i + 1}/${need.length} · «${title}»`,
-          detail: `Mezclando ${srcs.length} capa(s)…`,
-          pct,
-          kind: "load",
-        });
-        setStatus(`Preview ${i + 1}/${need.length}: «${title}»…`);
-        try {
-          const mix = await bakeMixPreviewFromUrls(srcs, {
-            credentials: "same-origin",
-            cache: "reload",
-          });
-          setPreviewJob({
-            show: true,
-            msg: `${i + 1}/${need.length} · «${title}»`,
-            detail: "Subiendo mix a R2…",
-            pct: ((i + 0.7) / need.length) * 100,
-            kind: "load",
-          });
-          const body = new FormData();
-          body.set("title", title);
-          body.set("slug", slug);
-          body.set("kind", String(p.kind || "stems"));
-          body.set("aspect", String(p.aspect || "1:1"));
-          body.set("moods", JSON.stringify(p.moods || []));
-          body.set("tags", JSON.stringify(p.tags || []));
-          body.set("filterMoods", JSON.stringify(p.filterMoods || []));
-          body.set("filterTags", JSON.stringify(p.filterTags || []));
-          body.set("description", String(p.description || ""));
-          body.set("notes", String(p.notes || ""));
-          body.set("year", String(p.year || new Date().getFullYear()));
-          body.set("provisional", "0");
-          body.set("licenseEnabled", p.licenseEnabled === false ? "0" : "1");
-          body.set("preview", mix, `${slug}-preview.wav`);
-          const res = await fetch("/admin/publish", {
-            method: "POST",
-            body,
-            credentials: "same-origin",
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || res.status);
-          ok++;
-          setPreviewJob({
-            show: true,
-            msg: `${i + 1}/${need.length} · ok «${title}»`,
-            detail: `Listos ${ok} · fallos ${fail}`,
-            pct: ((i + 1) / need.length) * 100,
-            kind: "load",
-          });
-        } catch (e) {
-          fail++;
-          console.warn("[rebuild preview]", slug, e);
-          setPreviewJob({
-            show: true,
-            msg: `${i + 1}/${need.length} · error «${title}»`,
-            detail: e instanceof Error ? e.message : "fallo",
-            pct: ((i + 1) / need.length) * 100,
-            kind: "err",
-          });
-        }
-      }
-      const finalMsg = `✅ Previews: ${ok} ok · ${fail} fallos`;
-      setPreviewJob({
-        show: true,
-        msg: finalMsg,
-        detail:
-          fail > 0
-            ? "Revisa la consola si falló alguna. Luego Ctrl+F5 en /es/biblioteca/"
-            : "Listo. Ctrl+F5 en /es/biblioteca/ para oír play rápido.",
-        pct: 100,
-        kind: fail > 0 && ok === 0 ? "err" : "ok",
-      });
-      setStatus(`${finalMsg}. Ctrl+F5 en /es/biblioteca/`);
-      await loadPubs();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error previews";
-      setPreviewJob({ show: true, msg: "Error", detail: msg, pct: 0, kind: "err" });
-      setStatus(msg, false);
-    } finally {
-      if (btn instanceof HTMLButtonElement) btn.disabled = false;
-    }
+  /** 🎧 Previews → módulo admin/preview-rebuild (MP3) */
+  document.querySelector("[data-rebuild-previews]")?.addEventListener("click", () => {
+    void runPreviewRebuild({
+      loadPubs,
+      getPublications: () => publications as import("../../lib/admin/preview-rebuild").PubItem[],
+    });
   });
 
   void loadPubs();
@@ -1827,17 +1680,16 @@ import Layout from "../../components/Layout.astro";
         }
         // 1 mix preview para ▶ de biblioteca (no N×WAV en el visitante)
         if (bakedPublic.length) {
-          setStatus("Generando preview mix (1 archivo)…");
-          setLight("stems", "loading", "Preview mix…");
+          setStatus("Generando preview mix MP3…");
+          setLight("stems", "loading", "Preview MP3…");
           try {
             const mix = await bakeMixPreview(bakedPublic);
-            body.set("preview", mix, `${slug}-preview.wav`);
+            const ext = mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
+            body.set("preview", mix, `${slug}-preview.${ext}`);
           } catch (err) {
             console.warn("[bake mix preview]", err);
-            // no bloquear publish si falla el mix
           }
         } else if (editingSlug) {
-          // Rebuild preview desde stems públicos del servidor (sin re-bake de capas)
           const pub = publications.find((p) => p.slug === editingSlug) as
             | { stems?: { src?: string }[]; preview?: string }
             | undefined;
@@ -1846,12 +1698,13 @@ import Layout from "../../components/Layout.astro";
             .filter(Boolean);
           if (srcs.length && !pub?.preview) {
             try {
-              setStatus("Generando preview mix desde stems publicados…");
+              setStatus("Generando preview MP3 desde stems publicados…");
               const mix = await bakeMixPreviewFromUrls(srcs, {
                 credentials: "same-origin",
                 cache: "reload",
               });
-              body.set("preview", mix, `${slug}-preview.wav`);
+              const ext = mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
+              body.set("preview", mix, `${slug}-preview.${ext}`);
             } catch (err) {
               console.warn("[rebuild mix preview]", err);
             }

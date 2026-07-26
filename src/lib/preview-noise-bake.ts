@@ -110,8 +110,9 @@ export async function bakePreviewNoise(
 }
 
 /**
- * Mezcla N stems (ya con ruido) en **un** WAV mono @ 22.05 kHz para play de biblioteca.
- * P: files decodificables. Q: 1 File ~peso de 1 stem, no N.
+ * Mezcla N stems (ya con ruido) en **un** preview mono @ 22.05 kHz.
+ * Preferido: **MP3** (lamejs). Fallback: WAV si encode falla.
+ * P: files decodificables. Q: 1 File (audio/mpeg o audio/wav).
  */
 export async function bakeMixPreview(files: File[]): Promise<File> {
   const list = files.filter((f) => f instanceof File && f.size > 0);
@@ -131,7 +132,6 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     const targetRate = PREVIEW_SAMPLE_RATE;
     const frames = Math.max(1, Math.ceil(duration * targetRate));
     const offline = new OfflineAudioContext(1, frames, targetRate);
-    // Evitar clip: 1/√N aprox
     const gainVal = 1 / Math.sqrt(decoded.length);
     for (const buf of decoded) {
       const src = offline.createBufferSource();
@@ -143,7 +143,6 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
       src.start(0);
     }
     const mixed = await offline.startRendering();
-    // Peak normalize suave
     const data = mixed.getChannelData(0);
     let peak = 0;
     for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]!));
@@ -151,8 +150,17 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
       const scale = 0.95 / peak;
       for (let i = 0; i < data.length; i++) data[i]! *= scale;
     }
-    const blob = encodeWavMono(mixed);
-    return new File([blob], "mix-preview.wav", { type: "audio/wav" });
+    try {
+      const { encodeMp3FromAudioBuffer } = await import("./preview-mp3-encode");
+      return await encodeMp3FromAudioBuffer(mixed, {
+        kbps: 128,
+        fileName: "mix-preview.mp3",
+      });
+    } catch (e) {
+      console.warn("[bakeMixPreview] mp3 encode fail → wav", e);
+      const blob = encodeWavMono(mixed);
+      return new File([blob], "mix-preview.wav", { type: "audio/wav" });
+    }
   } finally {
     await ctx.close().catch(() => {});
   }

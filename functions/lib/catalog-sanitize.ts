@@ -86,6 +86,8 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     kind,
     aspect: safeAspect(String(o.aspect || "1:1")),
     cover: safeMediaUrlField(o.cover),
+    /** Miniatura de grid (opcional; si falta se usa cover). */
+    thumb: safeMediaUrlField(o.thumb),
     video: safeMediaUrlField(o.video),
     stems: stems.length ? stems : undefined,
     tags: clipStringList(o.tags),
@@ -145,13 +147,17 @@ export function toLibraryCard(item: Record<string, unknown>): Record<string, unk
   const moods = Array.isArray(item.moods) ? item.moods.slice(0, 8) : [];
   const tags = Array.isArray(item.tags) ? item.tags.slice(0, 8) : [];
 
+  // Grid: preferir thumb (miniatura) si existe; cover full solo en detail
+  const thumb = item.thumb ?? null;
+  const cover = thumb || item.cover || null;
+
   return {
     id: item.id,
     slug: item.slug,
     title: item.title,
     kind: item.kind,
     aspect: item.aspect,
-    cover: item.cover ?? null,
+    cover,
     hasVideo,
     hasStems: stems.length > 0 || String(item.kind || "") === "stems",
     moods,

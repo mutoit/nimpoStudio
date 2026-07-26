@@ -161,10 +161,14 @@ export async function onRequest(context: {
     const fileName = `${fileBase}-${stamp}.${ext}`;
     const key = `library/${slug}/${fileName}`;
     const buf = await file.arrayBuffer();
+    const isImage = mediaRole === "image";
     await env.LIBRARY_BUCKET!.put(key, buf, {
       httpMetadata: {
         contentType: contentTypeForExt(ext),
-        cacheControl: "private, max-age=0, must-revalidate",
+        // Covers con stamp en nombre: cacheables (el admin comprime a ~480px).
+        cacheControl: isImage
+          ? "public, max-age=604800, stale-while-revalidate=86400"
+          : "public, max-age=86400, stale-while-revalidate=3600",
       },
     });
     const url = `${publicBase}/${key}`;
@@ -252,7 +256,7 @@ export async function onRequest(context: {
       description: clipText(form.get("description"), 2000),
       notes: clipText(form.get("notes"), 2000),
       year: Number(form.get("year") || new Date().getFullYear()) || new Date().getFullYear(),
-      provisional: String(form.get("provisional") || "") === "1",
+      provisional: false,
       licenseEnabled: String(form.get("licenseEnabled") || "1") !== "0",
       availability: (existing?.availability as string) || "available",
       publishedAt:

@@ -157,18 +157,6 @@ const payload = {
     <span class="lb__count" data-lb-count></span>
   </div>
 
-  <!-- Estado del preview: carga / play / fin / error -->
-  <div class="lb__player-status" data-lb-player-status hidden role="status" aria-live="polite">
-    <div class="lb__player-status-top">
-      <span class="lb__player-msg" data-lb-player-msg></span>
-      <span class="lb__player-time" data-lb-player-time></span>
-    </div>
-    <div class="lb__player-track" aria-hidden="true">
-      <div class="lb__player-buf" data-lb-player-buf style="--b:0%"></div>
-      <div class="lb__player-fill" data-lb-player-fill style="--p:0%"></div>
-    </div>
-  </div>
-
   <div class="lb__grid" data-lb-grid></div>
   <div class="lb__more-wrap" data-lb-more-wrap hidden>
     <button type="button" class="lb__more" data-lb-more>{t("libLoadMore")}</button>
@@ -712,117 +700,6 @@ const payload = {
   .lb__protect--lic {
     margin: 0 0 1rem;
   }
-  /* Fija abajo: si solo estaba sobre el grid, al pulsar ▶ en una card no se veía. */
-  .lb__player-status {
-    position: fixed;
-    left: max(0.75rem, env(safe-area-inset-left));
-    right: max(0.75rem, env(safe-area-inset-right));
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-    z-index: 180;
-    margin: 0;
-    padding: 0.75rem 1rem 0.85rem;
-    border-radius: 14px;
-    border: 1px solid rgb(201 169 98 / 0.45);
-    background:
-      linear-gradient(145deg, rgb(201 169 98 / 0.18), rgb(12 10 18 / 0.96));
-    box-shadow:
-      0 0 0 1px rgb(0 0 0 / 0.4),
-      0 12px 40px rgb(0 0 0 / 0.55),
-      0 0 32px rgb(201 169 98 / 0.2);
-    max-width: 36rem;
-    margin-inline: auto;
-    width: calc(100% - 1.5rem);
-  }
-  .lb__player-status[hidden] {
-    display: none !important;
-  }
-  .lb__player-status.is-err {
-    border-color: rgb(240 100 100 / 0.45);
-    background: linear-gradient(145deg, rgb(240 80 80 / 0.12), rgb(20 18 28 / 0.9));
-  }
-  .lb__player-status.is-ok {
-    border-color: rgb(100 200 140 / 0.4);
-    background: linear-gradient(145deg, rgb(80 180 120 / 0.12), rgb(20 18 28 / 0.9));
-  }
-  .lb__player-status.is-load {
-    border-color: rgb(100 160 255 / 0.35);
-  }
-  .lb__player-status-top {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.45rem;
-  }
-  .lb__player-msg {
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: #f0e6c8;
-    line-height: 1.35;
-  }
-  .lb__player-status.is-err .lb__player-msg {
-    color: #f0a8a8;
-  }
-  .lb__player-status.is-ok .lb__player-msg {
-    color: #b8f0c8;
-  }
-  .lb__player-time {
-    flex-shrink: 0;
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-    color: rgb(150 150 160);
-  }
-  .lb__player-track {
-    position: relative;
-    height: 8px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.08);
-    overflow: hidden;
-  }
-  .lb__player-track--modal {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 6px;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.85;
-  }
-  .lb__player-buf,
-  .lb__player-fill {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    border-radius: 999px;
-    pointer-events: none;
-  }
-  .lb__player-buf {
-    width: var(--b, 0%);
-    background: rgb(255 255 255 / 0.14);
-    transition: width 0.15s ease;
-  }
-  .lb__player-fill {
-    width: var(--p, 0%);
-    background: linear-gradient(90deg, #c9a962, #e8d5a0);
-    box-shadow: 0 0 12px rgb(201 169 98 / 0.45);
-    transition: width 0.08s linear;
-  }
-  .lb__player-status.is-load .lb__player-fill {
-    background: linear-gradient(90deg, #6a9fff, #a8c8ff);
-    animation: lb-load-pulse 1.1s ease-in-out infinite;
-  }
-  @keyframes lb-load-pulse {
-    0%,
-    100% {
-      opacity: 0.65;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
   .lb__modal-status {
     margin: 0;
     font-size: 0.78rem;
@@ -837,6 +714,37 @@ const payload = {
   }
   .lb__modal-status[hidden] {
     display: none !important;
+  }
+  .lb__player-track--modal {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 6px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.85;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.08);
+    overflow: hidden;
+  }
+  .lb__player-buf,
+  .lb__player-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+  .lb__player-buf {
+    width: var(--b, 0%);
+    background: rgb(255 255 255 / 0.14);
+  }
+  .lb__player-fill {
+    width: var(--p, 0%);
+    background: linear-gradient(90deg, #c9a962, #e8d5a0);
   }
 
   .lb__transport {

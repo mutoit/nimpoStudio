@@ -221,7 +221,7 @@ export function bindLibraryBrowser() {
         return `${m}:${s.toString().padStart(2, "0")}`;
       };
 
-      /** Barra global de preview (carga / play / fin / error). */
+      /** Solo feedback en modal (no barra flotante en la página). */
       const setPlayerStatus = (
         opts: {
           msg: string;
@@ -232,11 +232,6 @@ export function bindLibraryBrowser() {
           autoHideMs?: number;
         },
       ) => {
-        const box = root.querySelector("[data-lb-player-status]");
-        const msgEl = root.querySelector("[data-lb-player-msg]");
-        const timeEl = root.querySelector("[data-lb-player-time]");
-        const fill = root.querySelector("[data-lb-player-fill]");
-        const buf = root.querySelector("[data-lb-player-buf]");
         const modalSt = root.querySelector("[data-lb-modal-status]");
         const modalFill = root.querySelector("[data-lb-modal-fill]");
         const modalBuf = root.querySelector("[data-lb-modal-buf]");
@@ -244,24 +239,11 @@ export function bindLibraryBrowser() {
           window.clearTimeout(statusHideTimer);
           statusHideTimer = 0;
         }
-        if (box instanceof HTMLElement) {
-          box.hidden = false;
-          box.classList.remove("is-err", "is-ok", "is-load");
-          if (opts.kind === "err") box.classList.add("is-err");
-          if (opts.kind === "ok") box.classList.add("is-ok");
-          if (opts.kind === "load") box.classList.add("is-load");
-        }
-        if (msgEl) msgEl.textContent = opts.msg;
-        if (timeEl) timeEl.textContent = opts.time || "";
-        if (fill instanceof HTMLElement) {
-          fill.style.setProperty("--p", `${Math.max(0, Math.min(100, opts.playPct ?? 0))}%`);
-        }
-        if (buf instanceof HTMLElement) {
-          buf.style.setProperty("--b", `${Math.max(0, Math.min(100, opts.bufPct ?? 0))}%`);
-        }
         if (modalSt instanceof HTMLElement) {
-          modalSt.hidden = false;
-          modalSt.textContent = opts.msg;
+          // Solo mostrar texto de carga/error en modal; play silencioso
+          const showText = opts.kind === "load" || opts.kind === "err" || opts.kind === "ok";
+          modalSt.hidden = !showText;
+          if (showText) modalSt.textContent = opts.msg;
           modalSt.classList.toggle("is-err", opts.kind === "err");
           modalSt.classList.toggle("is-ok", opts.kind === "ok");
         }
@@ -271,23 +253,11 @@ export function bindLibraryBrowser() {
         if (modalBuf instanceof HTMLElement) {
           modalBuf.style.setProperty("--b", `${Math.max(0, Math.min(100, opts.bufPct ?? 0))}%`);
         }
-        if (opts.autoHideMs && opts.autoHideMs > 0) {
+        if (opts.autoHideMs && opts.autoHideMs > 0 && modalSt instanceof HTMLElement) {
           statusHideTimer = window.setTimeout(() => {
-            if (box instanceof HTMLElement) box.hidden = true;
-            if (modalSt instanceof HTMLElement) modalSt.hidden = true;
+            modalSt.hidden = true;
           }, opts.autoHideMs);
         }
-      };
-
-      const hidePlayerStatus = () => {
-        if (statusHideTimer) {
-          window.clearTimeout(statusHideTimer);
-          statusHideTimer = 0;
-        }
-        const box = root.querySelector("[data-lb-player-status]");
-        if (box instanceof HTMLElement) box.hidden = true;
-        const modalSt = root.querySelector("[data-lb-modal-status]");
-        if (modalSt instanceof HTMLElement) modalSt.hidden = true;
       };
 
       previewPlayer.setHandlers({
@@ -295,39 +265,19 @@ export function bindLibraryBrowser() {
           updateProgressUI();
           const pct = p.duration > 0 ? (p.current / p.duration) * 100 : 0;
           const buf = (p.buffered || 0) * 100;
-          const time =
-            p.duration > 0
-              ? `${fmtTime(p.current)} / ${fmtTime(p.duration)}`
-              : p.phase === "loading"
-                ? "…"
-                : "";
           if (p.phase === "loading") {
             setPlayerStatus({
-              msg: `Cargando preview… ${Math.round(buf)}%`,
+              msg: `Cargando… ${Math.round(buf)}%`,
               kind: "load",
               playPct: Math.max(pct, buf * 0.15),
               bufPct: buf,
-              time,
             });
-          } else if (p.phase === "playing") {
-            const title =
-              items.find((i) => i.id === previewPlayer.loadedItemId)?.title ||
-              active?.title ||
-              "Preview";
+          } else if (p.phase === "playing" || p.phase === "paused") {
             setPlayerStatus({
-              msg: `▶ ${title}`,
+              msg: "",
               kind: "play",
               playPct: pct,
               bufPct: buf,
-              time,
-            });
-          } else if (p.phase === "paused") {
-            setPlayerStatus({
-              msg: "Pausa",
-              kind: "info",
-              playPct: pct,
-              bufPct: buf,
-              time,
             });
           } else if (p.phase === "ended") {
             transportPlaying = false;
@@ -340,8 +290,7 @@ export function bindLibraryBrowser() {
               kind: "ok",
               playPct: 100,
               bufPct: 100,
-              time: p.duration > 0 ? `${fmtTime(p.duration)} / ${fmtTime(p.duration)}` : "",
-              autoHideMs: 4000,
+              autoHideMs: 2500,
             });
           } else if (p.phase === "error") {
             transportPlaying = false;

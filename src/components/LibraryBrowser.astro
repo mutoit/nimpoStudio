@@ -712,13 +712,26 @@ const payload = {
   .lb__protect--lic {
     margin: 0 0 1rem;
   }
+  /* Fija abajo: si solo estaba sobre el grid, al pulsar ▶ en una card no se veía. */
   .lb__player-status {
-    margin: 0 0 1rem;
-    padding: 0.65rem 0.85rem 0.75rem;
-    border-radius: 12px;
-    border: 1px solid rgb(201 169 98 / 0.28);
-    background: linear-gradient(145deg, rgb(201 169 98 / 0.1), rgb(20 18 28 / 0.9));
-    box-shadow: 0 0 24px rgb(201 169 98 / 0.08);
+    position: fixed;
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    z-index: 180;
+    margin: 0;
+    padding: 0.75rem 1rem 0.85rem;
+    border-radius: 14px;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background:
+      linear-gradient(145deg, rgb(201 169 98 / 0.18), rgb(12 10 18 / 0.96));
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.4),
+      0 12px 40px rgb(0 0 0 / 0.55),
+      0 0 32px rgb(201 169 98 / 0.2);
+    max-width: 36rem;
+    margin-inline: auto;
+    width: calc(100% - 1.5rem);
   }
   .lb__player-status[hidden] {
     display: none !important;

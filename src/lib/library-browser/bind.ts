@@ -630,7 +630,12 @@ export function bindLibraryBrowser() {
         playingId = playId;
         markPlayingButtons(playId);
         setPlayLoading(playId, "…");
-        showStemError(`Cargando capas 0/${item.stems.length}…`, "info");
+        setPlayerStatus({
+          msg: `Cargando capas 0/${item.stems.length}…`,
+          kind: "load",
+          playPct: 5,
+          time: "…",
+        });
         try {
           await stemsTx.resumeCtx();
           const stems = item.stems
@@ -649,7 +654,14 @@ export function bindLibraryBrowser() {
             signal,
             onProgress: ({ loaded, total }) => {
               setPlayLoading(playId, `${loaded}/${total}`);
-              showStemError(`Cargando capas ${loaded}/${total}…`, "info");
+              const pct = total > 0 ? (loaded / total) * 100 : 0;
+              setPlayerStatus({
+                msg: `Cargando capas ${loaded}/${total}…`,
+                kind: "load",
+                playPct: Math.max(8, pct),
+                bufPct: pct,
+                time: `${loaded}/${total}`,
+              });
             },
           });
           if (signal?.aborted) return;
@@ -662,17 +674,29 @@ export function bindLibraryBrowser() {
           startProgressLoop();
           updateProgressUI();
           hideStemError();
+          setPlayerStatus({
+            msg: `▶ ${item.title || "Audio"} (capas)`,
+            kind: "play",
+            playPct: 0,
+            time: "0:00 / …",
+          });
           if (stemsTx.lastError) {
-            showStemError(stemsTx.lastError);
+            setPlayerStatus({
+              msg: stemsTx.lastError,
+              kind: "err",
+              playPct: 0,
+            });
           }
         } catch (e) {
           if ((e as Error)?.name === "AbortError") return;
           const msg =
             e instanceof Error ? e.message : "No se pudieron cargar los stems";
           console.warn("[lb] stems load/play fail", e);
-          showStemError(
-            `Audio: ${msg}. Re-publica con preview mix desde admin para play rápido.`,
-          );
+          setPlayerStatus({
+            msg: `Error: ${msg}. En admin usa 🎧 Previews para play rápido.`,
+            kind: "err",
+            playPct: 0,
+          });
           playingId = null;
           transportPlaying = false;
           resetPlayButtons();
@@ -984,13 +1008,25 @@ export function bindLibraryBrowser() {
             // Gesture: desbloquear Web Audio por si hace falta fallback stems
             void stemsTx.resumeCtx();
             setPlayLoading(id, "…");
-            showStemError("Preparando…", "info");
+            setPlayerStatus({
+              msg: `Preparando «${item.title || "audio"}»…`,
+              kind: "load",
+              playPct: 4,
+              bufPct: 0,
+              time: "…",
+            });
 
             void (async () => {
               try {
                 // Card puede traer preview sin detail; detail trae stems/preview
                 let full = item;
                 if (!safeMediaUrl(item.preview) || (!item.stems?.length && item.hasStems)) {
+                  setPlayerStatus({
+                    msg: `Cargando ficha «${item.title || ""}»…`,
+                    kind: "load",
+                    playPct: 8,
+                    time: "…",
+                  });
                   const d = await ensureDetail(item);
                   if (d) full = d;
                 }
@@ -998,11 +1034,21 @@ export function bindLibraryBrowser() {
                 const canStems = !!(full.stems?.length);
                 const canVideo = !!(full.hasVideo || safeMediaUrl(full.video));
                 if (!canPreview && !canStems && !canVideo) {
-                  showStemError(
-                    "Sin preview. En admin: edita la obra y publica (genera mix automático).",
-                  );
+                  setPlayerStatus({
+                    msg: "Sin preview ni stems. En admin → 🎧 Previews (o re-publica la obra).",
+                    kind: "err",
+                    playPct: 0,
+                  });
                   resetPlayButtons();
                   return;
+                }
+                if (!canPreview && canStems) {
+                  setPlayerStatus({
+                    msg: `Sin mix preview · cargando ${full.stems!.length} capas (más lento)…`,
+                    kind: "load",
+                    playPct: 10,
+                    time: "…",
+                  });
                 }
                 // Vídeo muted de fondo opcional
                 const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);

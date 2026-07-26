@@ -408,7 +408,11 @@ export function bindLibraryBrowser() {
       };
 
       const playStems = async (item: Item, playId: string) => {
-        if (!item.stems?.length || loadingStems) return;
+        if (!item.stems?.length) {
+          showStemError("Sin capas de audio en esta obra.");
+          return;
+        }
+        if (loadingStems) return;
         loadingStems = true;
         hideStemError();
         playingId = playId;
@@ -416,17 +420,22 @@ export function bindLibraryBrowser() {
         setPlayLoading(playId, "…");
         showStemError(`Cargando audio 0/${item.stems.length}…`, "info");
         try {
+          // Puede fallar si el gesto ya se “consumió”; reintentamos igual.
           await stemsTx.resumeCtx();
-          // No pausar gridVideo aquí: el thumb puede llevar vídeo muted de fondo.
-          const stems = item.stems.map((s) => ({
-            ...s,
-            src: safeMediaUrl(s.src) || s.src,
-          }));
-          // bust fuerte: updatedAt + sesión (si re-publican el mismo path, no oír WAV viejo)
-          const bust = `${item.updatedAt || item.slug || item.id}-${Math.floor(Date.now() / 60_000)}`;
+          const stems = item.stems
+            .map((s) => ({
+              ...s,
+              src: safeMediaUrl(s.src) || s.src,
+            }))
+            .filter((s) => s.src);
+          if (!stems.length) {
+            throw new Error("URLs de stems vacías tras sanitizar");
+          }
+          // Cache bust solo por updatedAt (no cada minuto → re-descarga absurda)
+          const bust = item.updatedAt || item.slug || item.id;
           await stemsTx.load(item.id, stems, {
             cacheBust: bust,
-            forceReload: true,
+            forceReload: false,
             onProgress: ({ loaded, total }) => {
               setPlayLoading(playId, `${loaded}/${total}`);
               showStemError(`Cargando audio ${loaded}/${total}…`, "info");
@@ -442,7 +451,6 @@ export function bindLibraryBrowser() {
           updateProgressUI();
           hideStemError();
           if (stemsTx.lastError) {
-            // Carga parcial: avisa pero no bloquea
             showStemError(stemsTx.lastError);
           }
         } catch (e) {
@@ -450,7 +458,7 @@ export function bindLibraryBrowser() {
             e instanceof Error ? e.message : "No se pudieron cargar los stems";
           console.warn("[lb] stems load/play fail", e);
           showStemError(
-            `Audio: ${msg}. Prueba Ctrl+F5. Si sigue: en admin, re-arrastre stems y publica (mezcla ligera).`,
+            `Audio: ${msg}. Prueba Ctrl+F5. Si sigue: re-publica stems en admin.`,
           );
           playingId = null;
           transportPlaying = false;
@@ -653,7 +661,7 @@ export function bindLibraryBrowser() {
             const cover = safeMediaUrl(item.cover);
             // Grid: solo cover lazy (sin N× video preload). Vídeo se inyecta al play.
             const media = cover
-              ? `<img src="${escapeHtml(cover)}" alt="" loading="lazy" decoding="async" />`
+              ? `<img src="${escapeHtml(cover)}" alt="" width="400" height="400" loading="lazy" decoding="async" fetchpriority="low" />`
               : `<div class="lb__ph" data-frame-ph="${escapeHtml(id)}"></div>`;
             const unavail = !isAvailable(item)
               ? `<span class="lb__badge lb__badge--sold">${escapeHtml(L.unavailable)}</span>`
@@ -751,34 +759,63 @@ export function bindLibraryBrowser() {
               gridVideo = null;
             }
 
+            // CRÍTICO: desbloquear AudioContext en el gesto del clic,
+            // ANTES de cualquier await (ensureDetail). Si no, el browser
+            // bloquea audio tras el fetch y parece que "no carga".
+            void stemsTx.resumeCtx();
+            setPlayLoading(id, "…");
+            showStemError("Preparando audio…", "info");
+
             void (async () => {
-              const full = (await ensureDetail(item)) || item;
-              const wantsStems = !!(full.stems?.length || full.hasStems || item.hasStems);
-              if (wantsStems && full.stems?.length) {
-                // Vídeo de fondo solo si detail trae URL (inyectado al frame)
-                const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
-                const vUrl = safeMediaUrl(full.video);
-                if (frame && vUrl) {
-                  let v = frame.querySelector<HTMLVideoElement>("video");
-                  if (!v) {
-                    frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
-                    v = frame.querySelector<HTMLVideoElement>("video");
-                  }
-                  if (v) {
-                    v.muted = true;
-                    v.loop = true;
-                    void v.play().catch(() => {});
-                    gridVideo = v;
-                  }
+              try {
+                const full = await ensureDetail(item);
+                if (!full) {
+                  showStemError(
+                    "No se pudo cargar el detalle de la obra (API). Prueba Ctrl+F5 o sin www.",
+                  );
+                  resetPlayButtons();
+                  return;
                 }
-                void playStems(full, id);
-              } else if (full.hasVideo || safeMediaUrl(full.video)) {
-                const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
-                const vUrl = safeMediaUrl(full.video);
-                if (!frame || !vUrl) return;
-                frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
-                const v = frame.querySelector<HTMLVideoElement>("video");
-                if (v) void playVideoThumb(full, v);
+                const wantsStems = !!(full.stems?.length || full.hasStems || item.hasStems);
+                if (wantsStems && full.stems?.length) {
+                  const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
+                  const vUrl = safeMediaUrl(full.video);
+                  if (frame && vUrl) {
+                    let v = frame.querySelector<HTMLVideoElement>("video");
+                    if (!v) {
+                      frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="none" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
+                      v = frame.querySelector<HTMLVideoElement>("video");
+                    }
+                    if (v) {
+                      v.muted = true;
+                      v.loop = true;
+                      void v.play().catch(() => {});
+                      gridVideo = v;
+                    }
+                  }
+                  await playStems(full, id);
+                } else if (wantsStems && !full.stems?.length) {
+                  showStemError(
+                    "Esta obra marca stems pero la API no devolvió audio. Re-publica desde admin.",
+                  );
+                  resetPlayButtons();
+                } else if (full.hasVideo || safeMediaUrl(full.video)) {
+                  const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
+                  const vUrl = safeMediaUrl(full.video);
+                  if (!frame || !vUrl) return;
+                  frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
+                  const v = frame.querySelector<HTMLVideoElement>("video");
+                  if (v) void playVideoThumb(full, v);
+                } else {
+                  showStemError("Sin audio ni vídeo en esta ficha.");
+                  resetPlayButtons();
+                }
+              } catch (err) {
+                console.warn("[lb] thumb play", err);
+                showStemError(
+                  err instanceof Error ? err.message : "Error al reproducir",
+                );
+                resetPlayButtons();
               }
             })();
           });
@@ -1030,12 +1067,25 @@ export function bindLibraryBrowser() {
           updateProgressUI();
           return;
         }
+        // Desbloquear audio en el gesto (antes de ensureDetail/load)
+        void stemsTx.resumeCtx();
         if (active.stems?.length) {
           if (gridVideo) {
             gridVideo.pause();
             gridVideo = null;
           }
           void playStems(active, modalPlayId);
+        } else if (active.hasStems) {
+          // Modal abierto con card incompleta: hidratar y play
+          void (async () => {
+            const full = await ensureDetail(active!);
+            if (full?.stems?.length) {
+              active = full;
+              await playStems(full, modalPlayId);
+            } else {
+              showStemError("Sin stems en el detalle de esta obra.");
+            }
+          })();
         } else {
           const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (v) {
@@ -1435,42 +1485,88 @@ export function bindLibraryBrowser() {
         };
       };
 
+      const detailSlugCandidates = (card: Item): string[] => {
+        const raw = [card.slug, card.id, safeDomId(card.id), safeDomId(card.slug || "")]
+          .map((x) => String(x || "").trim())
+          .filter(Boolean);
+        const out: string[] = [];
+        for (const s of raw) {
+          if (!out.includes(s)) out.push(s);
+          // id lib-foo → también probar foo
+          if (s.startsWith("lib-")) {
+            const bare = s.slice(4);
+            if (bare && !out.includes(bare)) out.push(bare);
+          }
+        }
+        return out;
+      };
+
       const ensureDetail = async (card: Item): Promise<Item | null> => {
-        const slug = String(card.slug || card.id || "").trim();
-        if (!slug) return null;
-        const cached = detailCache.get(slug);
-        if (cached) return cached;
-        // Ya es detail (p.ej. re-open o respuesta previa con stems)
+        const keys = detailSlugCandidates(card);
+        if (!keys.length) return null;
+
+        for (const k of keys) {
+          const cached = detailCache.get(k);
+          if (cached?.stems?.length) return cached;
+        }
         if (card.stems && card.stems.length > 0) {
           const mapped = mapLiveItem(card);
-          detailCache.set(slug, mapped);
+          for (const k of keys) detailCache.set(k, mapped);
+          if (mapped.slug) detailCache.set(mapped.slug, mapped);
           return mapped;
         }
-        try {
-          const res = await fetch(`/api/library?slug=${encodeURIComponent(slug)}`, {
-            credentials: "same-origin",
-            cache: "no-store",
-          });
-          if (!res.ok) return null;
-          const live = (await res.json()) as { ok?: boolean; item?: Item };
-          if (!live?.ok || !live.item) return null;
-          const full = mapLiveItem(live.item);
-          detailCache.set(slug, full);
-          const idx = items.findIndex(
-            (x) => x.slug === slug || x.id === full.id || safeDomId(x.id) === safeDomId(full.id),
-          );
-          if (idx >= 0) {
-            items[idx] = {
-              ...items[idx],
-              ...full,
-              hasStems: full.hasStems,
-              hasVideo: full.hasVideo,
-            };
+
+        // Probar slugs; absolute origin evita líos www→apex en algunos browsers
+        const origins = [
+          "", // relative same host
+          typeof location !== "undefined" ? location.origin : "",
+          "https://nimpo3dstudio.com",
+        ].filter((o, i, a) => a.indexOf(o) === i);
+
+        for (const slug of keys) {
+          for (const origin of origins) {
+            try {
+              const url = `${origin}/api/library?slug=${encodeURIComponent(slug)}`.replace(
+                /^(https?:\/\/[^/]+)\/\//,
+                "$1/",
+              );
+              const res = await fetch(url.startsWith("http") ? url : `/api/library?slug=${encodeURIComponent(slug)}`, {
+                credentials: "same-origin",
+                cache: "no-store",
+                redirect: "follow",
+              });
+              if (!res.ok) continue;
+              const live = (await res.json()) as { ok?: boolean; item?: Item };
+              if (!live?.ok || !live.item) continue;
+              const full = mapLiveItem(live.item);
+              if (!full.stems?.length && !full.hasStems && !safeMediaUrl(full.video)) {
+                // detail vacío de media: seguir probando
+                continue;
+              }
+              for (const k of keys) detailCache.set(k, full);
+              if (full.slug) detailCache.set(full.slug, full);
+              if (full.id) detailCache.set(full.id, full);
+              const idx = items.findIndex(
+                (x) =>
+                  x.slug === full.slug ||
+                  x.id === full.id ||
+                  safeDomId(x.id) === safeDomId(full.id),
+              );
+              if (idx >= 0) {
+                items[idx] = {
+                  ...items[idx],
+                  ...full,
+                  hasStems: full.hasStems,
+                  hasVideo: full.hasVideo,
+                };
+              }
+              return full;
+            } catch {
+              /* try next */
+            }
           }
-          return full;
-        } catch {
-          return null;
         }
+        return null;
       };
 
       const fetchList = async (opts: { reset: boolean }) => {

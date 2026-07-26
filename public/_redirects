@@ -1,6 +1,10 @@
 # Solo la raíz exacta → español (NO usar /* o se rompen assets)
 / /es/ 301
 
-# Un solo origen canónico (site.url = https://nimpo3dstudio.com)
-# Evita 2 "sitios" (localStorage S/M/L, consent, opt-out distintos en www vs apex)
+# API y admin en www: NO redirigir a apex (el 301 rompía fetch de stems/JSON
+# y el AudioContext tras await). Primera regla gana.
+https://www.nimpo3dstudio.com/api/* https://www.nimpo3dstudio.com/api/:splat 200
+https://www.nimpo3dstudio.com/admin/* https://www.nimpo3dstudio.com/admin/:splat 200
+
+# Un solo origen canónico para HTML (site.url = https://nimpo3dstudio.com)
 https://www.nimpo3dstudio.com/* https://nimpo3dstudio.com/:splat 301

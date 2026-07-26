@@ -2,6 +2,7 @@
 import { getUpdates, getTagLabels } from "../lib/updates";
 import type { Locale } from "../i18n/translations";
 import { useTranslations } from "../lib/locale";
+import { safeMediaUrl } from "../lib/dom-escape";
 
 type Props = {
   lang?: Locale;
@@ -45,20 +46,36 @@ const payload = {
         <p class="updates-panel__empty">{t("updatesEmpty")}</p>
       ) : (
         <ul class="updates-panel__list">
-          {updates.map((item) => (
-            <li class="updates-panel__item">
-              <div class="updates-panel__meta">
-                <span class:list={["updates-panel__tag", `updates-panel__tag--${item.tag}`]}>
-                  {tagLabels[item.tag]}
-                </span>
-                <time class="updates-panel__date" datetime={item.date}>
-                  {formatDate(item.date)}
-                </time>
-              </div>
-              <p class="updates-panel__item-title">{item.title}</p>
-              <p class="updates-panel__summary">{item.summary}</p>
-            </li>
-          ))}
+          {updates.map((item) => {
+            const img = safeMediaUrl(item.image);
+            return (
+              <li class="updates-panel__item">
+                <div class="updates-panel__meta">
+                  <span class:list={["updates-panel__tag", `updates-panel__tag--${item.tag}`]}>
+                    {tagLabels[item.tag]}
+                  </span>
+                  <time class="updates-panel__date" datetime={item.date}>
+                    {formatDate(item.date)}
+                  </time>
+                </div>
+                {
+                  img ? (
+                    <div class="updates-panel__media">
+                      <img
+                        src={img}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        class="updates-panel__img"
+                      />
+                    </div>
+                  ) : null
+                }
+                <p class="updates-panel__item-title">{item.title}</p>
+                <p class="updates-panel__summary">{item.summary}</p>
+              </li>
+            );
+          })}
         </ul>
       )
     }
@@ -66,6 +83,8 @@ const payload = {
 </div>
 
 <script>
+  import { safeMediaUrl } from "../lib/dom-escape";
+
   function escapeHtml(s: string) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -83,6 +102,12 @@ const payload = {
   function safeTag(tag: string) {
     if (tag === "nuevo" || tag === "mejora" || tag === "fix" || tag === "proximo") return tag;
     return "nuevo";
+  }
+
+  function mediaBlock(image: unknown) {
+    const src = safeMediaUrl(typeof image === "string" ? image : "");
+    if (!src) return "";
+    return `<div class="updates-panel__media"><img class="updates-panel__img" src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async" /></div>`;
   }
 
   async function hydrateUpdates() {
@@ -112,21 +137,31 @@ const payload = {
           const tags = payload.labels?.tags || {};
           const items = data.items.slice(0, 6);
           body.innerHTML = `<ul class="updates-panel__list">${items
-            .map((item: { date?: string; title?: string; tag?: string; summary?: string }) => {
-              const tag = safeTag(String(item.tag || "nuevo"));
-              const title = escapeHtml(String(item.title || "").slice(0, 160));
-              const summary = escapeHtml(String(item.summary || "").slice(0, 500));
-              const date = String(item.date || "").slice(0, 10);
-              const tagLabel = escapeHtml(tags[tag] || tag);
-              return `<li class="updates-panel__item">
+            .map(
+              (item: {
+                date?: string;
+                title?: string;
+                tag?: string;
+                summary?: string;
+                image?: string;
+              }) => {
+                const tag = safeTag(String(item.tag || "nuevo"));
+                const title = escapeHtml(String(item.title || "").slice(0, 160));
+                const summary = escapeHtml(String(item.summary || "").slice(0, 500));
+                const date = String(item.date || "").slice(0, 10);
+                const tagLabel = escapeHtml(tags[tag] || tag);
+                const media = mediaBlock(item.image);
+                return `<li class="updates-panel__item">
                 <div class="updates-panel__meta">
                   <span class="updates-panel__tag updates-panel__tag--${tag}">${tagLabel}</span>
                   <time class="updates-panel__date" datetime="${escapeHtml(date)}">${escapeHtml(formatDate(date))}</time>
                 </div>
+                ${media}
                 <p class="updates-panel__item-title">${title}</p>
                 <p class="updates-panel__summary">${summary}</p>
               </li>`;
-            })
+              },
+            )
             .join("")}</ul>`;
         } catch {
           /* keep build seed */
@@ -228,6 +263,24 @@ const payload = {
     font-size: 0.68rem;
     color: var(--color-muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  .updates-panel__media {
+    margin: 0.55rem 0 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: #0c0c10;
+    aspect-ratio: 16 / 10;
+    max-height: 9.5rem;
+  }
+
+  .updates-panel__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
   }
 
   .updates-panel__item-title {

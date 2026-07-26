@@ -1129,7 +1129,7 @@ const licenseExtras: { name: string; title: string; hint: string; price: string 
     font-weight: 700;
     line-height: 1;
     vertical-align: middle;
-    cursor: help;
+    cursor: default;
   }
   .quote__opt-help::after {
     content: attr(data-tip);
@@ -1161,10 +1161,12 @@ const licenseExtras: { name: string; title: string; hint: string; price: string 
     opacity: 1;
     visibility: visible;
   }
+  /* El «?» dorado se mantiene; cursor normal (sin el help del SO con «?») */
   .quote__opt-help:hover,
   .quote__opt-help:focus-visible {
-    color: transparent;
-    border-color: transparent;
+    color: var(--color-accent);
+    border-color: rgb(201 169 98 / 0.45);
+    cursor: default;
   }
 
   .quote__opt-title {

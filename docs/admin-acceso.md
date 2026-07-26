@@ -1,8 +1,9 @@
 # Panel admin — acceso solo estudio
 
-URL (no está en el menú público):
+URLs (no están en el menú público):
 
-- https://www.nimpo3dstudio.com/admin/biblioteca/
+- https://www.nimpo3dstudio.com/admin/biblioteca/ — biblioteca / música
+- https://www.nimpo3dstudio.com/admin/productos/ — productos software
 
 ## Cómo entra solo tú
 

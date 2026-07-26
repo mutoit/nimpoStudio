@@ -1,14 +1,8 @@
 ---
 import Layout from "../../../components/Layout.astro";
-import ProductCard from "../../../components/ProductCard.astro";
-import {
-  getCategoryLabels,
-  getAllCategories,
-  getPublishedProducts,
-} from "../../../lib/products";
-import { site } from "../../../lib/site";
+import ProductsBrowser from "../../../components/ProductsBrowser.astro";
 import type { Locale } from "../../../i18n/translations";
-import { useTranslations, localizePath } from "../../../lib/locale";
+import { useTranslations } from "../../../lib/locale";
 
 export function getStaticPaths() {
   return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
@@ -16,174 +10,74 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = useTranslations(lang);
-const categoryLabels = getCategoryLabels(lang);
-
-const products = getPublishedProducts();
-const categories = getAllCategories();
 ---
 
 <Layout title={t("catalogTitle")} description={t("catalogDesc")} lang={lang}>
   <div class="container">
     <header class="hero">
       <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
-      <h1 class="hero__title">{t("catalogTitle")}</h1>
+      <div class="hero__title-row">
+        <h1 class="hero__title">{t("catalogTitle")}</h1>
+        <span class="hero__soon">{t("catalogComingSoon")}</span>
+      </div>
       <p class="hero__desc">{t("catalogDesc")}</p>
     </header>
 
-    <div class="toolbar" role="group" aria-label={t("navCatalog")}>
-      <button type="button" class="filter is-active" data-filter="all">{t("catalogAll")}</button>
-      {
-        categories.map((cat) => (
-          <button type="button" class="filter" data-filter={cat}>
-            {categoryLabels[cat]}
-          </button>
-        ))
-      }
-    </div>
-
-    {
-      products.length === 0 ? (
-        <div class="empty">
-          <p class="empty__title">{t("catalogEmptyTitle")}</p>
-          <p class="empty__desc">{t("catalogEmptyDesc")}</p>
-        </div>
-      ) : (
-        <ul class="grid" id="product-grid">
-          {products.map((product) => (
-            <li class="grid__item" data-category={product.category}>
-              <ProductCard product={product} lang={lang} />
-            </li>
-          ))}
-        </ul>
-      )
-    }
+    <ProductsBrowser items={[]} lang={lang} />
   </div>
 </Layout>
-
-<script>
-  const buttons = document.querySelectorAll<HTMLButtonElement>(".filter");
-  const items = document.querySelectorAll<HTMLLIElement>(".grid__item");
-
-  buttons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const filter = button.dataset.filter ?? "all";
-
-      buttons.forEach((b) => b.classList.toggle("is-active", b === button));
-
-      items.forEach((item) => {
-        const category = item.dataset.category;
-        const show = filter === "all" || category === filter;
-        item.hidden = !show;
-      });
-    });
-  });
-</script>
 
 <style>
   .hero {
     max-width: 36rem;
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.75rem;
   }
 
   .hero__eyebrow {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.15em;
     color: var(--color-warm);
   }
 
+  .hero__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+    margin-top: 0.5rem;
+  }
+
   .hero__title {
-    margin: 0.5rem 0 0;
+    margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    font-size: clamp(2.2rem, 4.5vw, 3.25rem);
     font-weight: 500;
     line-height: 1.05;
     letter-spacing: 0.01em;
   }
 
+  .hero__soon {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #0a0a0c;
+    background: var(--color-accent);
+    border: 1px solid rgb(201 169 98 / 0.5);
+    box-shadow: 0 0 20px rgb(201 169 98 / 0.25);
+    line-height: 1.2;
+  }
+
   .hero__desc {
-    margin: 1rem 0 0;
+    margin: 0.85rem 0 0;
     color: var(--color-muted);
-    font-size: 1.05rem;
-  }
-
-  .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .filter {
-    padding: 0.45rem 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    color: var(--color-muted);
-    font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .filter:hover {
-    border-color: var(--color-fg);
-    color: var(--color-fg);
-  }
-
-  .filter.is-active {
-    background: var(--color-accent-light);
-    border-color: rgb(201 169 98 / 0.35);
-    color: var(--color-accent);
-    box-shadow: inset 0 0 0 1px rgb(201 169 98 / 0.15);
-  }
-
-  .grid {
-    display: grid;
-    gap: 2rem 1.5rem;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  @media (min-width: 640px) {
-    .grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  .empty {
-    padding: 4rem 2rem;
-    text-align: center;
-    border: 1px dashed var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-  }
-
-  .empty__title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-  }
-
-  .empty__desc {
-    margin: 0.5rem 0 0;
-    color: var(--color-muted);
-  }
-
-  code {
-    font-size: 0.85em;
-    background: var(--color-accent-light);
-    padding: 0.1em 0.35em;
-    border-radius: 4px;
+    font-size: 1rem;
   }
 </style>

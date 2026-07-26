@@ -1,2 +1,6 @@
 # Solo la raíz exacta → español (NO usar /* o se rompen assets)
 / /es/ 301
+
+# Un solo origen canónico (site.url = https://nimpo3dstudio.com)
+# Evita 2 "sitios" (localStorage S/M/L, consent, opt-out distintos en www vs apex)
+https://www.nimpo3dstudio.com/* https://nimpo3dstudio.com/:splat 301

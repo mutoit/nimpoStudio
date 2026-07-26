@@ -31,7 +31,7 @@ export type Product = {
 };
 
 export function isProvisionalProduct(product: Product): boolean {
-  return product.provisional !== false;
+  return false;
 }
 
 import type { Locale } from "../i18n/translations";

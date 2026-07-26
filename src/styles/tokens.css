@@ -18,47 +18,47 @@
   --shadow: 0 24px 48px -12px rgb(0 0 0 / 0.55);
   --glow: 0 0 0 1px var(--color-border-shine), 0 12px 40px rgb(0 0 0 / 0.45);
   --max-width: 72rem;
-  /* Escala UI: S · M · L (base 17px; M por defecto) */
-  --ui-scale: 1.12;
+  /* Escala UI: S · M · L sobre 16px del navegador (M = normal) */
+  --ui-scale: 1;
 }
 
 html {
-  /* Base un poco mayor que 16px del navegador para que M/L se noten */
-  font-size: calc(17px * var(--ui-scale));
+  font-size: calc(16px * var(--ui-scale));
 }
 
+/* S ~14.4px · M 16px · L ~18px — antes estaba inflado (S=17, M~20, L~23) */
 html[data-ui-size="s"] {
+  --ui-scale: 0.9;
+  --max-width: 68rem;
+}
+
+html[data-ui-size="m"] {
   --ui-scale: 1;
   --max-width: 72rem;
 }
 
-html[data-ui-size="m"] {
-  --ui-scale: 1.18;
+html[data-ui-size="l"] {
+  --ui-scale: 1.125;
   --max-width: 80rem;
 }
 
-html[data-ui-size="l"] {
-  --ui-scale: 1.38;
-  --max-width: 88rem;
-}
-
-/* Teléfono: cap de escala — M/L no deben hinchar formularios y modales */
+/* Teléfono: M/L casi planas para no hinchar formularios y modales */
 @media (max-width: 720px) {
   html {
     font-size: calc(16px * var(--ui-scale));
   }
 
   html[data-ui-size="s"] {
-    --ui-scale: 1;
+    --ui-scale: 0.9;
   }
 
   html[data-ui-size="m"] {
-    --ui-scale: 1.04;
+    --ui-scale: 1;
     --max-width: 72rem;
   }
 
   html[data-ui-size="l"] {
-    --ui-scale: 1.1;
+    --ui-scale: 1.06;
     --max-width: 72rem;
   }
 }

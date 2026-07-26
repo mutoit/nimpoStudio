@@ -82,7 +82,7 @@ export type MusicRelease = {
 
 export function isProvisionalRelease(release: MusicRelease): boolean {
   if (release.slug === "deep-in-the-forest") return false;
-  return release.provisional !== false;
+  return false;
 }
 
 /** Studio list prices — keep in sync with docs/licencias/00-PRECIOS-REFERENCIA.md */

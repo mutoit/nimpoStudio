@@ -186,10 +186,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         body.filterTags != null
           ? clipStringList(body.filterTags)
           : existing.filterTags,
-      provisional:
-        body.provisional != null
-          ? Boolean(body.provisional)
-          : Boolean(existing.provisional),
+      provisional: false,
       licenseEnabled:
         body.licenseEnabled != null
           ? Boolean(body.licenseEnabled)

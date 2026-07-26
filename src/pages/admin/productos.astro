@@ -1,0 +1,711 @@
+---
+/**
+ * Admin productos software (solo estudio).
+ * Sube nombre, descripción, imágenes/GIF y vídeo → R2 + catálogo vivo.
+ */
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Admin productos" description="Panel privado de productos" lang="es">
+  <div class="container admin">
+    <header class="head">
+      <div>
+        <p class="eyebrow">Privado · no indexar</p>
+        <h1>Publicar productos</h1>
+      </div>
+      <div class="head__actions">
+        <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
+        <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
+      </div>
+    </header>
+
+    <p class="lead">
+      Software / plugins / tools. Se ve en
+      <a href="/es/catalogo/" target="_blank" rel="noopener">/es/catalogo/</a>
+      (panel + ficha). Misma sesión que biblioteca.
+    </p>
+
+    <div class="admin-layout">
+      <div class="workspace">
+        <div class="edit-bar" data-edit-bar hidden>
+          <span data-edit-label>Editando…</span>
+          <button type="button" class="btn btn--sm" data-edit-cancel>Nuevo</button>
+        </div>
+
+        <form class="form" data-product-form>
+          <label>
+            Nombre *
+            <input name="name" required maxlength="160" data-name placeholder="Nimpo Tools" />
+          </label>
+          <label>
+            slug (url)
+            <input name="slug" maxlength="80" data-slug placeholder="auto desde el nombre" />
+          </label>
+
+          <div class="row">
+            <label>
+              Categoría
+              <select name="category" data-category>
+                <option value="plugin">Plugin</option>
+                <option value="app">App</option>
+                <option value="tool">Tool</option>
+                <option value="pack">Pack</option>
+                <option value="other" selected>Otro</option>
+              </select>
+            </label>
+            <label>
+              Estado
+              <select name="status" data-status>
+                <option value="published" selected>Publicado</option>
+                <option value="coming-soon">Próximamente</option>
+                <option value="draft">Borrador (oculto)</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            Descripción corta
+            <input name="shortDescription" maxlength="280" data-short placeholder="Una línea para el panel" />
+          </label>
+          <label>
+            Descripción *
+            <textarea name="description" required maxlength="4000" rows="6" data-description placeholder="Qué es, para quién, qué incluye…"></textarea>
+          </label>
+
+          <div class="row">
+            <label>
+              Tags (coma)
+              <input name="tags" data-tags placeholder="vst, windows, midi" />
+            </label>
+            <label>
+              Formatos (coma)
+              <input name="formats" data-formats placeholder="VST3, AU, Win" />
+            </label>
+          </div>
+
+          <label class="check">
+            <input type="checkbox" name="featured" value="1" data-featured />
+            Destacado (arriba en el panel)
+          </label>
+
+          <label>
+            Imágenes / GIF (hasta 8)
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+              multiple
+              data-images
+            />
+          </label>
+          <div class="preview preview--row" data-images-preview hidden></div>
+
+          <label>
+            Vídeo (opcional, mp4/webm)
+            <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-video />
+          </label>
+          <div class="preview preview--video" data-video-preview hidden></div>
+
+          <label class="check" data-replace-wrap hidden>
+            <input type="checkbox" name="replaceMedia" value="1" data-replace />
+            Sustituir media anterior (si editas y subes archivos nuevos)
+          </label>
+
+          <button type="submit" class="btn btn--gold" data-publish>Publicar producto</button>
+          <p class="status" data-status-msg hidden></p>
+        </form>
+      </div>
+
+      <aside class="rail">
+        <div class="rail__head">
+          <h2 class="subhead">Publicados</h2>
+          <button type="button" class="btn btn--sm" data-refresh title="Actualizar">↻</button>
+        </div>
+        <p class="lead lead--sm">Miniaturas · editar · borrar</p>
+        <div class="rail-list" data-rail>
+          <p class="rail-empty">Cargando…</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { compressImageForUpload, compressImagesForUpload } from "../../lib/admin-image-compress";
+
+  type Product = {
+    slug: string;
+    name: string;
+    category?: string;
+    status?: string;
+    shortDescription?: string;
+    description?: string;
+    images?: string[];
+    video?: string | null;
+    tags?: string[];
+    formats?: string[];
+    featured?: boolean;
+  };
+
+  let editingSlug: string | null = null;
+  let items: Product[] = [];
+
+  const form = document.querySelector("[data-product-form]") as HTMLFormElement | null;
+  const statusEl = document.querySelector("[data-status-msg]");
+  const editBar = document.querySelector("[data-edit-bar]");
+  const editLabel = document.querySelector("[data-edit-label]");
+  const replaceWrap = document.querySelector("[data-replace-wrap]");
+  const publishBtn = document.querySelector("[data-publish]");
+
+  document.querySelector("[data-logout]")?.addEventListener("click", async () => {
+    await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
+    location.href = "/admin/productos/";
+  });
+
+  const setStatus = (msg: string, ok = true) => {
+    if (!(statusEl instanceof HTMLElement)) return;
+    statusEl.hidden = false;
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("is-err", !ok);
+  };
+
+  const slugify = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80);
+
+  const nameInput = form?.querySelector("[data-name]") as HTMLInputElement | null;
+  const slugInput = form?.querySelector("[data-slug]") as HTMLInputElement | null;
+  nameInput?.addEventListener("input", () => {
+    if (editingSlug) return;
+    if (slugInput && !slugInput.dataset.touched) {
+      slugInput.value = slugify(nameInput.value);
+    }
+  });
+  slugInput?.addEventListener("input", () => {
+    slugInput.dataset.touched = "1";
+  });
+
+  const bindPreview = (inputSel: string, boxSel: string, multi: boolean) => {
+    const input = document.querySelector(inputSel);
+    const box = document.querySelector(boxSel);
+    if (!(input instanceof HTMLInputElement) || !(box instanceof HTMLElement)) return;
+    input.addEventListener("change", () => {
+      const files = input.files ? [...input.files] : [];
+      if (!files.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+      }
+      box.hidden = false;
+      box.innerHTML = files
+        .slice(0, multi ? 8 : 1)
+        .map((f) => {
+          const url = URL.createObjectURL(f);
+          if (f.type.startsWith("video/")) {
+            return `<video src="${url}" controls playsinline></video><p class="fname">${f.name}</p>`;
+          }
+          return `<img src="${url}" alt="" /><p class="fname">${f.name}</p>`;
+        })
+        .join("");
+    });
+  };
+  bindPreview("[data-images]", "[data-images-preview]", true);
+  bindPreview("[data-video]", "[data-video-preview]", false);
+
+  const resetForm = () => {
+    editingSlug = null;
+    form?.reset();
+    if (slugInput) {
+      delete slugInput.dataset.touched;
+      slugInput.value = "";
+    }
+    if (editBar instanceof HTMLElement) editBar.hidden = true;
+    if (replaceWrap instanceof HTMLElement) replaceWrap.hidden = true;
+    if (publishBtn instanceof HTMLElement) publishBtn.textContent = "Publicar producto";
+    document.querySelectorAll("[data-images-preview], [data-video-preview]").forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.hidden = true;
+        el.innerHTML = "";
+      }
+    });
+  };
+
+  document.querySelector("[data-edit-cancel]")?.addEventListener("click", resetForm);
+
+  const fillForm = (item: Product) => {
+    editingSlug = item.slug;
+    if (editBar instanceof HTMLElement) editBar.hidden = false;
+    if (editLabel) editLabel.textContent = `Editando «${item.name}»`;
+    if (replaceWrap instanceof HTMLElement) replaceWrap.hidden = false;
+    if (publishBtn instanceof HTMLElement) publishBtn.textContent = "Guardar cambios";
+
+    const set = (sel: string, v: string) => {
+      const el = form?.querySelector(sel) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+      if (el) el.value = v;
+    };
+    set("[data-name]", item.name || "");
+    set("[data-slug]", item.slug || "");
+    if (slugInput) slugInput.dataset.touched = "1";
+    set("[data-category]", item.category || "other");
+    set("[data-status]", item.status || "published");
+    set("[data-short]", item.shortDescription || "");
+    set("[data-description]", item.description || "");
+    set("[data-tags]", (item.tags || []).join(", "));
+    set("[data-formats]", (item.formats || []).join(", "));
+    const feat = form?.querySelector("[data-featured]") as HTMLInputElement | null;
+    if (feat) feat.checked = Boolean(item.featured);
+
+    form?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const renderRail = () => {
+    const rail = document.querySelector("[data-rail]");
+    if (!(rail instanceof HTMLElement)) return;
+    if (!items.length) {
+      rail.innerHTML = `<p class="rail-empty">Ningún producto aún. Publica el primero.</p>`;
+      return;
+    }
+    rail.innerHTML = items
+      .map((item) => {
+        const safeSlug = String(item.slug || "").replace(/"/g, "");
+        const safeName = String(item.name || "").replace(/"/g, "");
+        const media = `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+        const name = String(item.name || safeSlug);
+        const shortName = name.length > 22 ? `${name.slice(0, 20)}…` : name;
+        const safeShort = shortName.replace(/</g, "&lt;").replace(/"/g, "&quot;");
+        return `<article class="tile" data-slug="${safeSlug}" title="${safeName}">
+          <div class="tile__media" data-edit="${safeSlug}" role="button" tabindex="0" aria-label="Editar ${safeName}">
+            ${media}
+          </div>
+          <p class="tile__title">${safeShort}</p>
+          <div class="tile__actions">
+            <button type="button" class="tile__btn" data-edit="${safeSlug}" title="Editar">✎</button>
+            <button type="button" class="tile__btn tile__btn--danger" data-del="${safeSlug}" title="Borrar">🗑</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+
+    rail.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const slug = (btn as HTMLElement).dataset.edit;
+        const item = items.find((x) => x.slug === slug);
+        if (item) fillForm(item);
+      });
+    });
+    rail.querySelectorAll("[data-del]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const slug = (btn as HTMLElement).dataset.del || "";
+        if (!slug || !confirm(`¿Borrar «${slug}» y su media?`)) return;
+        try {
+          const res = await fetch(`/admin/products?slug=${encodeURIComponent(slug)}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.message || data.error || res.status);
+          setStatus(`✅ Borrado «${slug}»`);
+          if (editingSlug === slug) resetForm();
+          await loadItems();
+        } catch (e) {
+          setStatus(e instanceof Error ? e.message : "Error al borrar", false);
+        }
+      });
+    });
+  };
+
+  const loadItems = async () => {
+    const rail = document.querySelector("[data-rail]");
+    try {
+      const res = await fetch("/admin/products", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      items = Array.isArray(data.items) ? data.items : [];
+      renderRail();
+    } catch (e) {
+      if (rail instanceof HTMLElement) {
+        rail.innerHTML = `<p class="rail-empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  document.querySelector("[data-refresh]")?.addEventListener("click", () => loadItems());
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector("[data-publish]");
+    if (btn instanceof HTMLButtonElement) btn.disabled = true;
+    setStatus(editingSlug ? "Guardando…" : "Publicando…");
+
+    try {
+      const fd = new FormData(form);
+      // rename fields for API
+      const body = new FormData();
+      body.set("name", String(fd.get("name") || "").trim());
+      body.set("slug", String(fd.get("slug") || "").trim());
+      body.set("category", String(fd.get("category") || "other"));
+      body.set("status", String(fd.get("status") || "published"));
+      body.set("shortDescription", String(fd.get("shortDescription") || "").trim());
+      body.set("description", String(fd.get("description") || "").trim());
+      body.set("tags", String(fd.get("tags") || "").trim());
+      body.set("formats", String(fd.get("formats") || "").trim());
+      if (fd.get("featured") === "1" || fd.get("featured") === "on") body.set("featured", "1");
+      if (fd.get("replaceMedia") === "1") body.set("replaceMedia", "1");
+
+      const images = form.querySelector("[data-images]") as HTMLInputElement | null;
+      if (images?.files?.length) {
+        // Galería producto: max 720px, webp/jpeg q0.78 (GIF se conserva)
+        const raw = [...images.files].slice(0, 8);
+        const small = await compressImagesForUpload(raw, {
+          maxEdge: 720,
+          quality: 0.78,
+          preserveGif: true,
+        });
+        small.forEach((f) => body.append("images", f, f.name));
+      }
+      const video = form.querySelector("[data-video]") as HTMLInputElement | null;
+      if (video?.files?.[0]) body.set("video", video.files[0]);
+
+      const res = await fetch("/admin/products", {
+        method: "POST",
+        credentials: "same-origin",
+        body,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || `Error ${res.status}`);
+      }
+      setStatus(`✅ ${data.message || "OK"} · «${data.item?.name || ""}»`);
+      resetForm();
+      await loadItems();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error", false);
+    } finally {
+      if (btn instanceof HTMLButtonElement) btn.disabled = false;
+    }
+  });
+
+  void loadItems();
+</script>
+
+<style>
+  .admin {
+    padding-block: 2rem 4rem;
+    max-width: 72rem;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent-dim);
+    font-weight: 600;
+  }
+  h1 {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 500;
+  }
+  .lead {
+    margin: 0 0 1.5rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .lead a {
+    color: var(--color-accent);
+  }
+  .lead--sm {
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+  }
+  .admin-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .admin-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  .workspace {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    padding: 1.15rem 1.2rem 1.4rem;
+  }
+  .edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    background: var(--color-accent-light);
+    border: 1px solid rgb(201 169 98 / 0.3);
+    font-size: 0.82rem;
+  }
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgb(180 180 190);
+  }
+  .form input,
+  .form textarea,
+  .form select {
+    font: inherit;
+    font-weight: 400;
+    color: var(--color-fg);
+    background: #0c0c10;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.55rem 0.65rem;
+  }
+  .form textarea {
+    resize: vertical;
+    min-height: 7rem;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  @media (max-width: 560px) {
+    .row {
+      grid-template-columns: 1fr;
+    }
+  }
+  .check {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem !important;
+    font-weight: 500 !important;
+  }
+  .check input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-accent);
+  }
+  .preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .preview img,
+  .preview video {
+    max-width: 7rem;
+    max-height: 5rem;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+  }
+  .preview--video video {
+    max-width: 100%;
+    max-height: 10rem;
+  }
+  .fname {
+    margin: 0;
+    font-size: 0.65rem;
+    color: var(--color-muted);
+    width: 100%;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-hover);
+    color: inherit;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn:hover {
+    border-color: rgb(201 169 98 / 0.35);
+  }
+  .btn--gold {
+    background: var(--color-accent);
+    color: #0a0a0c;
+    border-color: transparent;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+  .btn--ghost {
+    background: transparent;
+  }
+  .btn--sm {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.75rem;
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+  .status {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #b8d4a8;
+  }
+  .status.is-err {
+    color: #f0a0a0;
+  }
+  .rail {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    padding: 0.9rem;
+    position: sticky;
+    top: 1rem;
+  }
+  .rail__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .subhead {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .rail-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+    align-content: start;
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.25rem;
+  }
+  .rail-empty {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    grid-column: 1 / -1;
+  }
+  .rail-empty.is-err {
+    color: #f0a0a0;
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+  .tile:hover {
+    border-color: rgb(201 169 98 / 0.45);
+  }
+  .tile__media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: #08080a;
+    cursor: pointer;
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  .tile__media img,
+  .tile__media video,
+  .tile__media .ph {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: cover !important;
+    object-position: center;
+    display: block;
+    border: 0;
+    pointer-events: none;
+  }
+  .tile__media .ph {
+    display: grid;
+    place-items: center;
+    font-size: 0.65rem;
+    color: var(--color-muted);
+  }
+  .tile__title {
+    margin: 0;
+    padding: 0.28rem 0.3rem 0.15rem;
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--color-fg);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    min-height: 1.7em;
+  }
+  .tile__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 0 0 auto;
+    height: 1.65rem;
+    gap: 1px;
+    background: var(--color-border);
+  }
+  .tile__btn {
+    margin: 0;
+    border: none;
+    padding: 0;
+    height: 100%;
+    background: #121218;
+    color: var(--color-fg);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .tile__btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-accent);
+  }
+  .tile__btn--danger:hover {
+    color: #f0a0a0;
+  }
+</style>

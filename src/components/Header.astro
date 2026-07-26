@@ -16,6 +16,7 @@ const currentPath = Astro.url.pathname;
 
 const nav = [
   { href: "/biblioteca", label: t("navLibrary") },
+  { href: "/catalogo", label: t("navCatalog") },
   { href: "/sobre", label: t("navAbout") },
   { href: "/contacto", label: t("navContact") },
 ];
@@ -62,7 +63,6 @@ const nav = [
           );
         })
       }
-      <span class="nav__soon" title={t("navStoreSoon")}>{t("navStoreSoon")}</span>
     </nav>
   </div>
 </header>

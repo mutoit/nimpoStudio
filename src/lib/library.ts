@@ -51,6 +51,7 @@ export function getLibraryTags(): string[] {
   return [...new Set(items.flatMap((i) => i.tags))].sort();
 }
 
-export function isProvisionalLibraryItem(item: LibraryItem): boolean {
-  return item.provisional !== false && item.slug !== "deep-in-the-forest";
+export function isProvisionalLibraryItem(_item: LibraryItem): boolean {
+  // No se muestra "provisional" al visitante (ni en subidas nuevas).
+  return false;
 }

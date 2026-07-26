@@ -20,8 +20,11 @@ const contactHref = localizePath("/contacto", lang);
     <div class="prose">
       <p>{t("aboutP1")}</p>
       <p>{t("aboutP2")}</p>
+      <p>{t("aboutP3")}</p>
+      <p class="prose__thanks">{t("aboutP4")}</p>
       <p>
-        {t("aboutP3")} <a href={contactHref}>{t("aboutContactLink")}</a>.
+        {t("aboutP5")}{" "}
+        <a href={contactHref}>{t("aboutContactLink")}</a>.
       </p>
     </div>
   </div>
@@ -58,6 +61,11 @@ const contactHref = localizePath("/contacto", lang);
 
   .prose p {
     margin: 0 0 1rem;
+  }
+
+  .prose__thanks {
+    color: var(--color-fg);
+    font-weight: 500;
   }
 
   .prose a {

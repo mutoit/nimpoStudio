@@ -9,7 +9,7 @@ export const MAX_TEXT = 4000;
 
 const VIDEO_EXT = new Set(["mp4", "webm", "mov"]);
 const AUDIO_EXT = new Set(["mp3", "wav", "m4a", "ogg", "aac"]);
-const IMAGE_EXT = new Set(["jpg", "jpeg", "png", "webp"]);
+const IMAGE_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 const MIME_BY_EXT: Record<string, string> = {
   mp4: "video/mp4",
@@ -24,6 +24,7 @@ const MIME_BY_EXT: Record<string, string> = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+  gif: "image/gif",
 };
 
 export type MediaRole = "video" | "audio" | "image";

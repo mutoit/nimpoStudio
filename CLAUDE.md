@@ -44,6 +44,8 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 | Marca, email, redes | `src/config/site.json` |
 | Textos legales | `src/content/legal/` o páginas `[lang]/` |
 | Estilos globales | `src/styles/` |
+| UX biblioteca (stems Ctrl+clic, form licencias) | `docs/estado.md` § UX biblioteca · `src/lib/library-browser/bind.ts` |
+| API biblioteca list/detail | `functions/api/library.ts` · `functions/lib/library-query.ts` · plan `docs/plans/2026-07-26-biblioteca-catalog-scale.md` |
 | SEO / meta / analíticas | `src/lib/analytics/`, variables `PUBLIC_*` |
 | API analíticas | `functions/api/track.ts` |
 | Redirects | `astro.config.mjs` + `public/_redirects` |

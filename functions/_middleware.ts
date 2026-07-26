@@ -93,6 +93,13 @@ export async function onRequest(context: {
   const { request, env, next } = context;
   const url = new URL(request.url);
 
+  // Canonical host: apex (sin www). www y apex son el MISMO Pages project,
+  // pero orígenes distintos → localStorage (S/M/L) y UX separadas si no redirigimos.
+  if (url.hostname === "www.nimpo3dstudio.com") {
+    url.hostname = "nimpo3dstudio.com";
+    return Response.redirect(url.toString(), 301);
+  }
+
   if (!isAdminPath(url.pathname)) {
     return next();
   }

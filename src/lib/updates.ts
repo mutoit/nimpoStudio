@@ -7,6 +7,8 @@ export type Update = {
   title: string;
   tag: UpdateTag;
   summary: string;
+  /** Miniatura opcional (jpg/png/webp/gif) */
+  image?: string;
 };
 
 import type { Locale } from "../i18n/translations";

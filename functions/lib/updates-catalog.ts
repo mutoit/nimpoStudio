@@ -21,9 +21,23 @@ export type FeedItem = {
   title: string;
   tag: "nuevo" | "mejora" | "fix" | "proximo";
   summary: string;
+  /** Miniatura: /api/media/library/feed/... (jpg/png/webp/gif animado) */
+  image?: string;
 };
 
 const TAGS = new Set(["nuevo", "mejora", "fix", "proximo"]);
+
+/** Solo rutas same-origin de media del feed (o library genérica). */
+export function sanitizeFeedImage(raw: unknown): string | undefined {
+  const u = String(raw || "")
+    .trim()
+    .slice(0, 512);
+  if (!u) return undefined;
+  // same-origin media proxy
+  if (u.startsWith("/api/media/library/")) return u;
+  if (u.startsWith("library/")) return `/api/media/${u}`;
+  return undefined;
+}
 
 export function sanitizeFeedItem(raw: unknown): FeedItem | null {
   if (!raw || typeof raw !== "object") return null;
@@ -41,11 +55,13 @@ export function sanitizeFeedItem(raw: unknown): FeedItem | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     date = new Date().toISOString().slice(0, 10);
   }
+  const image = sanitizeFeedImage(o.image);
   return {
     date,
     title,
     tag: tag as FeedItem["tag"],
     summary,
+    ...(image ? { image } : {}),
   };
 }
 
@@ -90,4 +106,19 @@ export async function prependUpdate(
   const capped = next.slice(0, 40);
   await writeUpdates(bucket, capped);
   return capped;
+}
+
+/** Borra por título + fecha (clave lógica del feed). */
+export async function deleteUpdate(
+  bucket: UpdatesBucket,
+  title: string,
+  date: string,
+): Promise<{ items: FeedItem[]; removed: boolean }> {
+  const t = String(title || "").trim();
+  const d = String(date || "").trim().slice(0, 10);
+  const current = (await readUpdates(bucket)) || [];
+  const next = current.filter((u) => !(u.title === t && u.date === d));
+  const removed = next.length !== current.length;
+  if (removed) await writeUpdates(bucket, next);
+  return { items: next, removed };
 }

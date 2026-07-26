@@ -211,23 +211,8 @@ export function bindLibraryBrowser() {
       let active: Item | null = null;
       /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
       const stemsTx = new StemTransport();
-      previewPlayer.setHandlers({
-        onTime: () => updateProgressUI(),
-        onEnd: () => {
-          transportPlaying = false;
-          playingId = null;
-          resetPlayButtons();
-          stopProgressLoop();
-          updateProgressUI();
-        },
-      });
       let gridVideo: HTMLVideoElement | null = null;
-      let playingId: string | null = null;
-      let transportPlaying = false;
-      let progressRaf = 0;
-      let seeking = false;
-      let seekTargetSec: number | null = null;
-      let loadingStems = false;
+      let statusHideTimer = 0;
 
       const fmtTime = (sec: number) => {
         if (!Number.isFinite(sec) || sec < 0) return "0:00";
@@ -235,6 +220,149 @@ export function bindLibraryBrowser() {
         const s = Math.floor(sec % 60);
         return `${m}:${s.toString().padStart(2, "0")}`;
       };
+
+      /** Barra global de preview (carga / play / fin / error). */
+      const setPlayerStatus = (
+        opts: {
+          msg: string;
+          kind?: "info" | "load" | "play" | "ok" | "err";
+          playPct?: number;
+          bufPct?: number;
+          time?: string;
+          autoHideMs?: number;
+        },
+      ) => {
+        const box = root.querySelector("[data-lb-player-status]");
+        const msgEl = root.querySelector("[data-lb-player-msg]");
+        const timeEl = root.querySelector("[data-lb-player-time]");
+        const fill = root.querySelector("[data-lb-player-fill]");
+        const buf = root.querySelector("[data-lb-player-buf]");
+        const modalSt = root.querySelector("[data-lb-modal-status]");
+        const modalFill = root.querySelector("[data-lb-modal-fill]");
+        const modalBuf = root.querySelector("[data-lb-modal-buf]");
+        if (statusHideTimer) {
+          window.clearTimeout(statusHideTimer);
+          statusHideTimer = 0;
+        }
+        if (box instanceof HTMLElement) {
+          box.hidden = false;
+          box.classList.remove("is-err", "is-ok", "is-load");
+          if (opts.kind === "err") box.classList.add("is-err");
+          if (opts.kind === "ok") box.classList.add("is-ok");
+          if (opts.kind === "load") box.classList.add("is-load");
+        }
+        if (msgEl) msgEl.textContent = opts.msg;
+        if (timeEl) timeEl.textContent = opts.time || "";
+        if (fill instanceof HTMLElement) {
+          fill.style.setProperty("--p", `${Math.max(0, Math.min(100, opts.playPct ?? 0))}%`);
+        }
+        if (buf instanceof HTMLElement) {
+          buf.style.setProperty("--b", `${Math.max(0, Math.min(100, opts.bufPct ?? 0))}%`);
+        }
+        if (modalSt instanceof HTMLElement) {
+          modalSt.hidden = false;
+          modalSt.textContent = opts.msg;
+          modalSt.classList.toggle("is-err", opts.kind === "err");
+          modalSt.classList.toggle("is-ok", opts.kind === "ok");
+        }
+        if (modalFill instanceof HTMLElement) {
+          modalFill.style.setProperty("--p", `${Math.max(0, Math.min(100, opts.playPct ?? 0))}%`);
+        }
+        if (modalBuf instanceof HTMLElement) {
+          modalBuf.style.setProperty("--b", `${Math.max(0, Math.min(100, opts.bufPct ?? 0))}%`);
+        }
+        if (opts.autoHideMs && opts.autoHideMs > 0) {
+          statusHideTimer = window.setTimeout(() => {
+            if (box instanceof HTMLElement) box.hidden = true;
+            if (modalSt instanceof HTMLElement) modalSt.hidden = true;
+          }, opts.autoHideMs);
+        }
+      };
+
+      const hidePlayerStatus = () => {
+        if (statusHideTimer) {
+          window.clearTimeout(statusHideTimer);
+          statusHideTimer = 0;
+        }
+        const box = root.querySelector("[data-lb-player-status]");
+        if (box instanceof HTMLElement) box.hidden = true;
+        const modalSt = root.querySelector("[data-lb-modal-status]");
+        if (modalSt instanceof HTMLElement) modalSt.hidden = true;
+      };
+
+      previewPlayer.setHandlers({
+        onUpdate: (p) => {
+          updateProgressUI();
+          const pct = p.duration > 0 ? (p.current / p.duration) * 100 : 0;
+          const buf = (p.buffered || 0) * 100;
+          const time =
+            p.duration > 0
+              ? `${fmtTime(p.current)} / ${fmtTime(p.duration)}`
+              : p.phase === "loading"
+                ? "…"
+                : "";
+          if (p.phase === "loading") {
+            setPlayerStatus({
+              msg: `Cargando preview… ${Math.round(buf)}%`,
+              kind: "load",
+              playPct: Math.max(pct, buf * 0.15),
+              bufPct: buf,
+              time,
+            });
+          } else if (p.phase === "playing") {
+            const title =
+              items.find((i) => i.id === previewPlayer.loadedItemId)?.title ||
+              active?.title ||
+              "Preview";
+            setPlayerStatus({
+              msg: `▶ ${title}`,
+              kind: "play",
+              playPct: pct,
+              bufPct: buf,
+              time,
+            });
+          } else if (p.phase === "paused") {
+            setPlayerStatus({
+              msg: "Pausa",
+              kind: "info",
+              playPct: pct,
+              bufPct: buf,
+              time,
+            });
+          } else if (p.phase === "ended") {
+            transportPlaying = false;
+            playingId = null;
+            resetPlayButtons();
+            stopProgressLoop();
+            updateProgressUI();
+            setPlayerStatus({
+              msg: "Fin del preview",
+              kind: "ok",
+              playPct: 100,
+              bufPct: 100,
+              time: p.duration > 0 ? `${fmtTime(p.duration)} / ${fmtTime(p.duration)}` : "",
+              autoHideMs: 4000,
+            });
+          } else if (p.phase === "error") {
+            transportPlaying = false;
+            playingId = null;
+            resetPlayButtons();
+            stopProgressLoop();
+            setPlayerStatus({
+              msg: p.error || "Error de audio",
+              kind: "err",
+              playPct: 0,
+              bufPct: 0,
+            });
+          }
+        },
+      });
+      let playingId: string | null = null;
+      let transportPlaying = false;
+      let progressRaf = 0;
+      let seeking = false;
+      let seekTargetSec: number | null = null;
+      let loadingStems = false;
 
       const mediaDuration = (): number => {
         if (previewPlayer.duration > 0) return previewPlayer.duration;
@@ -273,12 +401,17 @@ export function bindLibraryBrowser() {
         root.querySelectorAll("[data-thumb-progress]").forEach((bar) => {
           if (!(bar instanceof HTMLElement)) return;
           const id = bar.dataset.thumbProgress || "";
-          const match =
+          const isThis =
             id === playingId ||
-            (playingId?.startsWith("modal-") && playingId === "modal-" + id);
-          if (match && transportPlaying && dur > 0) {
+            playingId === "modal-" + id ||
+            (previewPlayer.loadedItemId === id &&
+              (transportPlaying || previewPlayer.isPlaying));
+          if (isThis && (transportPlaying || previewPlayer.isPlaying) && dur > 0) {
             bar.hidden = false;
             bar.style.setProperty("--p", `${Math.min(100, (cur / dur) * 100)}%`);
+          } else if (isThis && loadingStems) {
+            bar.hidden = false;
+            bar.style.setProperty("--p", "12%");
           } else {
             bar.hidden = true;
             bar.style.setProperty("--p", "0%");
@@ -295,7 +428,12 @@ export function bindLibraryBrowser() {
         stopProgressLoop();
         const tick = () => {
           updateProgressUI();
-          if (transportPlaying || stemsTx.isPlaying || (gridVideo && !gridVideo.paused)) {
+          if (
+            transportPlaying ||
+            previewPlayer.isPlaying ||
+            stemsTx.isPlaying ||
+            (gridVideo && !gridVideo.paused)
+          ) {
             progressRaf = requestAnimationFrame(tick);
           } else {
             progressRaf = 0;
@@ -360,7 +498,13 @@ export function bindLibraryBrowser() {
         if (previewUrl && !preferStems) {
           loadingStems = true;
           setPlayLoading(playId, "…");
-          showStemError("Cargando preview…", "info");
+          setPlayerStatus({
+            msg: `Cargando «${item.title || "preview"}»…`,
+            kind: "load",
+            playPct: 5,
+            bufPct: 0,
+            time: "…",
+          });
           try {
             await previewPlayer.play(item.id, previewUrl);
             if (signal.aborted) return;
@@ -373,9 +517,19 @@ export function bindLibraryBrowser() {
           } catch (e) {
             if ((e as Error)?.name === "AbortError") return;
             console.warn("[lb] preview fail, fallback stems", e);
-            // fallback a stems si hay
-            if (item.stems?.length) await playStems(item, playId, signal);
-            else {
+            if (item.stems?.length) {
+              setPlayerStatus({
+                msg: "Preview falló · cargando capas…",
+                kind: "load",
+                playPct: 0,
+              });
+              await playStems(item, playId, signal);
+            } else {
+              setPlayerStatus({
+                msg: "No se pudo cargar el preview de audio.",
+                kind: "err",
+                playPct: 0,
+              });
               showStemError("No se pudo cargar el preview de audio.");
               resetPlayButtons();
             }
@@ -425,6 +579,12 @@ export function bindLibraryBrowser() {
       };
 
       const showStemError = (msg: string, kind: "err" | "info" = "err") => {
+        // Unifica aviso en la barra de status del player (más visible)
+        setPlayerStatus({
+          msg,
+          kind: kind === "info" ? "load" : "err",
+          playPct: kind === "info" ? 8 : 0,
+        });
         let el = root.querySelector("[data-lb-stem-err]");
         if (!el) {
           el = document.createElement("p");
@@ -434,7 +594,7 @@ export function bindLibraryBrowser() {
         }
         el.textContent = msg;
         const node = el as HTMLElement;
-        node.hidden = false;
+        node.hidden = true; // la barra principal lleva el mensaje
         node.style.cssText =
           kind === "info"
             ? "margin:0.5rem 0;padding:0.5rem 0.75rem;border-radius:8px;background:rgb(100 160 255/0.12);color:#b0d0ff;font-size:0.8rem"

@@ -1,17 +1,23 @@
 /**
  * Preview de biblioteca: **un** stream (HTMLAudioElement).
- * Industria: play ≠ cargar N stems en Web Audio.
- *
- * P: URL same-origin o absoluta del sitio. Q: play/pause/seek/stop con progreso.
+ * Eventos de carga + buffer + tiempo para barra de progreso UX.
  */
 
-export type PreviewProgress = { current: number; duration: number };
+export type PreviewProgress = {
+  current: number;
+  duration: number;
+  /** 0–1 bytes/buffer listos */
+  buffered: number;
+  phase: "idle" | "loading" | "playing" | "paused" | "ended" | "error";
+  error?: string;
+};
 
 export class LibraryPreviewPlayer {
   private audio: HTMLAudioElement | null = null;
   private itemId: string | null = null;
-  private onTime: ((p: PreviewProgress) => void) | null = null;
-  private onEnd: (() => void) | null = null;
+  private phase: PreviewProgress["phase"] = "idle";
+  private lastError: string | null = null;
+  private onUpdate: ((p: PreviewProgress) => void) | null = null;
   private raf = 0;
 
   get loadedItemId() {
@@ -20,7 +26,7 @@ export class LibraryPreviewPlayer {
 
   get isPlaying() {
     const a = this.audio;
-    return !!(a && !a.paused && !a.ended);
+    return !!(a && !a.paused && !a.ended && this.phase === "playing");
   }
 
   get currentTime() {
@@ -32,36 +38,88 @@ export class LibraryPreviewPlayer {
     return d && Number.isFinite(d) ? d : 0;
   }
 
-  setHandlers(opts: {
-    onTime?: (p: PreviewProgress) => void;
-    onEnd?: () => void;
-  }) {
-    this.onTime = opts.onTime ?? null;
-    this.onEnd = opts.onEnd ?? null;
+  get bufferedRatio() {
+    const a = this.audio;
+    if (!a || !a.buffered || a.buffered.length === 0) return 0;
+    const d = this.duration;
+    try {
+      const end = a.buffered.end(a.buffered.length - 1);
+      if (d > 0) return Math.min(1, end / d);
+      return end > 0 ? 0.5 : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  setHandlers(opts: { onUpdate?: (p: PreviewProgress) => void }) {
+    this.onUpdate = opts.onUpdate ?? null;
+  }
+
+  private emit(partial?: Partial<PreviewProgress>) {
+    this.onUpdate?.({
+      current: this.currentTime,
+      duration: this.duration,
+      buffered: this.bufferedRatio,
+      phase: this.phase,
+      error: this.lastError || undefined,
+      ...partial,
+    });
   }
 
   private ensureAudio() {
     if (!this.audio) {
       this.audio = new Audio();
       this.audio.preload = "auto";
-      this.audio.addEventListener("ended", () => {
-        this.stopProgress();
-        this.onEnd?.();
+      this.audio.addEventListener("loadstart", () => {
+        this.phase = "loading";
+        this.emit();
       });
-      this.audio.addEventListener("timeupdate", () => this.emitTime());
+      this.audio.addEventListener("progress", () => this.emit());
+      this.audio.addEventListener("waiting", () => {
+        if (this.phase === "playing") {
+          this.phase = "loading";
+          this.emit();
+        }
+      });
+      this.audio.addEventListener("canplay", () => this.emit());
+      this.audio.addEventListener("playing", () => {
+        this.phase = "playing";
+        this.lastError = null;
+        this.startProgress();
+        this.emit();
+      });
+      this.audio.addEventListener("pause", () => {
+        if (this.phase === "playing") {
+          this.phase = "paused";
+          this.stopProgress();
+          this.emit();
+        }
+      });
+      this.audio.addEventListener("timeupdate", () => this.emit());
+      this.audio.addEventListener("ended", () => {
+        this.phase = "ended";
+        this.stopProgress();
+        this.emit();
+      });
+      this.audio.addEventListener("error", () => {
+        this.phase = "error";
+        this.lastError = "No se pudo cargar o reproducir el audio";
+        this.stopProgress();
+        this.emit({ error: this.lastError });
+      });
     }
     return this.audio;
-  }
-
-  private emitTime() {
-    this.onTime?.({ current: this.currentTime, duration: this.duration });
   }
 
   private startProgress() {
     this.stopProgress();
     const tick = () => {
-      this.emitTime();
-      if (this.isPlaying) this.raf = requestAnimationFrame(tick);
+      this.emit();
+      if (this.isPlaying || this.phase === "loading") {
+        this.raf = requestAnimationFrame(tick);
+      } else {
+        this.raf = 0;
+      }
     };
     this.raf = requestAnimationFrame(tick);
   }
@@ -71,47 +129,69 @@ export class LibraryPreviewPlayer {
     this.raf = 0;
   }
 
-  /**
-   * Carga y reproduce. Reusa el elemento si es la misma URL+item.
-   */
   async play(itemId: string, src: string): Promise<void> {
     const url = String(src || "").trim();
-    if (!url) throw new Error("preview_sin_url");
+    if (!url) {
+      this.phase = "error";
+      this.lastError = "Sin URL de preview";
+      this.emit();
+      throw new Error("preview_sin_url");
+    }
     const a = this.ensureAudio();
-    const same = this.itemId === itemId && a.src && a.src.includes(url.split("?")[0] || url);
+    const base = url.split("?")[0] || url;
+    const same = this.itemId === itemId && a.src && a.src.includes(base);
     this.itemId = itemId;
+    this.lastError = null;
+    this.phase = "loading";
+    this.emit();
+    this.startProgress();
+
     if (!same) {
       a.pause();
       a.src = url;
       a.load();
     }
+
     try {
       await a.play();
-    } catch (e) {
-      // Reintento tras load
+      this.phase = "playing";
+      this.emit();
+      this.startProgress();
+    } catch {
       await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          cleanup();
+          reject(new Error("preview_timeout"));
+        }, 45000);
         const onCan = () => {
-          a.removeEventListener("canplay", onCan);
-          a.removeEventListener("error", onErr);
+          cleanup();
           a.play().then(() => resolve()).catch(reject);
         };
         const onErr = () => {
-          a.removeEventListener("canplay", onCan);
-          a.removeEventListener("error", onErr);
+          cleanup();
           reject(new Error("preview_load_failed"));
         };
+        const cleanup = () => {
+          window.clearTimeout(timeout);
+          a.removeEventListener("canplay", onCan);
+          a.removeEventListener("canplaythrough", onCan);
+          a.removeEventListener("error", onErr);
+        };
         a.addEventListener("canplay", onCan, { once: true });
+        a.addEventListener("canplaythrough", onCan, { once: true });
         a.addEventListener("error", onErr, { once: true });
       });
+      this.phase = "playing";
+      this.emit();
+      this.startProgress();
     }
-    this.startProgress();
-    this.emitTime();
   }
 
   pause() {
     this.audio?.pause();
+    if (this.phase === "playing") this.phase = "paused";
     this.stopProgress();
-    this.emitTime();
+    this.emit();
   }
 
   stop() {
@@ -123,8 +203,9 @@ export class LibraryPreviewPlayer {
         /* ignore */
       }
     }
+    this.phase = "idle";
     this.stopProgress();
-    this.emitTime();
+    this.emit();
   }
 
   seek(seconds: number) {
@@ -137,7 +218,7 @@ export class LibraryPreviewPlayer {
     } catch {
       /* ignore */
     }
-    this.emitTime();
+    this.emit();
   }
 
   dispose() {
@@ -148,5 +229,6 @@ export class LibraryPreviewPlayer {
     }
     this.audio = null;
     this.itemId = null;
+    this.phase = "idle";
   }
 }

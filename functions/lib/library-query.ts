@@ -25,8 +25,10 @@ const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 48;
 
 export function clampLimit(raw: unknown): number {
+  // Ojo: Number(null) === 0 (finite) → no usar como “sin limit”
+  if (raw == null || raw === "") return DEFAULT_LIMIT;
   const n = Number(raw);
-  if (!Number.isFinite(n)) return DEFAULT_LIMIT;
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT;
   return Math.max(1, Math.min(MAX_LIMIT, Math.floor(n)));
 }
 

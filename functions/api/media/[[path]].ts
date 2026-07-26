@@ -62,11 +62,18 @@ export async function onRequest(context: {
   if (!obj || !obj.body) return bad(404, "not_found");
 
   const contentType = obj.httpMetadata?.contentType || "application/octet-stream";
-  // No cachear 24h: al re-publicar o borrar, el navegador seguía oyendo el WAV viejo.
-  // Cache bust en cliente (?v=updatedAt) + revalidación obligatoria aquí.
+  // Covers/media llevan stamp en el nombre al re-publicar → cache largo seguro.
+  // (Antes max-age=0 hacía re-bajar ~2–3MB de portadas en cada visita = biblioteca lenta.)
+  const isImage = /^image\//i.test(contentType) || /\.(jpe?g|png|webp|gif|avif)$/i.test(key);
+  const isAudio = /^audio\//i.test(contentType) || /\.(wav|mp3|ogg|m4a|aac|flac)$/i.test(key);
+  const cacheControl = isImage
+    ? "public, max-age=604800, stale-while-revalidate=86400"
+    : isAudio
+      ? "public, max-age=86400, stale-while-revalidate=3600"
+      : "public, max-age=86400, stale-while-revalidate=3600";
   const headers: Record<string, string> = {
     "Content-Type": contentType,
-    "Cache-Control": "private, max-age=0, must-revalidate",
+    "Cache-Control": cacheControl,
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Expose-Headers": "Content-Length, Content-Type, Accept-Ranges",
     "Accept-Ranges": "bytes",

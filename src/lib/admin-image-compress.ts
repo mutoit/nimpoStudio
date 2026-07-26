@@ -47,8 +47,8 @@ export async function compressImageForUpload(
     return file;
   }
 
-  const maxEdge = opts.maxEdge ?? 480;
-  const quality = opts.quality ?? 0.78;
+  const maxEdge = opts.maxEdge ?? 360;
+  const quality = opts.quality ?? 0.72;
   const preserveGif = opts.preserveGif !== false;
   const skipIfUnder = opts.skipIfUnderBytes ?? 48_000;
   const preferWebp = opts.preferWebp !== false;

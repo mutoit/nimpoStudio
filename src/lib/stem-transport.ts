@@ -144,6 +144,7 @@ export class StemTransport {
       onProgress?: (p: StemLoadProgress) => void;
       /** Si true, ignora caché en memoria aunque sea el mismo itemId */
       forceReload?: boolean;
+      signal?: AbortSignal;
     },
   ) {
     const list = stems.filter((s) => s?.src);
@@ -151,6 +152,8 @@ export class StemTransport {
 
     // Mismo ítem + mismas URLs ya cargadas
     if (!opts?.forceReload && this.loadKey === key && this.layers.length > 0) return;
+
+    if (opts?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
     this.stopSources();
     this.layers = [];
@@ -178,18 +181,21 @@ export class StemTransport {
 
     // 3 en paralelo: más rápido que serie, sin saturar Functions
     await mapPool(list, 3, async (s) => {
+      if (opts?.signal?.aborted) return;
       const url = withCacheBust(resolveStemUrl(s.src), opts?.cacheBust);
       try {
         const res = await fetch(url, {
           credentials: "same-origin",
           // cacheBust en URL ya invalida tras re-publicar; no forzar reload cada play
           cache: opts?.forceReload ? "reload" : "force-cache",
+          signal: opts?.signal,
         });
         if (!res.ok) {
           errors.push(`${res.status} ${url}`);
           return;
         }
         const raw = await res.arrayBuffer();
+        if (opts?.signal?.aborted) return;
         if (raw.byteLength < 64) {
           errors.push(`vacío ${url}`);
           return;
@@ -206,6 +212,7 @@ export class StemTransport {
           on: true,
         });
       } catch (e) {
+        if ((e as Error)?.name === "AbortError") return;
         const msg = e instanceof Error ? e.message : String(e);
         errors.push(`${msg} @ ${url}`);
       } finally {
@@ -217,6 +224,10 @@ export class StemTransport {
         });
       }
     });
+
+    if (opts?.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
 
     if (!loaded.length) {
       this.lastError =

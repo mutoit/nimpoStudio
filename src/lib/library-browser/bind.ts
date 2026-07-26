@@ -8,32 +8,13 @@ import { StemTransport } from "../stem-transport";
 import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
 import { translateFilterLabels } from "../filter-label-i18n";
 import { absoluteShareUrl, libraryItemSharePath, shareUrl } from "../share";
-
-type Stem = { id: string; label: string; src: string };
-type Item = {
-    id: string;
-    slug: string;
-    title: string;
-    kind: string;
-    aspect: string;
-    cover?: string | null;
-    video?: string | null;
-    stems?: Stem[];
-    tags: string[];
-    moods: string[];
-    filterMoods?: string[];
-    filterTags?: string[];
-    description?: string;
-    notes?: string;
-    provisional?: boolean;
-    licenseEnabled?: boolean;
-    availability?: string;
-    /** ISO; cache-bust media tras re-publicar */
-    updatedAt?: string;
-    /** List card flags (API view=card) */
-    hasVideo?: boolean;
-    hasStems?: boolean;
-  };
+import {
+  fetchLibraryDetail,
+  fetchLibraryList,
+  mapLiveItem,
+  type LibraryItem as Item,
+} from "./catalog-client";
+import { LibraryPreviewPlayer } from "./preview-player";
 
 export function bindLibraryBrowser() {
     document.querySelectorAll("[data-library-root]").forEach((root) => {
@@ -53,6 +34,13 @@ export function bindLibraryBrowser() {
       let listFetchGen = 0;
       let listLoading = false;
       let listError = false;
+      /** Preview = 1 archivo (industria). Stems Web Audio solo mixer. */
+      const previewPlayer = new LibraryPreviewPlayer();
+      let playAbort: AbortController | null = null;
+      const abortPlay = () => {
+        playAbort?.abort();
+        playAbort = null;
+      };
       const lang = data.lang;
       /** Vocabulario global desde API (catalog/moods.json + obras) */
       let serverMoods: string[] = [];
@@ -223,6 +211,16 @@ export function bindLibraryBrowser() {
       let active: Item | null = null;
       /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
       const stemsTx = new StemTransport();
+      previewPlayer.setHandlers({
+        onTime: () => updateProgressUI(),
+        onEnd: () => {
+          transportPlaying = false;
+          playingId = null;
+          resetPlayButtons();
+          stopProgressLoop();
+          updateProgressUI();
+        },
+      });
       let gridVideo: HTMLVideoElement | null = null;
       let playingId: string | null = null;
       let transportPlaying = false;
@@ -239,6 +237,7 @@ export function bindLibraryBrowser() {
       };
 
       const mediaDuration = (): number => {
+        if (previewPlayer.duration > 0) return previewPlayer.duration;
         if (stemsTx.duration > 0) return stemsTx.duration;
         if (gridVideo && Number.isFinite(gridVideo.duration) && gridVideo.duration > 0) {
           return gridVideo.duration;
@@ -252,6 +251,7 @@ export function bindLibraryBrowser() {
 
       const mediaCurrent = (): number => {
         if (seekTargetSec != null && seeking) return seekTargetSec;
+        if (previewPlayer.loadedItemId) return previewPlayer.currentTime;
         if (stemsTx.loadedItemId) return stemsTx.currentTime;
         if (gridVideo) return gridVideo.currentTime;
         const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
@@ -329,10 +329,12 @@ export function bindLibraryBrowser() {
       };
 
       const stopAll = () => {
+        abortPlay();
         stopProgressLoop();
         seeking = false;
         seekTargetSec = null;
         transportPlaying = false;
+        previewPlayer.stop();
         stemsTx.stop();
         if (gridVideo) {
           gridVideo.pause();
@@ -347,6 +349,51 @@ export function bindLibraryBrowser() {
         playingId = null;
         resetPlayButtons();
         updateProgressUI();
+      };
+
+      /** Play industria: 1 preview URL. Stems = solo mixer (modal con capas). */
+      const playPreviewOrStems = async (item: Item, playId: string, preferStems: boolean) => {
+        abortPlay();
+        playAbort = new AbortController();
+        const signal = playAbort.signal;
+        const previewUrl = safeMediaUrl(item.preview);
+        if (previewUrl && !preferStems) {
+          loadingStems = true;
+          setPlayLoading(playId, "…");
+          showStemError("Cargando preview…", "info");
+          try {
+            await previewPlayer.play(item.id, previewUrl);
+            if (signal.aborted) return;
+            playingId = playId;
+            transportPlaying = true;
+            markPlayingButtons(playId);
+            startProgressLoop();
+            updateProgressUI();
+            hideStemError();
+          } catch (e) {
+            if ((e as Error)?.name === "AbortError") return;
+            console.warn("[lb] preview fail, fallback stems", e);
+            // fallback a stems si hay
+            if (item.stems?.length) await playStems(item, playId, signal);
+            else {
+              showStemError("No se pudo cargar el preview de audio.");
+              resetPlayButtons();
+            }
+          } finally {
+            loadingStems = false;
+          }
+          return;
+        }
+        if (item.stems?.length) {
+          await playStems(item, playId, signal);
+          return;
+        }
+        showStemError(
+          preferStems
+            ? "Sin stems. Abre la obra y re-publica desde admin (genera preview)."
+            : "Sin preview ni stems. Re-publica la obra desde admin.",
+        );
+        resetPlayButtons();
       };
 
       const normSrc = (s: string) => {
@@ -407,7 +454,11 @@ export function bindLibraryBrowser() {
         }
       };
 
-      const playStems = async (item: Item, playId: string) => {
+      const playStems = async (
+        item: Item,
+        playId: string,
+        signal?: AbortSignal,
+      ) => {
         if (!item.stems?.length) {
           showStemError("Sin capas de audio en esta obra.");
           return;
@@ -415,12 +466,12 @@ export function bindLibraryBrowser() {
         if (loadingStems) return;
         loadingStems = true;
         hideStemError();
+        previewPlayer.stop();
         playingId = playId;
         markPlayingButtons(playId);
         setPlayLoading(playId, "…");
-        showStemError(`Cargando audio 0/${item.stems.length}…`, "info");
+        showStemError(`Cargando capas 0/${item.stems.length}…`, "info");
         try {
-          // Puede fallar si el gesto ya se “consumió”; reintentamos igual.
           await stemsTx.resumeCtx();
           const stems = item.stems
             .map((s) => ({
@@ -431,16 +482,17 @@ export function bindLibraryBrowser() {
           if (!stems.length) {
             throw new Error("URLs de stems vacías tras sanitizar");
           }
-          // Cache bust solo por updatedAt (no cada minuto → re-descarga absurda)
           const bust = item.updatedAt || item.slug || item.id;
           await stemsTx.load(item.id, stems, {
             cacheBust: bust,
             forceReload: false,
+            signal,
             onProgress: ({ loaded, total }) => {
               setPlayLoading(playId, `${loaded}/${total}`);
-              showStemError(`Cargando audio ${loaded}/${total}…`, "info");
+              showStemError(`Cargando capas ${loaded}/${total}…`, "info");
             },
           });
+          if (signal?.aborted) return;
           applyStemMixFromUi();
           await stemsTx.resumeCtx();
           stemsTx.play();
@@ -454,11 +506,12 @@ export function bindLibraryBrowser() {
             showStemError(stemsTx.lastError);
           }
         } catch (e) {
+          if ((e as Error)?.name === "AbortError") return;
           const msg =
             e instanceof Error ? e.message : "No se pudieron cargar los stems";
           console.warn("[lb] stems load/play fail", e);
           showStemError(
-            `Audio: ${msg}. Prueba Ctrl+F5. Si sigue: re-publica stems en admin.`,
+            `Audio: ${msg}. Re-publica con preview mix desde admin para play rápido.`,
           );
           playingId = null;
           transportPlaying = false;
@@ -479,7 +532,13 @@ export function bindLibraryBrowser() {
         seekTargetSec = t;
         seeking = true;
 
-        if (stemsTx.loadedItemId) {
+        if (previewPlayer.loadedItemId) {
+          previewPlayer.seek(t);
+          if (transportPlaying || previewPlayer.isPlaying) {
+            transportPlaying = true;
+            if (previewPlayer.isPlaying) startProgressLoop();
+          }
+        } else if (stemsTx.loadedItemId) {
           stemsTx.seek(t);
           if (transportPlaying || stemsTx.isPlaying) {
             transportPlaying = true;
@@ -672,6 +731,8 @@ export function bindLibraryBrowser() {
               : "";
             const share = `<button type="button" class="lb__card-share" data-share-item="${escapeHtml(id)}" aria-label="${escapeHtml(L.share || "Share")}">${escapeHtml(L.share || "Share")}</button>`;
             const canPlay = !!(
+              item.hasPreview ||
+              safeMediaUrl(item.preview) ||
               item.hasStems ||
               item.stems?.length ||
               item.hasVideo ||
@@ -744,7 +805,8 @@ export function bindLibraryBrowser() {
             if (!item) return;
 
             if (playingId === id || (playingId === "modal-" + id && transportPlaying)) {
-              // soft stop: deja posición en stemsTx
+              // soft stop: deja posición
+              previewPlayer.pause();
               stemsTx.pause();
               if (gridVideo) gridVideo.pause();
               playingId = null;
@@ -759,58 +821,54 @@ export function bindLibraryBrowser() {
               gridVideo = null;
             }
 
-            // CRÍTICO: desbloquear AudioContext en el gesto del clic,
-            // ANTES de cualquier await (ensureDetail). Si no, el browser
-            // bloquea audio tras el fetch y parece que "no carga".
+            // Gesture: desbloquear Web Audio por si hace falta fallback stems
             void stemsTx.resumeCtx();
             setPlayLoading(id, "…");
-            showStemError("Preparando audio…", "info");
+            showStemError("Preparando…", "info");
 
             void (async () => {
               try {
-                const full = await ensureDetail(item);
-                if (!full) {
+                // Card puede traer preview sin detail; detail trae stems/preview
+                let full = item;
+                if (!safeMediaUrl(item.preview) || (!item.stems?.length && item.hasStems)) {
+                  const d = await ensureDetail(item);
+                  if (d) full = d;
+                }
+                const canPreview = !!safeMediaUrl(full.preview);
+                const canStems = !!(full.stems?.length);
+                const canVideo = !!(full.hasVideo || safeMediaUrl(full.video));
+                if (!canPreview && !canStems && !canVideo) {
                   showStemError(
-                    "No se pudo cargar el detalle de la obra (API). Prueba Ctrl+F5 o sin www.",
+                    "Sin preview. En admin: edita la obra y publica (genera mix automático).",
                   );
                   resetPlayButtons();
                   return;
                 }
-                const wantsStems = !!(full.stems?.length || full.hasStems || item.hasStems);
-                if (wantsStems && full.stems?.length) {
-                  const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
-                  const vUrl = safeMediaUrl(full.video);
-                  if (frame && vUrl) {
-                    let v = frame.querySelector<HTMLVideoElement>("video");
-                    if (!v) {
-                      frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="none" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
-                      v = frame.querySelector<HTMLVideoElement>("video");
-                    }
-                    if (v) {
-                      v.muted = true;
-                      v.loop = true;
-                      void v.play().catch(() => {});
-                      gridVideo = v;
-                    }
+                // Vídeo muted de fondo opcional
+                const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
+                const vUrl = safeMediaUrl(full.video);
+                if (frame && vUrl && (canPreview || canStems)) {
+                  let v = frame.querySelector<HTMLVideoElement>("video");
+                  if (!v) {
+                    frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="none" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
+                    v = frame.querySelector<HTMLVideoElement>("video");
                   }
-                  await playStems(full, id);
-                } else if (wantsStems && !full.stems?.length) {
-                  showStemError(
-                    "Esta obra marca stems pero la API no devolvió audio. Re-publica desde admin.",
-                  );
-                  resetPlayButtons();
-                } else if (full.hasVideo || safeMediaUrl(full.video)) {
-                  const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
-                  const vUrl = safeMediaUrl(full.video);
-                  if (!frame || !vUrl) return;
+                  if (v) {
+                    v.muted = true;
+                    v.loop = true;
+                    void v.play().catch(() => {});
+                    gridVideo = v;
+                  }
+                }
+                if (canPreview || canStems) {
+                  await playPreviewOrStems(full, id, false);
+                } else if (canVideo && frame && vUrl) {
                   frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
                   const v = frame.querySelector<HTMLVideoElement>("video");
                   if (v) void playVideoThumb(full, v);
-                } else {
-                  showStemError("Sin audio ni vídeo en esta ficha.");
-                  resetPlayButtons();
                 }
               } catch (err) {
+                if ((err as Error)?.name === "AbortError") return;
                 console.warn("[lb] thumb play", err);
                 showStemError(
                   err instanceof Error ? err.message : "Error al reproducir",
@@ -1056,6 +1114,7 @@ export function bindLibraryBrowser() {
         if (!active) return;
         const modalPlayId = "modal-" + active.id;
         if (playingId === modalPlayId || playingId === active.id || transportPlaying) {
+          previewPlayer.pause();
           stemsTx.pause();
           const mv = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (mv) mv.pause();
@@ -1067,38 +1126,41 @@ export function bindLibraryBrowser() {
           updateProgressUI();
           return;
         }
-        // Desbloquear audio en el gesto (antes de ensureDetail/load)
         void stemsTx.resumeCtx();
-        if (active.stems?.length) {
-          if (gridVideo) {
-            gridVideo.pause();
-            gridVideo = null;
-          }
-          void playStems(active, modalPlayId);
-        } else if (active.hasStems) {
-          // Modal abierto con card incompleta: hidratar y play
-          void (async () => {
-            const full = await ensureDetail(active!);
-            if (full?.stems?.length) {
-              active = full;
-              await playStems(full, modalPlayId);
-            } else {
-              showStemError("Sin stems en el detalle de esta obra.");
+        // Modal: prefer preview; si el usuario tiene mixer de stems y quiere capas,
+        // el preview sigue siendo el default (rápido). Stems al mutear capas vía Web Audio
+        // solo si no hay preview.
+        void (async () => {
+          let full = active!;
+          if (!safeMediaUrl(full.preview) || (full.hasStems && !full.stems?.length)) {
+            const d = await ensureDetail(full);
+            if (d) {
+              full = d;
+              active = d;
             }
-          })();
-        } else {
-          const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
-          if (v) {
-            v.play()
-              .then(() => {
-                playingId = modalPlayId;
-                transportPlaying = true;
-                markPlayingButtons(active!.id);
-                startProgressLoop();
-              })
-              .catch(() => {});
           }
-        }
+          // Si hay mixer visible y stems, y el user ya tocó checkboxes → prefer stems
+          const mixer = root.querySelector("[data-lb-mixer]");
+          const preferStems =
+            !safeMediaUrl(full.preview) &&
+            !!(full.stems?.length) &&
+            mixer &&
+            !mixer.hasAttribute("hidden");
+          await playPreviewOrStems(full, modalPlayId, !!preferStems && !safeMediaUrl(full.preview));
+          if (!safeMediaUrl(full.preview) && !full.stems?.length) {
+            const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+            if (v) {
+              v.play()
+                .then(() => {
+                  playingId = modalPlayId;
+                  transportPlaying = true;
+                  markPlayingButtons(active!.id);
+                  startProgressLoop();
+                })
+                .catch(() => {});
+            }
+          }
+        })();
       });
 
       // Checkboxes del mixer: mute sin reiniciar
@@ -1449,124 +1511,26 @@ export function bindLibraryBrowser() {
         }
       });
 
-      const mapLiveItem = (raw: Item): Item => {
-        const stems = Array.isArray(raw.stems)
-          ? raw.stems
-              .map((s) => ({
-                id: safeDomId(s.id),
-                label: String(s.label || ""),
-                src: safeMediaUrl(s.src),
-              }))
-              .filter((s) => s.src)
-          : undefined;
-        const video = safeMediaUrl(raw.video) || null;
-        const hasStems = Boolean(
-          (raw as Item).hasStems || (stems && stems.length) || raw.kind === "stems",
-        );
-        const hasVideo = Boolean((raw as Item).hasVideo || video);
-        return {
-          ...raw,
-          id: safeDomId(raw.id),
-          aspect: safeAspectLabel(raw.aspect),
-          title: String(raw.title || ""),
-          moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
-          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-          filterMoods: Array.isArray(raw.filterMoods) ? raw.filterMoods.map(String) : [],
-          filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
-          video,
-          cover: safeMediaUrl(raw.cover) || null,
-          hasStems,
-          hasVideo,
-          updatedAt:
-            typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
-              ? String((raw as { updatedAt: string }).updatedAt)
-              : undefined,
-          stems,
-        };
-      };
-
-      const detailSlugCandidates = (card: Item): string[] => {
-        const raw = [card.slug, card.id, safeDomId(card.id), safeDomId(card.slug || "")]
-          .map((x) => String(x || "").trim())
-          .filter(Boolean);
-        const out: string[] = [];
-        for (const s of raw) {
-          if (!out.includes(s)) out.push(s);
-          // id lib-foo → también probar foo
-          if (s.startsWith("lib-")) {
-            const bare = s.slice(4);
-            if (bare && !out.includes(bare)) out.push(bare);
-          }
-        }
-        return out;
-      };
-
       const ensureDetail = async (card: Item): Promise<Item | null> => {
-        const keys = detailSlugCandidates(card);
-        if (!keys.length) return null;
-
-        for (const k of keys) {
-          const cached = detailCache.get(k);
-          if (cached?.stems?.length) return cached;
+        const full = await fetchLibraryDetail(card, detailCache);
+        if (!full) return null;
+        const idx = items.findIndex(
+          (x) =>
+            x.slug === full.slug ||
+            x.id === full.id ||
+            safeDomId(x.id) === safeDomId(full.id),
+        );
+        if (idx >= 0) {
+          items[idx] = {
+            ...items[idx],
+            ...full,
+            hasStems: full.hasStems,
+            hasVideo: full.hasVideo,
+            hasPreview: full.hasPreview,
+            preview: full.preview,
+          };
         }
-        if (card.stems && card.stems.length > 0) {
-          const mapped = mapLiveItem(card);
-          for (const k of keys) detailCache.set(k, mapped);
-          if (mapped.slug) detailCache.set(mapped.slug, mapped);
-          return mapped;
-        }
-
-        // Probar slugs; absolute origin evita líos www→apex en algunos browsers
-        const origins = [
-          "", // relative same host
-          typeof location !== "undefined" ? location.origin : "",
-          "https://nimpo3dstudio.com",
-        ].filter((o, i, a) => a.indexOf(o) === i);
-
-        for (const slug of keys) {
-          for (const origin of origins) {
-            try {
-              const url = `${origin}/api/library?slug=${encodeURIComponent(slug)}`.replace(
-                /^(https?:\/\/[^/]+)\/\//,
-                "$1/",
-              );
-              const res = await fetch(url.startsWith("http") ? url : `/api/library?slug=${encodeURIComponent(slug)}`, {
-                credentials: "same-origin",
-                cache: "no-store",
-                redirect: "follow",
-              });
-              if (!res.ok) continue;
-              const live = (await res.json()) as { ok?: boolean; item?: Item };
-              if (!live?.ok || !live.item) continue;
-              const full = mapLiveItem(live.item);
-              if (!full.stems?.length && !full.hasStems && !safeMediaUrl(full.video)) {
-                // detail vacío de media: seguir probando
-                continue;
-              }
-              for (const k of keys) detailCache.set(k, full);
-              if (full.slug) detailCache.set(full.slug, full);
-              if (full.id) detailCache.set(full.id, full);
-              const idx = items.findIndex(
-                (x) =>
-                  x.slug === full.slug ||
-                  x.id === full.id ||
-                  safeDomId(x.id) === safeDomId(full.id),
-              );
-              if (idx >= 0) {
-                items[idx] = {
-                  ...items[idx],
-                  ...full,
-                  hasStems: full.hasStems,
-                  hasVideo: full.hasVideo,
-                };
-              }
-              return full;
-            } catch {
-              /* try next */
-            }
-          }
-        }
-        return null;
+        return full;
       };
 
       const fetchList = async (opts: { reset: boolean }) => {
@@ -1579,6 +1543,7 @@ export function bindLibraryBrowser() {
           listError = false;
           catalogReady = false;
           stemsTx.dispose();
+          previewPlayer.dispose();
           stopAll();
           renderGrid();
         }
@@ -1587,57 +1552,29 @@ export function bindLibraryBrowser() {
         updateLoadMore();
 
         try {
-          const params = new URLSearchParams();
-          params.set("limit", "24");
-          if (!opts.reset && nextCursor) params.set("cursor", nextCursor);
-          if (moodFilter) params.set("mood", moodFilter);
-          if (typeFilter && typeFilter !== "all") params.set("type", typeFilter);
-
-          const res = await fetch(`/api/library?${params.toString()}`, {
-            credentials: "same-origin",
-            cache: "no-store",
+          const live = await fetchLibraryList({
+            limit: 24,
+            cursor: opts.reset ? null : nextCursor,
+            mood: moodFilter,
+            type: typeFilter,
           });
           if (gen !== listFetchGen) return;
-
-          if (!res.ok) {
-            if (opts.reset || !items.length) listError = true;
+          listError = false;
+          if (live.moods.length) serverMoods = live.moods;
+          if (opts.reset) {
+            items = live.items;
           } else {
-            const live = (await res.json()) as {
-              ok?: boolean;
-              items?: Item[];
-              moods?: string[];
-              count?: number;
-              nextCursor?: string | null;
-              hasMore?: boolean;
-            };
-            if (live?.ok && Array.isArray(live.items)) {
-              listError = false;
-              if (Array.isArray(live.moods) && live.moods.length) {
-                serverMoods = live.moods.map((x) => String(x).toLowerCase());
-              }
-              const mapped = live.items.map(mapLiveItem);
-              if (opts.reset) {
-                items = mapped;
-              } else {
-                const seen = new Set(items.map((i) => itemKey(i) || i.id));
-                for (const m of mapped) {
-                  const k = itemKey(m) || m.id;
-                  if (k && seen.has(k)) continue;
-                  if (k) seen.add(k);
-                  items.push(m);
-                }
-              }
-              nextCursor =
-                typeof live.nextCursor === "string" && live.nextCursor
-                  ? live.nextCursor
-                  : null;
-              hasMore = Boolean(live.hasMore);
-              totalCount =
-                typeof live.count === "number" ? live.count : items.length;
-            } else if (opts.reset || !items.length) {
-              listError = true;
+            const seen = new Set(items.map((i) => itemKey(i) || i.id));
+            for (const m of live.items) {
+              const k = itemKey(m) || m.id;
+              if (k && seen.has(k)) continue;
+              if (k) seen.add(k);
+              items.push(m);
             }
           }
+          nextCursor = live.nextCursor;
+          hasMore = live.hasMore;
+          totalCount = live.count;
         } catch {
           if (gen !== listFetchGen) return;
           if (opts.reset || !items.length) listError = true;

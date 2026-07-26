@@ -88,6 +88,8 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     cover: safeMediaUrlField(o.cover),
     /** Miniatura de grid (opcional; si falta se usa cover). */
     thumb: safeMediaUrlField(o.thumb),
+    /** Mix preview público (1 archivo mono). Preferido para ▶. */
+    preview: safeMediaUrlField(o.preview),
     video: safeMediaUrlField(o.video),
     stems: stems.length ? stems : undefined,
     tags: clipStringList(o.tags),
@@ -150,6 +152,8 @@ export function toLibraryCard(item: Record<string, unknown>): Record<string, unk
   // Grid: preferir thumb (miniatura) si existe; cover full solo en detail
   const thumb = item.thumb ?? null;
   const cover = thumb || item.cover || null;
+  const preview =
+    typeof item.preview === "string" && item.preview ? item.preview : null;
 
   return {
     id: item.id,
@@ -158,6 +162,8 @@ export function toLibraryCard(item: Record<string, unknown>): Record<string, unk
     kind: item.kind,
     aspect: item.aspect,
     cover,
+    preview,
+    hasPreview: Boolean(preview),
     hasVideo,
     hasStems: stems.length > 0 || String(item.kind || "") === "stems",
     moods,

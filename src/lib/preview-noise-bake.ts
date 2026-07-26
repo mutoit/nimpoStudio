@@ -108,3 +108,70 @@ export async function bakePreviewNoise(
     await ctx.close().catch(() => {});
   }
 }
+
+/**
+ * Mezcla N stems (ya con ruido) en **un** WAV mono @ 22.05 kHz para play de biblioteca.
+ * P: files decodificables. Q: 1 File ~peso de 1 stem, no N.
+ */
+export async function bakeMixPreview(files: File[]): Promise<File> {
+  const list = files.filter((f) => f instanceof File && f.size > 0);
+  if (!list.length) throw new Error("bake_mix_empty");
+
+  const AC =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new AC();
+  try {
+    const decoded: AudioBuffer[] = [];
+    for (const f of list) {
+      const raw = await f.arrayBuffer();
+      decoded.push(await ctx.decodeAudioData(raw.slice(0)));
+    }
+    const duration = Math.max(...decoded.map((b) => b.duration), 0.05);
+    const targetRate = PREVIEW_SAMPLE_RATE;
+    const frames = Math.max(1, Math.ceil(duration * targetRate));
+    const offline = new OfflineAudioContext(1, frames, targetRate);
+    // Evitar clip: 1/√N aprox
+    const gainVal = 1 / Math.sqrt(decoded.length);
+    for (const buf of decoded) {
+      const src = offline.createBufferSource();
+      src.buffer = buf;
+      const g = offline.createGain();
+      g.gain.value = gainVal;
+      src.connect(g);
+      g.connect(offline.destination);
+      src.start(0);
+    }
+    const mixed = await offline.startRendering();
+    // Peak normalize suave
+    const data = mixed.getChannelData(0);
+    let peak = 0;
+    for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]!));
+    if (peak > 0.01 && peak > 0.95) {
+      const scale = 0.95 / peak;
+      for (let i = 0; i < data.length; i++) data[i]! *= scale;
+    }
+    const blob = encodeWavMono(mixed);
+    return new File([blob], "mix-preview.wav", { type: "audio/wav" });
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
+/**
+ * Igual que bakeMixPreview pero desde URLs (rebuild de obras ya publicadas).
+ */
+export async function bakeMixPreviewFromUrls(
+  urls: string[],
+  fetchInit?: RequestInit,
+): Promise<File> {
+  const files: File[] = [];
+  let i = 0;
+  for (const u of urls) {
+    const res = await fetch(u, fetchInit);
+    if (!res.ok) throw new Error(`mix_fetch_${res.status}`);
+    const blob = await res.blob();
+    files.push(new File([blob], `stem-${i++}.wav`, { type: blob.type || "audio/wav" }));
+  }
+  return bakeMixPreview(files);
+}

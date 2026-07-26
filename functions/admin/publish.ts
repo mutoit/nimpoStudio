@@ -181,6 +181,10 @@ export async function onRequest(context: {
       existing && typeof existing.video === "string" ? existing.video : null;
     let cover: string | null =
       existing && typeof existing.cover === "string" ? existing.cover : null;
+    let preview: string | null =
+      existing && typeof (existing as { preview?: string }).preview === "string"
+        ? String((existing as { preview: string }).preview)
+        : null;
     let stems: StemItem[] | undefined = Array.isArray(existing?.stems)
       ? (existing!.stems as StemItem[])
       : undefined;
@@ -189,6 +193,8 @@ export async function onRequest(context: {
     const hasNewVideo = videoFile instanceof File && videoFile.size > 0;
     const coverFile = form.get("cover");
     const hasNewCover = coverFile instanceof File && coverFile.size > 0;
+    const previewFile = form.get("preview");
+    const hasNewPreview = previewFile instanceof File && previewFile.size > 0;
 
     if (kind === "video") {
       if (hasNewVideo) {
@@ -240,6 +246,11 @@ export async function onRequest(context: {
       // si no hay stems nuevos y ya había: se conservan (incl. cleanSrc si existía)
     }
 
+    // Mix preview (1 archivo) — play de biblioteca sin bajar N stems
+    if (hasNewPreview) {
+      preview = await putFile("preview", previewFile as File, "audio", `${slug}-preview`);
+    }
+
     const item = {
       id: existing?.id || safeItemId(slug),
       slug,
@@ -248,6 +259,7 @@ export async function onRequest(context: {
       aspect,
       cover,
       video,
+      preview,
       stems,
       tags,
       moods,

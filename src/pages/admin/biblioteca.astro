@@ -308,9 +308,17 @@ import Layout from "../../components/Layout.astro";
     <aside class="pub-rail" data-pub-rail>
       <div class="pub-rail__head">
         <h2 class="subhead">Publicaciones</h2>
+        <button
+          type="button"
+          class="btn btn--sm"
+          data-rebuild-previews
+          title="Genera 1 mix preview por obra (play rápido en biblioteca)"
+        >
+          🎧 Previews
+        </button>
         <button type="button" class="btn btn--sm" data-pub-refresh title="Actualizar">↻</button>
       </div>
-      <p class="lead lead--sm">Catálogo vivo · celdas</p>
+      <p class="lead lead--sm">Catálogo vivo · celdas · 🎧 = mix play</p>
       <div class="pub-frame" data-pub-frame>
         <div class="pub-grid" data-pub-grid>
           <p class="pub-empty">Cargando…</p>
@@ -327,7 +335,7 @@ import Layout from "../../components/Layout.astro";
 </Layout>
 
 <script>
-  import { bakePreviewNoise } from "../../lib/preview-noise-bake";
+  import { bakePreviewNoise, bakeMixPreview, bakeMixPreviewFromUrls } from "../../lib/preview-noise-bake";
   import { AdminMixPreview } from "../../lib/admin-mix-preview";
   import { compressImageForUpload } from "../../lib/admin-image-compress";
 
@@ -1424,6 +1432,75 @@ import Layout from "../../components/Layout.astro";
   document.querySelector("[data-pub-refresh]")?.addEventListener("click", () => {
     void loadPubs();
   });
+
+  /** Rebuild mix preview (1 archivo) para obras con stems y sin preview. */
+  document.querySelector("[data-rebuild-previews]")?.addEventListener("click", async () => {
+    const btn = document.querySelector("[data-rebuild-previews]");
+    if (btn instanceof HTMLButtonElement) btn.disabled = true;
+    try {
+      await loadPubs();
+      const need = publications.filter((p) => {
+        const stems = Array.isArray(p.stems) ? p.stems : [];
+        const prev = p.preview;
+        return stems.length > 0 && !prev;
+      });
+      if (!need.length) {
+        setStatus("✅ Todas las obras con stems ya tienen preview (o no hay stems).");
+        return;
+      }
+      setStatus(`Generando previews 0/${need.length}…`);
+      let ok = 0;
+      let fail = 0;
+      for (let i = 0; i < need.length; i++) {
+        const p = need[i]!;
+        const slug = String(p.slug || "");
+        const title = String(p.title || slug);
+        const srcs = (Array.isArray(p.stems) ? p.stems : [])
+          .map((s: { src?: string }) => String(s.src || "").trim())
+          .filter(Boolean);
+        setStatus(`Preview ${i + 1}/${need.length}: «${title}»…`);
+        try {
+          const mix = await bakeMixPreviewFromUrls(srcs, {
+            credentials: "same-origin",
+            cache: "reload",
+          });
+          const body = new FormData();
+          body.set("title", title);
+          body.set("slug", slug);
+          body.set("kind", String(p.kind || "stems"));
+          body.set("aspect", String(p.aspect || "1:1"));
+          body.set("moods", JSON.stringify(p.moods || []));
+          body.set("tags", JSON.stringify(p.tags || []));
+          body.set("filterMoods", JSON.stringify(p.filterMoods || []));
+          body.set("filterTags", JSON.stringify(p.filterTags || []));
+          body.set("description", String(p.description || ""));
+          body.set("notes", String(p.notes || ""));
+          body.set("year", String(p.year || new Date().getFullYear()));
+          body.set("provisional", "0");
+          body.set("licenseEnabled", p.licenseEnabled === false ? "0" : "1");
+          body.set("preview", mix, `${slug}-preview.wav`);
+          const res = await fetch("/admin/publish", {
+            method: "POST",
+            body,
+            credentials: "same-origin",
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+          ok++;
+        } catch (e) {
+          fail++;
+          console.warn("[rebuild preview]", slug, e);
+        }
+      }
+      setStatus(`✅ Previews: ${ok} ok · ${fail} fallos. Ctrl+F5 en /es/biblioteca/`);
+      await loadPubs();
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Error previews", false);
+    } finally {
+      if (btn instanceof HTMLButtonElement) btn.disabled = false;
+    }
+  });
+
   void loadPubs();
 
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
@@ -1561,7 +1638,7 @@ import Layout from "../../components/Layout.astro";
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) {
-          const small = await compressImageForUpload(c, { maxEdge: 480, quality: 0.78 });
+          const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
           body.set("cover", small, small.name);
         }
       } else {
@@ -1569,7 +1646,7 @@ import Layout from "../../components/Layout.astro";
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
         if (c) {
-          const small = await compressImageForUpload(c, { maxEdge: 480, quality: 0.78 });
+          const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
           body.set("cover", small, small.name);
         }
         const { music01, noise01 } = readMixGains();
@@ -1594,6 +1671,7 @@ import Layout from "../../components/Layout.astro";
         };
 
         // A) Stems locales nuevos  B) Re-mezcla desde cleanSrc del servidor
+        const bakedPublic: File[] = [];
         if (withFile.length) {
           mixPreview.stop();
           setLight("stems", "loading", `Bake ${withFile.length}…`);
@@ -1616,6 +1694,7 @@ import Layout from "../../components/Layout.astro";
             }
             body.set(`stem_${n}_file`, baked, baked.name);
             body.set(`stem_${n}_label`, row.label || row.file.name);
+            bakedPublic.push(baked);
             n++;
           }
         } else if (wantsRemixedNoise && cleanServerStems.length) {
@@ -1643,7 +1722,40 @@ import Layout from "../../components/Layout.astro";
             body.set(`stem_${n}_clean`, cleanFile, cleanFile.name);
             body.set(`stem_${n}_file`, baked, baked.name);
             body.set(`stem_${n}_label`, label);
+            bakedPublic.push(baked);
             n++;
+          }
+        }
+        // 1 mix preview para ▶ de biblioteca (no N×WAV en el visitante)
+        if (bakedPublic.length) {
+          setStatus("Generando preview mix (1 archivo)…");
+          setLight("stems", "loading", "Preview mix…");
+          try {
+            const mix = await bakeMixPreview(bakedPublic);
+            body.set("preview", mix, `${slug}-preview.wav`);
+          } catch (err) {
+            console.warn("[bake mix preview]", err);
+            // no bloquear publish si falla el mix
+          }
+        } else if (editingSlug) {
+          // Rebuild preview desde stems públicos del servidor (sin re-bake de capas)
+          const pub = publications.find((p) => p.slug === editingSlug) as
+            | { stems?: { src?: string }[]; preview?: string }
+            | undefined;
+          const srcs = (pub?.stems || [])
+            .map((s) => String(s.src || "").trim())
+            .filter(Boolean);
+          if (srcs.length && !pub?.preview) {
+            try {
+              setStatus("Generando preview mix desde stems publicados…");
+              const mix = await bakeMixPreviewFromUrls(srcs, {
+                credentials: "same-origin",
+                cache: "reload",
+              });
+              body.set("preview", mix, `${slug}-preview.wav`);
+            } catch (err) {
+              console.warn("[rebuild mix preview]", err);
+            }
           }
         }
         // else: edición stems sin archivos nuevos ni mixDirty → publish conserva stems en servidor

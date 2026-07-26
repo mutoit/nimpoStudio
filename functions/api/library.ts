@@ -1,21 +1,16 @@
 /**
- * GET /api/library — catálogo público (R2), list card paginado o detail por slug.
- *
- * List:  ?limit=24&cursor=&mood=&type=all|stems
- * Detail: ?slug=obra
+ * GET /api/library — list card paginado (índice ligero) o detail por slug (ítem O(1)).
  */
 
 import {
   findCatalogItem,
-  readCatalog,
+  readCatalogIndex,
   resolveMoodsVocabulary,
   type CatalogBucket,
 } from "../lib/library-catalog";
 import {
   sanitizeCatalogItem,
-  sanitizeCatalogItems,
   stripCleanSrcFromItem,
-  toLibraryCards,
 } from "../lib/catalog-sanitize";
 import { filterAndPage } from "../lib/library-query";
 
@@ -71,7 +66,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
-  // —— Detail ——
+  // —— Detail (per-item O(1) + fallback monofile) ——
   if (slugParam) {
     const raw = await findCatalogItem(env.LIBRARY_BUCKET, slugParam);
     if (!raw) {
@@ -90,28 +85,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
-  // —— List (cards) ——
-  const raw = await readCatalog(env.LIBRARY_BUCKET);
-  if (!raw) {
-    const moods = await resolveMoodsVocabulary(env.LIBRARY_BUCKET, [], {
-      persist: false,
-    });
-    return json({
-      ok: true,
-      source: "empty",
-      view: "card",
-      items: [],
-      moods,
-      count: 0,
-      nextCursor: null,
-      hasMore: false,
-      message: "Catálogo R2 vacío — publica desde /admin/biblioteca/",
-    });
-  }
+  // —— List: índice ligero (sin stems) ——
+  const index = (await readCatalogIndex(env.LIBRARY_BUCKET)) || [];
+  // off_catalog fuera del list público
+  const publicIndex = index.filter(
+    (x) => !x.availability || x.availability !== "off_catalog",
+  ) as unknown as Record<string, unknown>[];
 
-  // Sanitizado full solo en servidor (para flags hasStems/hasVideo); respuesta = cards
-  const fullItems = sanitizeCatalogItems(raw, { stripCleanSrc: true });
-  const page = filterAndPage(fullItems, {
+  const page = filterAndPage(publicIndex, {
     mood: url.searchParams.get("mood"),
     type: url.searchParams.get("type") || "all",
     limit: url.searchParams.get("limit"),
@@ -122,11 +103,35 @@ export async function onRequest(context: { request: Request; env: Env }) {
     persist: true,
   });
 
+  // Asegurar shape card (index ya es casi card)
+  const items = page.items.map((raw) => {
+    const o = raw as Record<string, unknown>;
+    return {
+      id: o.id,
+      slug: o.slug,
+      title: o.title,
+      kind: o.kind,
+      aspect: o.aspect,
+      cover: o.cover ?? null,
+      preview: o.preview ?? null,
+      hasPreview: Boolean(o.hasPreview || o.preview),
+      hasVideo: Boolean(o.hasVideo),
+      hasStems: Boolean(o.hasStems),
+      moods: Array.isArray(o.moods) ? o.moods : [],
+      tags: Array.isArray(o.tags) ? o.tags : [],
+      availability: o.availability ?? "available",
+      licenseEnabled: o.licenseEnabled !== false,
+      publishedAt: o.publishedAt,
+      updatedAt: o.updatedAt,
+      mediaStatus: o.mediaStatus ?? "ready",
+    };
+  });
+
   return json({
     ok: true,
     source: "r2",
     view: "card",
-    items: toLibraryCards(page.items),
+    items,
     moods,
     count: page.count,
     nextCursor: page.nextCursor,

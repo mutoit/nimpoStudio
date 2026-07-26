@@ -367,37 +367,62 @@ const payload = {
       /* */
     }
 
+    const mapProduct = (raw: Record<string, unknown>): Item | null => {
+      const slug = String(raw.slug || "");
+      const name = String(raw.name || "");
+      if (!slug || !name) return null;
+      return {
+        slug,
+        name,
+        category: String(raw.category || "other"),
+        status: String(raw.status || "published"),
+        shortDescription: String(raw.shortDescription || ""),
+        description: String(raw.description || ""),
+        images: Array.isArray(raw.images)
+          ? raw.images.map((u) => safeMediaUrl(String(u))).filter(Boolean)
+          : [],
+        video: safeMediaUrl(raw.video as string) || null,
+        tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+        formats: Array.isArray(raw.formats) ? raw.formats.map(String) : [],
+        featured: Boolean(raw.featured),
+      };
+    };
+
     void (async () => {
       try {
-        const res = await fetch("/api/products", { credentials: "same-origin" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data?.ok || !Array.isArray(data.items)) return;
-        items = data.items.map((raw: Record<string, unknown>) => ({
-          slug: String(raw.slug || ""),
-          name: String(raw.name || ""),
-          category: String(raw.category || "other"),
-          status: String(raw.status || "published"),
-          shortDescription: String(raw.shortDescription || ""),
-          description: String(raw.description || ""),
-          images: Array.isArray(raw.images)
-            ? raw.images.map((u) => safeMediaUrl(String(u))).filter(Boolean)
-            : [],
-          video: safeMediaUrl(raw.video as string) || null,
-          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-          formats: Array.isArray(raw.formats) ? raw.formats.map(String) : [],
-          featured: Boolean(raw.featured),
-        })).filter((x: Item) => x.slug && x.name);
-        apply();
-        try {
-          const p = new URL(window.location.href).searchParams.get("p")?.trim();
-          if (p && items.some((x) => x.slug === p)) {
-            activeSlug = p;
-            mediaIndex = 0;
-            apply();
+        // Paginado: acumular páginas (escala catálogo productos)
+        let cursor: string | null = null;
+        let all: Item[] = [];
+        let guard = 0;
+        do {
+          const q = new URLSearchParams({ limit: "48" });
+          if (cursor) q.set("cursor", cursor);
+          const res = await fetch(`/api/products?${q}`, {
+            credentials: "same-origin",
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          if (!data?.ok || !Array.isArray(data.items)) break;
+          for (const raw of data.items) {
+            const m = mapProduct(raw as Record<string, unknown>);
+            if (m) all.push(m);
           }
-        } catch {
-          /* */
+          cursor = data.hasMore && data.nextCursor ? String(data.nextCursor) : null;
+          guard++;
+        } while (cursor && guard < 20);
+        if (all.length) {
+          items = all;
+          apply();
+          try {
+            const p = new URL(window.location.href).searchParams.get("p")?.trim();
+            if (p && items.some((x) => x.slug === p)) {
+              activeSlug = p;
+              mediaIndex = 0;
+              apply();
+            }
+          } catch {
+            /* */
+          }
         }
       } catch {
         /* keep seed */

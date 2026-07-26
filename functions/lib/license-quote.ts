@@ -1,14 +1,8 @@
 /**
- * Calculadora de presupuestos de licencia.
- * Canon precios 2026: docs/licencias/00-PRECIOS-REFERENCIA.md + TABLA-RAPIDA.
- * Crítica mercado adoptada: entrada baja (micro 79) + premium real (exclusiva/buyout) +
- * ads uplift; no un solo “comercial” plano que pierde volumen y techo.
- *
- * El plazo SÍ mueve el precio (micro/single < 1 año < proyecto < 2 años).
- * La duración del audio (20 s vs 3 min) NO rebaja el fee: se cobra el uso, no el minutaje.
- *
- * Mantener en sync: functions/lib/license-quote.ts (misma lógica).
+ * Calculadora de presupuestos de licencia (edge /api/quote).
+ * SSoT importes: license-prices.json (sync desde src/lib).
  */
+import prices from "./license-prices.json";
 
 export type LicenseUsageCode =
   | "personal_private"
@@ -80,44 +74,32 @@ export type LicenseQuoteResult = {
  * Single/micro 79–99 · comercial 149–169 · ads 249–329 · exclusiva media 1.200–2.500 ·
  * buyout 2.990–5.500 · personal 0–49.
  */
-export const LICENSE_PRICES = {
-  /** Micro / sting / 1 post orgánico hobby / 1 ep podcast / splash */
-  singleUse: 79,
-  /** 1 año calendario */
-  term1y: 129,
-  /** Vida del proyecto nombrado (1 obra en ese proyecto) */
-  termProject: 159,
-  /** 2 años — lista estándar catálogo */
-  commercialBase: 169,
-  stems: 59,
-  editShort: 49,
-  /** Sobre base del plazo → pack ads 2y = 169+130 = 299 */
-  adsUplift: 130,
-  /** Exclusiva media/territorio · 2 años (suelo) */
-  exclusiveFrom: 1200,
-  exclusive1y: 1100,
-  exclusiveSingle: 890,
-  exclusiveProject: 1200,
-  /** Retirada catálogo (sobre exclusiva) */
-  removeFromCatalog: 250,
-  termPlus1yCommercial: 55,
-  termPlus1yExclusive: 220,
-  territoryExpand: 149,
-  /** Custom / ½ día composición (+ sync fee si aplica) */
-  moreComposition: 199,
-  buyoutFrom: 2990,
-  /** Buyout alto / forever premium (techo del rango crítica) */
-  buyoutHighFrom: 5500,
-  personalMax: 49,
-  /** 2.º+ tema mismo proyecto (−20 %; rango mercado −15–25 %) */
-  extraTrackFactor: 0.8,
-  /** Suelos revisión (no instant) */
-  indieProFrom: 390,
-  broadcastFrom: 890,
-  saasAnnualFrom: 590,
-  /** Exclusiva fuerte multi-medio mundial (suelo crítica 3.000–6.000) */
-  exclusiveStrongFrom: 3000,
-} as const;
+export const LICENSE_PRICES = prices as {
+  singleUse: number;
+  term1y: number;
+  termProject: number;
+  commercialBase: number;
+  stems: number;
+  editShort: number;
+  adsUplift: number;
+  exclusiveFrom: number;
+  exclusive1y: number;
+  exclusiveSingle: number;
+  exclusiveProject: number;
+  removeFromCatalog: number;
+  termPlus1yCommercial: number;
+  termPlus1yExclusive: number;
+  territoryExpand: number;
+  moreComposition: number;
+  buyoutFrom: number;
+  buyoutHighFrom: number;
+  personalMax: number;
+  extraTrackFactor: number;
+  indieProFrom: number;
+  broadcastFrom: number;
+  saasAnnualFrom: number;
+  exclusiveStrongFrom: number;
+};
 
 export type UsageOptionMeta = {
   code: LicenseUsageCode;

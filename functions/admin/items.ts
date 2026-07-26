@@ -6,12 +6,7 @@
  * POST /admin/items          → { action:"update", ... } (mismo que PATCH; más fiable en algunos clients)
  */
 
-import {
-  getSessionFromRequest,
-  getSessionSigningKey,
-  verifySessionToken,
-  type AdminEnv,
-} from "../lib/admin-auth";
+import type { AdminEnv } from "../lib/admin-auth";
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
 import {
   deleteCatalogItem,
@@ -30,35 +25,12 @@ import {
   safeAspect,
   safeSlug,
 } from "../lib/media-upload";
+import { adminJson as json, requireAdmin } from "../lib/require-admin";
 
 type Env = AdminEnv & {
   LIBRARY_BUCKET?: CatalogBucket;
   RATE_LIMIT_KV?: RateLimitKv;
 };
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
-}
-
-async function requireAdmin(env: Env, request: Request) {
-  const password = (env.ADMIN_LIBRARY_SECRET || "").trim();
-  if (!password) return { error: json({ ok: false, error: "not_configured" }, 503) };
-  const signingKey = await getSessionSigningKey(env);
-  const token = getSessionFromRequest(request);
-  if (!signingKey || !(await verifySessionToken(signingKey, token))) {
-    return { error: json({ ok: false, error: "unauthorized" }, 401) };
-  }
-  if (!env.LIBRARY_BUCKET) {
-    return { error: json({ ok: false, error: "r2_not_configured" }, 503) };
-  }
-  return { bucket: env.LIBRARY_BUCKET };
-}
 
 export async function onRequest(context: { request: Request; env: Env }) {
   const { request, env } = context;

@@ -1,5 +1,6 @@
 /**
- * GET /api/products — catálogo público de productos software (R2).
+ * GET /api/products — catálogo público software (R2), paginado.
+ * Query: limit, cursor, category
  */
 
 import {
@@ -7,6 +8,7 @@ import {
   sanitizeProductsList,
   type ProductsBucket,
 } from "../lib/products-catalog";
+import { filterAndPage } from "../lib/library-query";
 
 type Env = { LIBRARY_BUCKET?: ProductsBucket };
 
@@ -43,6 +45,9 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       source: "none",
       items: [],
+      count: 0,
+      nextCursor: null,
+      hasMore: false,
       message: "LIBRARY_BUCKET no configurado",
     });
   }
@@ -53,15 +58,33 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       source: "empty",
       items: [],
+      count: 0,
+      nextCursor: null,
+      hasMore: false,
       message: "Sin productos en R2 — publica desde /admin/productos/",
     });
   }
 
-  const items = sanitizeProductsList(raw, { includeDraft: false });
+  const url = new URL(request.url);
+  const category = (url.searchParams.get("category") || "").trim().toLowerCase();
+  let items = sanitizeProductsList(raw, { includeDraft: false });
+  if (category && category !== "all") {
+    items = items.filter((p) => p.category === category);
+  }
+
+  const page = filterAndPage(items as unknown as Record<string, unknown>[], {
+    limit: url.searchParams.get("limit") || "24",
+    cursor: url.searchParams.get("cursor"),
+    type: "all",
+  });
+
   return json({
     ok: true,
     source: "r2",
-    items,
-    count: items.length,
+    items: page.items,
+    count: page.count,
+    nextCursor: page.nextCursor,
+    hasMore: page.hasMore,
+    limit: page.limit,
   });
 }

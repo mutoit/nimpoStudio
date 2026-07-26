@@ -189,6 +189,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Escala catálogo: dual-write monofile + `catalog/items/{slug}.json` + índice ligero; productos API paginada; media Range; requireAdmin compartido; precios SSoT JSON
 - Biblioteca **escala industrial:** list card paginado + detail `?slug=` + load more; grid sin vídeo masivo; stems on demand  
 - **UX:** móvil (nav hamburguesa, form denso); uso/plazo con badge dorado en desktop; **Ctrl+clic stems** + nota de ayuda  
 - Biblioteca: **live-first** (sin flash de demos borrados); moods globales R2; ratio 9:16 quitado de thumbs  

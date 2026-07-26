@@ -147,6 +147,15 @@ export async function writeProducts(
   await bucket.put(PRODUCTS_KEY, JSON.stringify(items, null, 2), {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
+  // Dual-write per product (detail O(1) futuro)
+  for (const p of items) {
+    if (!p.slug) continue;
+    await bucket.put(
+      `catalog/products/${p.slug}.json`,
+      JSON.stringify(p, null, 2),
+      { httpMetadata: { contentType: "application/json; charset=utf-8" } },
+    );
+  }
 }
 
 export async function upsertProduct(

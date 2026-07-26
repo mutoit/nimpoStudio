@@ -271,6 +271,8 @@ export async function onRequest(context: {
       provisional: false,
       licenseEnabled: String(form.get("licenseEnabled") || "1") !== "0",
       availability: (existing?.availability as string) || "available",
+      /** ready | processing — escala: upload async futuro */
+      mediaStatus: "ready" as const,
       publishedAt:
         (typeof existing?.publishedAt === "string" && existing.publishedAt) ||
         new Date().toISOString(),

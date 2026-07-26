@@ -4,20 +4,16 @@
  * CSS is:global (HTML del grid vía JS).
  * Plan: docs/licencias/PLAN-BIBLIOTECA-Y-PRECIOS.md
  */
-import type { LibraryItem } from "../lib/library";
-import { getLibraryMoods } from "../lib/library";
 import type { Locale } from "../i18n/translations";
 import { useTranslations } from "../lib/locale";
 import { LICENSE_PRICES, USAGE_CATALOG } from "../lib/license-quote";
 
 interface Props {
-  items: LibraryItem[];
   lang: Locale;
 }
 
-const { items, lang } = Astro.props;
+const { lang } = Astro.props;
 const t = useTranslations(lang);
-const allMoods = getLibraryMoods();
 
 const usageLabelMap: Record<string, string> = {
   personal_private: t("usagePersonalPrivate"),
@@ -111,10 +107,9 @@ const licenseExtras: {
   },
 ];
 
+/** Payload mínimo: catálogo vivo solo vía /api/library (list card + detail). */
 const payload = {
-  items,
   lang,
-  moods: allMoods,
   labels: {
     all: t("libFilterAll"),
     video11: t("libFilter11"),
@@ -123,6 +118,9 @@ const payload = {
     license: t("musicLicenseOpen"),
     provisional: t("badgeProvisionalShort"),
     empty: t("libEmpty"),
+    loadMore: t("libLoadMore"),
+    loading: t("libLoading"),
+    loadError: t("libLoadError"),
     play: t("libPlay"),
     stop: "❚❚",
     close: t("libClose"),
@@ -160,6 +158,9 @@ const payload = {
   </div>
 
   <div class="lb__grid" data-lb-grid></div>
+  <div class="lb__more-wrap" data-lb-more-wrap hidden>
+    <button type="button" class="lb__more" data-lb-more>{t("libLoadMore")}</button>
+  </div>
 
   <!-- Modal encima del catálogo -->
   <div class="lb__overlay" data-lb-overlay hidden>
@@ -824,6 +825,35 @@ const payload = {
     border-color: rgb(201 169 98 / 0.55);
     color: #e8c97a;
   }
+  .lb__more-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 1.25rem 0 0.5rem;
+  }
+  .lb__more {
+    appearance: none;
+    border: 1px solid rgb(201 169 98 / 0.45);
+    background: rgb(201 169 98 / 0.1);
+    color: #f2e4bc;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.65rem 1.25rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .lb__more:hover {
+    background: rgb(201 169 98 / 0.2);
+    border-color: rgb(201 169 98 / 0.7);
+  }
+  .lb__more:active {
+    transform: scale(0.98);
+  }
+  .lb__more:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
   .lb__empty {
     grid-column: 1 / -1;
     color: rgb(140 140 150);
@@ -925,31 +955,16 @@ const payload = {
     }
   }
 
-  .lb__kicker {
-    margin: 0;
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #c9a962;
+  .lb__kicker,
+  .lb__prov-badge {
+    display: none !important;
   }
   .lb__ptitle {
-    margin: 0.35rem 2rem 0 0;
+    margin: 0 2rem 0 0;
     font-family: var(--font-display, Georgia, serif);
     font-size: clamp(1.4rem, 2.5vw, 1.85rem);
     font-weight: 500;
     color: #f5f5f7;
-  }
-  .lb__prov-badge {
-    display: inline-block;
-    margin: 0.5rem 0 0;
-    padding: 0.25rem 0.55rem;
-    border-radius: 999px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #ffb38a;
-    border: 1px solid rgb(255 140 80 / 0.4);
-    background: rgb(50 22 12 / 0.9);
   }
 
   /* Valoraciones dentro del modal del sonido */
@@ -1603,7 +1618,8 @@ const payload = {
     font-weight: 700;
     line-height: 1;
     vertical-align: middle;
-    cursor: help;
+    /* default: sin «?» del SO; el círculo dorado es el único indicador */
+    cursor: default;
     flex-shrink: 0;
   }
   /* Tooltip a la derecha del ? (no debajo del cursor) */
@@ -1637,11 +1653,12 @@ const payload = {
     opacity: 1;
     visibility: visible;
   }
-  /* No mostrar el «?» encima/junto a la caja del tooltip */
+  /* El «?» dorado se mantiene; cursor normal (sin el help del SO con «?») */
   .lb__opt-help:hover,
   .lb__opt-help:focus-visible {
-    color: transparent;
-    border-color: transparent;
+    color: #c9a962;
+    border-color: rgb(201 169 98 / 0.45);
+    cursor: default;
   }
   .lb__opt-title {
     min-width: 0;

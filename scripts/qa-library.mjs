@@ -28,15 +28,41 @@ async function main() {
     }
   });
 
+  // Intercept list API: cards must not include stems[]
+  let listPayload = null;
+  page.on("response", async (res) => {
+    try {
+      const u = res.url();
+      if (!u.includes("/api/library") || u.includes("slug=")) return;
+      if (res.status() !== 200) return;
+      listPayload = await res.json();
+    } catch {
+      /* ignore */
+    }
+  });
+
   await page.goto(URL, { waitUntil: "networkidle", timeout: 60000 });
   ok("page loads", (await page.title()).toLowerCase().includes("biblioteca"), await page.title());
 
-  // —— Thumb play (Deep in the forest = first playable with stems) ——
+  ok(
+    "list API is card view (no stems on items)",
+    !!(
+      listPayload?.ok &&
+      listPayload?.view === "card" &&
+      Array.isArray(listPayload.items) &&
+      listPayload.items.every((it) => !Array.isArray(it.stems) && !("video" in it && it.video))
+    ),
+    listPayload
+      ? `view=${listPayload.view} n=${listPayload.items?.length} hasMore=${listPayload.hasMore}`
+      : "no list response",
+  );
+
+  // —— Thumb play (needs detail fetch for stems) ——
   const playFab = page.locator("[data-thumb-play]").first();
-  await playFab.waitFor({ state: "visible", timeout: 10000 });
+  await playFab.waitFor({ state: "visible", timeout: 15000 });
   const itemId = await playFab.getAttribute("data-thumb-play");
   await playFab.click();
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(3500);
 
   const pressed = await playFab.getAttribute("aria-pressed");
   const playing = await page.evaluate(() => {

@@ -34,7 +34,7 @@ Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago autom
 - [x] Precios conservadores en `src/lib/license-quote.ts` + mirror `functions/lib/license-quote.ts`
 - [x] `POST /api/quote` — cotización + email estudio (rate limit, CORS restringido)
 - [x] Catálogo **vivo** en R2: `catalog/library.json`
-- [x] `GET /api/library` — fuente de verdad en prod; **no se pinta la semilla del build** (evita flash de ítems borrados)
+- [x] `GET /api/library` — list **card paginado** (`limit`/`cursor`/`mood`/`type`) + detail `?slug=`; stems solo en detail; grid sin N× vídeo preload
 - [x] `catalog/moods.json` — vocabulario global de moods (admin + filtros biblioteca)
 - [x] Admin **un clic**: `/admin/biblioteca/` → **Publicar en la web** → `POST /admin/publish`  
   (media R2 + catálogo; re-bake ruido desde cleanSrc al cambiar slider; semáforos subida)
@@ -51,7 +51,7 @@ Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago autom
 - [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
 
 ### Datos / código de apoyo
-- [x] `src/data/library.json` — semilla de **build** (fallback solo si falla `/api/library`; no se muestra al cargar)
+- [x] `src/data/library.json` — semilla de build (no se embebe en payload público; catálogo = R2 vía API)
 - [x] `src/data/music.json`, `products.json`, `updates.json`
 - [x] Previews en `public/previews/music/` (MP3 demo Deep in the forest, etc.)
 - [x] `functions/`: middleware, session, publish, upload, library, quote, track
@@ -189,6 +189,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Biblioteca **escala industrial:** list card paginado + detail `?slug=` + load more; grid sin vídeo masivo; stems on demand  
 - **UX:** móvil (nav hamburguesa, form denso); uso/plazo con badge dorado en desktop; **Ctrl+clic stems** + nota de ayuda  
 - Biblioteca: **live-first** (sin flash de demos borrados); moods globales R2; ratio 9:16 quitado de thumbs  
 - Admin: moods UI simple (dorado = seleccionado); re-bake ruido desde cleanSrc al guardar; empresa en quote  

@@ -30,6 +30,9 @@ type Item = {
     availability?: string;
     /** ISO; cache-bust media tras re-publicar */
     updatedAt?: string;
+    /** List card flags (API view=card) */
+    hasVideo?: boolean;
+    hasStems?: boolean;
   };
 
 export function bindLibraryBrowser() {
@@ -38,15 +41,18 @@ export function bindLibraryBrowser() {
       root.dataset.bound = "1";
 
       const data = JSON.parse(root.dataset.payload || "{}") as {
-        items: Item[];
         lang: string;
-        moods: string[];
         labels: Record<string, string>;
       };
-      // Semilla del build = SOLO fallback si falla la API. No se pinta al inicio
-      // (evita flash de demos/álbumes ya borrados en R2).
-      const seedItems: Item[] = Array.isArray(data.items) ? [...data.items] : [];
+      /** Cards acumuladas (páginas). Detail completo en detailCache. */
       let items: Item[] = [];
+      const detailCache = new Map<string, Item>();
+      let nextCursor: string | null = null;
+      let hasMore = false;
+      let totalCount = 0;
+      let listFetchGen = 0;
+      let listLoading = false;
+      let listError = false;
       const lang = data.lang;
       /** Vocabulario global desde API (catalog/moods.json + obras) */
       let serverMoods: string[] = [];
@@ -60,6 +66,8 @@ export function bindLibraryBrowser() {
       const form = root.querySelector("[data-lb-form]");
       const countEl = root.querySelector("[data-lb-count]");
       const moodsBar = root.querySelector("[data-lb-moods]");
+      const moreWrap = root.querySelector("[data-lb-more-wrap]");
+      const moreBtn = root.querySelector("[data-lb-more]");
 
       const collectFilters = (list: Item[]) => {
         // Vocabulario R2 + moods/tags de obras (unificado en un solo filtro Mood)
@@ -101,7 +109,8 @@ export function bindLibraryBrowser() {
             const v = (btn as HTMLElement).getAttribute(`data-${attr}`) || null;
             setActive(getActive() === v ? null : v);
             void paintFilters();
-            renderGrid();
+            // Filtro en servidor: reset + primera página
+            void fetchList({ reset: true });
           });
         });
       };
@@ -519,22 +528,26 @@ export function bindLibraryBrowser() {
         startProgressLoop();
       };
 
-      const isProv = (i: Item) => i.provisional !== false && i.slug !== "deep-in-the-forest";
       const isAvailable = (i: Item) =>
         !i.availability || i.availability === "available";
 
+      /** Lista ya filtrada en servidor; solo oculta off_catalog residual. */
       const filtered = () =>
-        items.filter((i) => {
-          if (i.availability === "off_catalog") return false;
-          if (typeFilter === "stems") {
-            if (!(i.kind === "stems" || (i.stems && i.stems.length))) return false;
-          }
-          if (moodFilter) {
-            const bag = new Set([...(i.moods || []), ...(i.tags || [])].map(String));
-            if (!bag.has(moodFilter)) return false;
-          }
-          return true;
-        });
+        items.filter((i) => i.availability !== "off_catalog");
+
+      const itemKey = (i: Item) => String(i.slug || i.id || "");
+
+      const updateLoadMore = () => {
+        if (!(moreWrap instanceof HTMLElement)) return;
+        const show = catalogReady && hasMore;
+        moreWrap.hidden = !show;
+        if (moreBtn instanceof HTMLButtonElement) {
+          moreBtn.disabled = listLoading;
+          moreBtn.textContent = listLoading
+            ? L.loading || "…"
+            : L.loadMore || "Cargar más";
+        }
+      };
 
       const refreshLive = () => {
         if (!(form instanceof HTMLFormElement)) return;
@@ -616,29 +629,32 @@ export function bindLibraryBrowser() {
         if (!grid) return;
         if (!catalogReady) {
           if (countEl) countEl.textContent = "…";
-          grid.innerHTML = `<p class="lb__empty lb__empty--loading" role="status">…</p>`;
+          grid.innerHTML = `<p class="lb__empty lb__empty--loading" role="status">${escapeHtml(L.loading || "…")}</p>`;
+          updateLoadMore();
+          return;
+        }
+        if (listError && !items.length) {
+          if (countEl) countEl.textContent = "0";
+          grid.innerHTML = `<p class="lb__empty" role="alert">${escapeHtml(L.loadError || L.empty)}</p>`;
+          updateLoadMore();
           return;
         }
         const list = filtered();
-        if (countEl) countEl.textContent = String(list.length);
+        if (countEl) countEl.textContent = String(totalCount || list.length);
         if (!list.length) {
           grid.innerHTML = `<p class="lb__empty">${escapeHtml(L.empty)}</p>`;
+          updateLoadMore();
           return;
         }
 
         grid.innerHTML = list
           .map((item) => {
             const id = safeDomId(item.id);
-            const media = safeMediaUrl(item.video)
-              ? `<video src="${escapeHtml(safeMediaUrl(item.video))}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(item.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`
-              : item.cover
-                ? `<img src="${escapeHtml(safeMediaUrl(item.cover))}" alt="" loading="lazy" />`
-                : `<div class="lb__ph"></div>`;
-            const prov = isProv(item) ? `<span class="lb__badge">${escapeHtml(L.provisional)}</span>` : "";
-            const stemBadge =
-              item.stems && item.stems.length
-                ? `<span class="lb__badge lb__badge--stem">STEMS</span>`
-                : "";
+            const cover = safeMediaUrl(item.cover);
+            // Grid: solo cover lazy (sin N× video preload). Vídeo se inyecta al play.
+            const media = cover
+              ? `<img src="${escapeHtml(cover)}" alt="" loading="lazy" decoding="async" />`
+              : `<div class="lb__ph" data-frame-ph="${escapeHtml(id)}"></div>`;
             const unavail = !isAvailable(item)
               ? `<span class="lb__badge lb__badge--sold">${escapeHtml(L.unavailable)}</span>`
               : "";
@@ -647,7 +663,12 @@ export function bindLibraryBrowser() {
               ? `<button type="button" class="lb__card-lic" data-open-lic="${escapeHtml(id)}">${escapeHtml(L.license)}</button>`
               : "";
             const share = `<button type="button" class="lb__card-share" data-share-item="${escapeHtml(id)}" aria-label="${escapeHtml(L.share || "Share")}">${escapeHtml(L.share || "Share")}</button>`;
-            const canPlay = !!(item.stems?.length || safeMediaUrl(item.video));
+            const canPlay = !!(
+              item.hasStems ||
+              item.stems?.length ||
+              item.hasVideo ||
+              safeMediaUrl(item.video)
+            );
             const isPlayingHere = playingId === item.id || playingId === id;
             const playBtn = canPlay
               ? `<button type="button" class="lb__play-fab" data-thumb-play="${escapeHtml(id)}" aria-label="${escapeHtml(L.play)}" aria-pressed="${isPlayingHere ? "true" : "false"}">${isPlayingHere ? L.stop : "▶"}</button>`
@@ -659,8 +680,8 @@ export function bindLibraryBrowser() {
             return `<article class="lb__card ${active && safeDomId(active.id) === id ? "is-on" : ""}" data-card="${escapeHtml(id)}">
               <div class="lb__thumb-wrap">
                 <button type="button" class="lb__thumb" data-open="${escapeHtml(id)}" aria-label="${escapeHtml(item.title)}">
-                  <span class="lb__frame">${media}</span>
-                  ${prov}${stemBadge}${unavail}
+                  <span class="lb__frame" data-frame="${escapeHtml(id)}">${media}</span>
+                  ${unavail}
                 </button>
                 ${playBtn}
                 ${prog}
@@ -674,6 +695,8 @@ export function bindLibraryBrowser() {
           })
           .join("");
 
+        updateLoadMore();
+
         const findByDomId = (id: string) =>
           items.find((x) => safeDomId(x.id) === id || x.id === id);
 
@@ -681,7 +704,7 @@ export function bindLibraryBrowser() {
           btn.addEventListener("click", () => {
             const id = (btn as HTMLElement).dataset.open || "";
             const item = findByDomId(id);
-            if (item) openModal(item, false);
+            if (item) void openModal(item, false);
           });
         });
 
@@ -690,7 +713,7 @@ export function bindLibraryBrowser() {
             e.stopPropagation();
             const id = (btn as HTMLElement).dataset.openLic || "";
             const item = findByDomId(id);
-            if (item) openModal(item, true);
+            if (item) void openModal(item, true);
           });
         });
 
@@ -727,20 +750,37 @@ export function bindLibraryBrowser() {
               gridVideo.pause();
               gridVideo = null;
             }
-            // Stems = audio (Web Audio). Si hay vídeo, es visual: se enciende muted en bucle.
-            if (item.stems?.length) {
-              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);
-              if (v) {
-                v.muted = true;
-                v.loop = true;
-                void v.play().catch(() => {});
-                gridVideo = v;
+
+            void (async () => {
+              const full = (await ensureDetail(item)) || item;
+              const wantsStems = !!(full.stems?.length || full.hasStems || item.hasStems);
+              if (wantsStems && full.stems?.length) {
+                // Vídeo de fondo solo si detail trae URL (inyectado al frame)
+                const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
+                const vUrl = safeMediaUrl(full.video);
+                if (frame && vUrl) {
+                  let v = frame.querySelector<HTMLVideoElement>("video");
+                  if (!v) {
+                    frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
+                    v = frame.querySelector<HTMLVideoElement>("video");
+                  }
+                  if (v) {
+                    v.muted = true;
+                    v.loop = true;
+                    void v.play().catch(() => {});
+                    gridVideo = v;
+                  }
+                }
+                void playStems(full, id);
+              } else if (full.hasVideo || safeMediaUrl(full.video)) {
+                const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
+                const vUrl = safeMediaUrl(full.video);
+                if (!frame || !vUrl) return;
+                frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
+                const v = frame.querySelector<HTMLVideoElement>("video");
+                if (v) void playVideoThumb(full, v);
               }
-              void playStems(item, id);
-            } else if (safeMediaUrl(item.video)) {
-              const v = grid.querySelector<HTMLVideoElement>(`[data-vid="${CSS.escape(id)}"]`);
-              if (v) void playVideoThumb(item, v);
-            }
+            })();
           });
         });
 
@@ -827,12 +867,16 @@ export function bindLibraryBrowser() {
         );
       };
 
-      const openModal = (item: Item, focusLicense: boolean) => {
+      const openModal = async (item: Item, focusLicense: boolean) => {
         stopAll();
-        active = item;
+        const full = (await ensureDetail(item)) || item;
+        active = full;
         if (!(overlay instanceof HTMLElement)) return;
         overlay.hidden = false;
         lockScroll(true);
+
+        // Use full for rest of modal
+        item = full;
 
         // Deep-link en la barra de URL (compartible)
         try {
@@ -850,7 +894,8 @@ export function bindLibraryBrowser() {
           if (el) el.textContent = v;
         };
         const aspect = safeAspectLabel(item.aspect);
-        set("[data-lb-kicker]", `${item.kind === "stems" ? "stems" : "video"} · ${aspect}`);
+        // No mostrar tipo/aspecto ni badge provisional al visitante
+        set("[data-lb-kicker]", "");
         set("[data-lb-title]", item.title || "");
         set("[data-lb-desc]", item.description || "—");
         set("[data-lb-notes]", item.notes || "—");
@@ -865,8 +910,8 @@ export function bindLibraryBrowser() {
 
         const prov = root.querySelector("[data-lb-prov]");
         if (prov instanceof HTMLElement) {
-          prov.hidden = !isProv(item);
-          prov.textContent = L.provisional;
+          prov.hidden = true;
+          prov.textContent = "";
         }
 
         const media = root.querySelector("[data-lb-media]");
@@ -1130,7 +1175,7 @@ export function bindLibraryBrowser() {
           typeFilter = (btn as HTMLElement).dataset.type || "all";
           root.querySelectorAll("[data-type]").forEach((b) => b.classList.remove("is-on"));
           btn.classList.add("is-on");
-          renderGrid();
+          void fetchList({ reset: true });
         });
       });
 
@@ -1354,25 +1399,8 @@ export function bindLibraryBrowser() {
         }
       });
 
-      // Loading hasta /api/library (no mostrar demos del build)
-      renderGrid();
-
-      const mapLiveItem = (raw: Item): Item => ({
-        ...raw,
-        id: safeDomId(raw.id),
-        aspect: safeAspectLabel(raw.aspect),
-        title: String(raw.title || ""),
-        moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
-        tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-        filterMoods: Array.isArray(raw.filterMoods) ? raw.filterMoods.map(String) : [],
-        filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
-        video: safeMediaUrl(raw.video) || null,
-        cover: safeMediaUrl(raw.cover) || null,
-        updatedAt:
-          typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
-            ? String((raw as { updatedAt: string }).updatedAt)
-            : undefined,
-        stems: Array.isArray(raw.stems)
+      const mapLiveItem = (raw: Item): Item => {
+        const stems = Array.isArray(raw.stems)
           ? raw.stems
               .map((s) => ({
                 id: safeDomId(s.id),
@@ -1380,56 +1408,191 @@ export function bindLibraryBrowser() {
                 src: safeMediaUrl(s.src),
               }))
               .filter((s) => s.src)
-          : undefined,
-      });
+          : undefined;
+        const video = safeMediaUrl(raw.video) || null;
+        const hasStems = Boolean(
+          (raw as Item).hasStems || (stems && stems.length) || raw.kind === "stems",
+        );
+        const hasVideo = Boolean((raw as Item).hasVideo || video);
+        return {
+          ...raw,
+          id: safeDomId(raw.id),
+          aspect: safeAspectLabel(raw.aspect),
+          title: String(raw.title || ""),
+          moods: Array.isArray(raw.moods) ? raw.moods.map(String) : [],
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+          filterMoods: Array.isArray(raw.filterMoods) ? raw.filterMoods.map(String) : [],
+          filterTags: Array.isArray(raw.filterTags) ? raw.filterTags.map(String) : [],
+          video,
+          cover: safeMediaUrl(raw.cover) || null,
+          hasStems,
+          hasVideo,
+          updatedAt:
+            typeof (raw as { updatedAt?: unknown }).updatedAt === "string"
+              ? String((raw as { updatedAt: string }).updatedAt)
+              : undefined,
+          stems,
+        };
+      };
 
-      // Catálogo vivo (R2) = fuente de verdad. Semilla solo si la API falla.
-      void (async () => {
-        let usedLive = false;
+      const ensureDetail = async (card: Item): Promise<Item | null> => {
+        const slug = String(card.slug || card.id || "").trim();
+        if (!slug) return null;
+        const cached = detailCache.get(slug);
+        if (cached) return cached;
+        // Ya es detail (p.ej. re-open o respuesta previa con stems)
+        if (card.stems && card.stems.length > 0) {
+          const mapped = mapLiveItem(card);
+          detailCache.set(slug, mapped);
+          return mapped;
+        }
         try {
-          const res = await fetch("/api/library", {
+          const res = await fetch(`/api/library?slug=${encodeURIComponent(slug)}`, {
             credentials: "same-origin",
             cache: "no-store",
           });
-          if (res.ok) {
-            const live = await res.json();
+          if (!res.ok) return null;
+          const live = (await res.json()) as { ok?: boolean; item?: Item };
+          if (!live?.ok || !live.item) return null;
+          const full = mapLiveItem(live.item);
+          detailCache.set(slug, full);
+          const idx = items.findIndex(
+            (x) => x.slug === slug || x.id === full.id || safeDomId(x.id) === safeDomId(full.id),
+          );
+          if (idx >= 0) {
+            items[idx] = {
+              ...items[idx],
+              ...full,
+              hasStems: full.hasStems,
+              hasVideo: full.hasVideo,
+            };
+          }
+          return full;
+        } catch {
+          return null;
+        }
+      };
+
+      const fetchList = async (opts: { reset: boolean }) => {
+        const gen = ++listFetchGen;
+        if (opts.reset) {
+          nextCursor = null;
+          hasMore = false;
+          totalCount = 0;
+          items = [];
+          listError = false;
+          catalogReady = false;
+          stemsTx.dispose();
+          stopAll();
+          renderGrid();
+        }
+        if (listLoading && !opts.reset) return;
+        listLoading = true;
+        updateLoadMore();
+
+        try {
+          const params = new URLSearchParams();
+          params.set("limit", "24");
+          if (!opts.reset && nextCursor) params.set("cursor", nextCursor);
+          if (moodFilter) params.set("mood", moodFilter);
+          if (typeFilter && typeFilter !== "all") params.set("type", typeFilter);
+
+          const res = await fetch(`/api/library?${params.toString()}`, {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (gen !== listFetchGen) return;
+
+          if (!res.ok) {
+            if (opts.reset || !items.length) listError = true;
+          } else {
+            const live = (await res.json()) as {
+              ok?: boolean;
+              items?: Item[];
+              moods?: string[];
+              count?: number;
+              nextCursor?: string | null;
+              hasMore?: boolean;
+            };
             if (live?.ok && Array.isArray(live.items)) {
-              usedLive = true;
+              listError = false;
               if (Array.isArray(live.moods) && live.moods.length) {
-                serverMoods = live.moods.map((x: unknown) => String(x).toLowerCase());
+                serverMoods = live.moods.map((x) => String(x).toLowerCase());
               }
-              stemsTx.dispose();
-              stopAll();
-              // Array vacío de R2 = catálogo vacío (no rescatar demos del build)
-              items = (live.items as Item[]).map(mapLiveItem);
+              const mapped = live.items.map(mapLiveItem);
+              if (opts.reset) {
+                items = mapped;
+              } else {
+                const seen = new Set(items.map((i) => itemKey(i) || i.id));
+                for (const m of mapped) {
+                  const k = itemKey(m) || m.id;
+                  if (k && seen.has(k)) continue;
+                  if (k) seen.add(k);
+                  items.push(m);
+                }
+              }
+              nextCursor =
+                typeof live.nextCursor === "string" && live.nextCursor
+                  ? live.nextCursor
+                  : null;
+              hasMore = Boolean(live.hasMore);
+              totalCount =
+                typeof live.count === "number" ? live.count : items.length;
+            } else if (opts.reset || !items.length) {
+              listError = true;
             }
           }
         } catch {
-          /* red: fallback semilla */
+          if (gen !== listFetchGen) return;
+          if (opts.reset || !items.length) listError = true;
         }
 
-        if (!usedLive) {
-          items = seedItems.map(mapLiveItem);
-          serverMoods = Array.isArray((data as { moods?: string[] }).moods)
-            ? ((data as { moods: string[] }).moods).map((x) => String(x).toLowerCase())
-            : [];
-        }
-
+        if (gen !== listFetchGen) return;
+        listLoading = false;
         catalogReady = true;
         collectFilters(items);
         filtersPaintGen += 1;
         await paintFilters();
         renderGrid();
+        updateLoadMore();
+      };
 
-        // Deep-link: /biblioteca/?p=slug abre la publicación
+      // Load more
+      if (moreBtn instanceof HTMLElement && moreBtn.dataset.bound !== "1") {
+        moreBtn.dataset.bound = "1";
+        moreBtn.addEventListener("click", () => {
+          if (!hasMore || listLoading) return;
+          void fetchList({ reset: false });
+        });
+      }
+
+      // Loading hasta primera página de /api/library
+      renderGrid();
+      void (async () => {
+        await fetchList({ reset: true });
+
+        // Deep-link: /biblioteca/?p=slug → detail-first (sin dump)
         try {
           const p = new URL(window.location.href).searchParams.get("p")?.trim();
-          if (p) {
-            const match = items.find(
-              (x) => x.slug === p || x.id === p || safeDomId(x.id) === safeDomId(p),
-            );
-            if (match) openModal(match, false);
+          if (!p) return;
+          const match = items.find(
+            (x) => x.slug === p || x.id === p || safeDomId(x.id) === safeDomId(p),
+          );
+          if (match) {
+            void openModal(match, false);
+            return;
           }
+          // No está en la primera página: abrir solo con detail
+          const stub: Item = {
+            id: safeDomId(p),
+            slug: p,
+            title: p,
+            kind: "stems",
+            aspect: "1:1",
+            tags: [],
+            moods: [],
+          };
+          void openModal(stub, false);
         } catch {
           /* ignore */
         }

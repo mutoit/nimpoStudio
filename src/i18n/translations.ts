@@ -27,7 +27,7 @@ export const translations = {
     // Navigation
     navMusic: "Música",
     navLibrary: "Biblioteca",
-    navCatalog: "Catálogo",
+    navCatalog: "Productos",
     navAbout: "Sobre",
     navContact: "Contacto",
     navStoreSoon: "Tienda",
@@ -49,6 +49,9 @@ export const translations = {
     libDescription: "Descripción",
     libClose: "Cerrar",
     libEmpty: "Sin ítems en este filtro.",
+    libLoadMore: "Cargar más",
+    libLoading: "Cargando…",
+    libLoadError: "No se pudo cargar el catálogo.",
     libSelect: "Selecciona un ítem",
     libPlay: "Play stems",
     libStemsTitle: "Capas (stems)",
@@ -81,14 +84,15 @@ export const translations = {
     homeStoreNote:
       "Composiciones originales y previews en la biblioteca. La tienda y el área de clientes llegarán en próximas fases.",
 
-    // Catalog
-    catalogTitle: "Catálogo",
-    catalogSubtitle: "Productos digitales",
+    // Catalog / software products
+    catalogTitle: "Productos",
+    catalogSubtitle: "Software",
     catalogDesc:
-      "Explora packs, presets, licencias y recursos. La tienda y el área de clientes llegarán en fases posteriores.",
+      "Plugins, apps y tools del estudio. Elige uno en el panel para ver descripción, imágenes o vídeo.",
     catalogAll: "Todos",
-    catalogEmptyTitle: "Sin productos publicados",
-    catalogEmptyDesc: "Añade entradas en src/data/products.json",
+    catalogEmptyTitle: "Catálogo en preparación",
+    catalogEmptyDesc: "",
+    catalogComingSoon: "Próximamente",
 
     // Music
     musicTitle: "Música",
@@ -101,14 +105,17 @@ export const translations = {
       "Sube los MP3 de preview en public/previews/music/ y edita src/data/music.json con tus composiciones reales.",
 
     // About
-    aboutEyebrow: "Sobre nosotros",
+    aboutEyebrow: "Sobre mí",
     aboutTitle: "Sobre",
     aboutP1:
-      "Nimpo 3D Studio es un estudio de composición original en MIDI: piezas hechas aquí, con criterio musical y trato directo. En la biblioteca puedes escuchar previews, explorar stems y solicitar licencia para tu proyecto.",
+      "Nimpo 3D Studio es mi marca personal para productos digitales: software y música. Hace más de quince años empecé a componer por mi cuenta, tocando el piano con un solo dedo. Fue un camino emocionante: descubrir qué significa componer y, a la vez, descubrir mis habilidades y mi pasión.",
     aboutP2:
-      "No somos un stock genérico ni un marketplace opaco. Licenciamos obra propia con precios claros, alcance definido y entrega del master (y stems si los contratas) tras acuerdo y pago. Si tu uso es especial o exclusivo, lo revisamos contigo a medida.",
-    aboutP3: "¿Tienes dudas o quieres colaborar?",
-    aboutContactLink: "Escríbenos",
+      "Mis creaciones nacen de la inspiración —supongo que es cuando bajan las musas—; nada está planificado. El 99 % de mis obras son MIDI, tocadas o compuestas por mí, aunque me encanta mezclarlas con las texturas de la música electrónica.",
+    aboutP3:
+      "Aunque la mayor parte de mi trabajo es por cuenta propia, puedo colaborar en proyectos. Si te gusta mi estilo, no dudes en escribirme. Puedo adaptarme a otros géneros, pero siempre intentaré verlo desde mi perspectiva: así el resultado es más genuino.",
+    aboutP4: "Gracias por visitarme.",
+    aboutP5: "¿Tienes un proyecto o quieres hablar?",
+    aboutContactLink: "Escríbeme",
 
     // Contact
     contactEyebrow: "Contacto",
@@ -327,6 +334,36 @@ export const translations = {
     // Legal
     privacyTitle: "Política de privacidad",
     privacyUpdated: "Última actualización: julio 2026",
+    privacyDesc: "Política de privacidad de Nimpo 3D Studio",
+    privacyController: "Responsable",
+    privacyControllerBody: "— contacto:",
+    privacyDataTitle: "Qué datos recogemos",
+    privacyDataAnalytics:
+      "Navegación analítica — páginas visitadas, referrer, país aproximado, dispositivo.",
+    privacyDataEvents:
+      "Eventos de uso — reproducción de previews musicales, visitas a fichas de catálogo.",
+    privacyDataContact:
+      "Contacto — solo si nos escribes por email (fuera de esta web).",
+    privacyDataConsent:
+      "Cookies de consentimiento — preferencia aceptar/rechazar analítica (localStorage).",
+    privacyServicesTitle: "Servicios de analítica y publicidad",
+    privacyCfAnalytics:
+      "Cloudflare Web Analytics — sin cookies, medición agregada. Activo si hay token configurado.",
+    privacyGa4:
+      "Google Analytics 4 — solo tras aceptar cookies. Medición de uso y eventos.",
+    privacyMeta:
+      "Meta Pixel — solo tras aceptar, si está configurado. Publicidad y remarketing futuro.",
+    privacySearch:
+      "Google Search Console / Bing Webmaster — verificación de propiedad del sitio (meta tag).",
+    privacyLegalTitle: "Base legal (RGPD)",
+    privacyLegalBody:
+      "Interés legítimo y consentimiento para analítica/marketing. Puedes rechazar cookies no esenciales con el banner inferior. Cloudflare Web Analytics opera sin cookies de seguimiento.",
+    privacyRightsTitle: "Tus derechos",
+    privacyRightsBody:
+      "Acceso, rectificación, supresión y oposición escribiendo a {email}. Puedes borrar la preferencia de cookies eliminando datos del sitio en tu navegador.",
+    privacyFutureTitle: "Ventas futuras",
+    privacyFutureBody:
+      "Cuando activemos la tienda se actualizará esta política con datos de pedidos, facturación y cuentas de cliente.",
     termsTitle: "Términos y condiciones",
     termsDraft: "Estado: borrador — en preparación",
     termsPlaceholder: "Esta página se completará antes de activar la tienda.",
@@ -357,7 +394,7 @@ export const translations = {
 
     navMusic: "Music",
     navLibrary: "Library",
-    navCatalog: "Catalog",
+    navCatalog: "Products",
     navAbout: "About",
     navContact: "Contact",
     navStoreSoon: "Store",
@@ -379,6 +416,9 @@ export const translations = {
     libDescription: "Description",
     libClose: "Close",
     libEmpty: "No items in this filter.",
+    libLoadMore: "Load more",
+    libLoading: "Loading…",
+    libLoadError: "Could not load the catalog.",
     libSelect: "Select an item",
     libPlay: "Play stems",
     libStemsTitle: "Layers (stems)",
@@ -409,13 +449,14 @@ export const translations = {
     homeStoreNote:
       "Original compositions and previews live in the library. The store and client area will arrive in later phases.",
 
-    catalogTitle: "Catalog",
-    catalogSubtitle: "Digital products",
+    catalogTitle: "Products",
+    catalogSubtitle: "Software",
     catalogDesc:
-      "Explore packs, presets, licenses and resources. The store and client area will arrive in later phases.",
+      "Studio plugins, apps and tools. Pick one in the panel to see description, images or video.",
     catalogAll: "All",
-    catalogEmptyTitle: "No published products",
-    catalogEmptyDesc: "Add entries in src/data/products.json",
+    catalogEmptyTitle: "Catalog in progress",
+    catalogEmptyDesc: "",
+    catalogComingSoon: "Coming soon",
 
     musicTitle: "Music",
     musicSubtitle: "Original MIDI compositions",
@@ -426,14 +467,17 @@ export const translations = {
     musicHint:
       "Upload preview MP3s to public/previews/music/ and edit src/data/music.json with your real compositions.",
 
-    aboutEyebrow: "About us",
+    aboutEyebrow: "About me",
     aboutTitle: "About",
     aboutP1:
-      "Nimpo 3D Studio is an original MIDI composition studio: work made here, with musical care and direct contact. In the library you can preview pieces, explore stems and request a license for your project.",
+      "Nimpo 3D Studio is my personal brand for digital products — software and music. More than fifteen years ago I started composing on my own, playing piano with a single finger. It was an exciting path: discovering what composition really is, and discovering my own skills and passion.",
     aboutP2:
-      "We are not generic stock or an opaque marketplace. We license our own work with clear pricing, defined scope, and master delivery (plus stems if contracted) after agreement and payment. Special or exclusive uses are reviewed with you case by case.",
-    aboutP3: "Have questions or want to collaborate?",
-    aboutContactLink: "Contact us",
+      "My work comes from inspiration — I suppose that’s when the muses show up — nothing is planned in advance. About 99% of my pieces are MIDI, performed or written by me, though I love blending them with the textures of electronic music.",
+    aboutP3:
+      "Most of my work is independent, but I can join projects too. If you like my style, feel free to write. I can adapt to other styles, yet I always try to see them from my own perspective — that keeps the result more genuine.",
+    aboutP4: "Thank you for visiting.",
+    aboutP5: "Have a project or want to talk?",
+    aboutContactLink: "Write to me",
 
     contactEyebrow: "Contact",
     contactTitle: "Let's talk",
@@ -640,6 +684,36 @@ export const translations = {
 
     privacyTitle: "Privacy policy",
     privacyUpdated: "Last updated: July 2026",
+    privacyDesc: "Nimpo 3D Studio privacy policy",
+    privacyController: "Controller",
+    privacyControllerBody: "— contact:",
+    privacyDataTitle: "What data we collect",
+    privacyDataAnalytics:
+      "Analytics browsing — pages visited, referrer, approximate country, device.",
+    privacyDataEvents:
+      "Usage events — music preview playback, product page views.",
+    privacyDataContact:
+      "Contact — only if you email us (outside this website).",
+    privacyDataConsent:
+      "Consent cookies — analytics accept/reject preference (localStorage).",
+    privacyServicesTitle: "Analytics and advertising services",
+    privacyCfAnalytics:
+      "Cloudflare Web Analytics — cookieless, aggregate measurement. Active when a token is configured.",
+    privacyGa4:
+      "Google Analytics 4 — only after you accept cookies. Usage and event measurement.",
+    privacyMeta:
+      "Meta Pixel — only after accept, if configured. Advertising and future remarketing.",
+    privacySearch:
+      "Google Search Console / Bing Webmaster — site ownership verification (meta tag).",
+    privacyLegalTitle: "Legal basis (GDPR)",
+    privacyLegalBody:
+      "Legitimate interest and consent for analytics/marketing. You can reject non-essential cookies with the bottom banner. Cloudflare Web Analytics runs without tracking cookies.",
+    privacyRightsTitle: "Your rights",
+    privacyRightsBody:
+      "Access, rectification, erasure and objection by writing to {email}. You can clear the cookie preference by deleting this site’s data in your browser.",
+    privacyFutureTitle: "Future sales",
+    privacyFutureBody:
+      "When we enable the store, this policy will be updated with order, billing and customer account data.",
     termsTitle: "Terms and conditions",
     termsDraft: "Status: draft — in preparation",
     termsPlaceholder: "This page will be completed before the store goes live.",
@@ -668,7 +742,7 @@ export const translations = {
 
     navMusic: "Musique",
     navLibrary: "Bibliothèque",
-    navCatalog: "Catalogue",
+    navCatalog: "Produits",
     navAbout: "À propos",
     navContact: "Contact",
     navStoreSoon: "Boutique",
@@ -690,6 +764,9 @@ export const translations = {
     libDescription: "Description",
     libClose: "Fermer",
     libEmpty: "Aucun élément dans ce filtre.",
+    libLoadMore: "Charger plus",
+    libLoading: "Chargement…",
+    libLoadError: "Impossible de charger le catalogue.",
     libSelect: "Sélectionnez un élément",
     libPlay: "Lecture stems",
     libStemsTitle: "Couches (stems)",
@@ -720,13 +797,14 @@ export const translations = {
     homeStoreNote:
       "Compositions originales et extraits dans la bibliothèque. La boutique et l'espace client arriveront plus tard.",
 
-    catalogTitle: "Catalogue",
-    catalogSubtitle: "Produits numériques",
+    catalogTitle: "Produits",
+    catalogSubtitle: "Logiciel",
     catalogDesc:
-      "Explorez les packs, presets, licences et ressources. La boutique et l'espace client arriveront dans les phases ultérieures.",
+      "Plugins, apps et outils du studio. Choisissez-en un dans le panneau pour voir description, images ou vidéo.",
     catalogAll: "Tous",
-    catalogEmptyTitle: "Aucun produit publié",
-    catalogEmptyDesc: "Ajoutez des entrées dans src/data/products.json",
+    catalogEmptyTitle: "Catalogue en préparation",
+    catalogEmptyDesc: "",
+    catalogComingSoon: "Prochainement",
 
     musicTitle: "Musique",
     musicSubtitle: "Compositions MIDI originales",
@@ -737,14 +815,17 @@ export const translations = {
     musicHint:
       "Téléversez les MP3 d'extrait dans public/previews/music/ et modifiez src/data/music.json avec vos vraies compositions.",
 
-    aboutEyebrow: "À propos de nous",
+    aboutEyebrow: "À propos de moi",
     aboutTitle: "À propos",
     aboutP1:
-      "Nimpo 3D Studio est un studio de composition MIDI originale : des pièces faites ici, avec soin musical et contact direct. Dans la bibliothèque, vous pouvez écouter les previews, explorer les stems et demander une licence pour votre projet.",
+      "Nimpo 3D Studio est ma marque personnelle pour les produits numériques — logiciel et musique. Il y a plus de quinze ans, j’ai commencé à composer seul, en jouant du piano avec un seul doigt. Ce fut un chemin passionnant : découvrir ce qu’est la composition, et découvrir en même temps mes aptitudes et ma passion.",
     aboutP2:
-      "Nous ne sommes pas un stock générique ni une marketplace opaque. Nous licenciions nos œuvres avec des prix clairs, un périmètre défini, et livraison du master (et des stems si prévus) après accord et paiement. Les usages spéciaux ou exclusifs se discutent au cas par cas.",
-    aboutP3: "Des questions ou envie de collaborer ?",
-    aboutContactLink: "Contactez-nous",
+      "Mes créations naissent de l’inspiration — je suppose que c’est quand les muses descendent — ; rien n’est planifié. Environ 99 % de mes œuvres sont en MIDI, jouées ou composées par moi, même si j’adore les mélanger aux textures de la musique électronique.",
+    aboutP3:
+      "La majeure partie de mon travail est indépendante, mais je peux aussi collaborer sur des projets. Si mon style vous plaît, n’hésitez pas à m’écrire. Je peux m’adapter à d’autres styles, tout en cherchant toujours à les voir depuis ma perspective — ce qui rend le résultat plus authentique.",
+    aboutP4: "Merci de votre visite.",
+    aboutP5: "Un projet, ou envie d’en parler ?",
+    aboutContactLink: "Écrivez-moi",
 
     contactEyebrow: "Contact",
     contactTitle: "Parlons-en",
@@ -951,6 +1032,36 @@ export const translations = {
 
     privacyTitle: "Politique de confidentialité",
     privacyUpdated: "Dernière mise à jour : juillet 2026",
+    privacyDesc: "Politique de confidentialité de Nimpo 3D Studio",
+    privacyController: "Responsable",
+    privacyControllerBody: "— contact :",
+    privacyDataTitle: "Quelles données nous collectons",
+    privacyDataAnalytics:
+      "Navigation analytique — pages consultées, referrer, pays approximatif, appareil.",
+    privacyDataEvents:
+      "Événements d’usage — lecture d’extraits musicaux, visites des fiches catalogue.",
+    privacyDataContact:
+      "Contact — uniquement si vous nous écrivez par e-mail (hors de ce site).",
+    privacyDataConsent:
+      "Cookies de consentement — préférence accepter/refuser l’analytique (localStorage).",
+    privacyServicesTitle: "Services d’analytique et de publicité",
+    privacyCfAnalytics:
+      "Cloudflare Web Analytics — sans cookies, mesure agrégée. Actif si un jeton est configuré.",
+    privacyGa4:
+      "Google Analytics 4 — uniquement après acceptation des cookies. Mesure d’usage et d’événements.",
+    privacyMeta:
+      "Meta Pixel — uniquement après acceptation, s’il est configuré. Publicité et remarketing futur.",
+    privacySearch:
+      "Google Search Console / Bing Webmaster — vérification de propriété du site (balise meta).",
+    privacyLegalTitle: "Base légale (RGPD)",
+    privacyLegalBody:
+      "Intérêt légitime et consentement pour l’analytique/marketing. Vous pouvez refuser les cookies non essentiels via la bannière en bas. Cloudflare Web Analytics fonctionne sans cookies de suivi.",
+    privacyRightsTitle: "Vos droits",
+    privacyRightsBody:
+      "Accès, rectification, suppression et opposition en écrivant à {email}. Vous pouvez effacer la préférence de cookies en supprimant les données du site dans votre navigateur.",
+    privacyFutureTitle: "Ventes futures",
+    privacyFutureBody:
+      "Lorsque la boutique sera activée, cette politique sera mise à jour avec les données de commandes, de facturation et de comptes clients.",
     termsTitle: "Conditions générales",
     termsDraft: "État : brouillon — en préparation",
     termsPlaceholder: "Cette page sera complétée avant le lancement de la boutique.",

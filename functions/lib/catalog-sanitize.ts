@@ -133,3 +133,36 @@ export function stripCleanSrcFromItem(
     }),
   };
 }
+
+/**
+ * Card de listado público: sin stems[], video URL, description, notes.
+ * Flags hasVideo / hasStems para la UI.
+ */
+export function toLibraryCard(item: Record<string, unknown>): Record<string, unknown> {
+  const stems = Array.isArray(item.stems) ? item.stems : [];
+  const video = item.video;
+  const hasVideo = typeof video === "string" && video.length > 0;
+  const moods = Array.isArray(item.moods) ? item.moods.slice(0, 8) : [];
+  const tags = Array.isArray(item.tags) ? item.tags.slice(0, 8) : [];
+
+  return {
+    id: item.id,
+    slug: item.slug,
+    title: item.title,
+    kind: item.kind,
+    aspect: item.aspect,
+    cover: item.cover ?? null,
+    hasVideo,
+    hasStems: stems.length > 0 || String(item.kind || "") === "stems",
+    moods,
+    tags,
+    availability: item.availability ?? "available",
+    licenseEnabled: item.licenseEnabled !== false,
+    publishedAt: item.publishedAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
+export function toLibraryCards(items: Record<string, unknown>[]): Record<string, unknown>[] {
+  return items.map(toLibraryCard);
+}

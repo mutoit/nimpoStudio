@@ -1,7 +1,6 @@
 ---
 import Layout from "../../../components/Layout.astro";
 import LibraryBrowser from "../../../components/LibraryBrowser.astro";
-import { getLibraryItems } from "../../../lib/library";
 import type { Locale } from "../../../i18n/translations";
 import { useTranslations } from "../../../lib/locale";
 
@@ -11,7 +10,6 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = useTranslations(lang);
-const items = getLibraryItems();
 ---
 
 <Layout title={t("libTitle")} description={t("libDesc")} lang={lang}>
@@ -25,7 +23,7 @@ const items = getLibraryItems();
         {t("musicLicensePreviewNote")}
       </p>
     </header>
-    <LibraryBrowser items={items} lang={lang} />
+    <LibraryBrowser lang={lang} />
   </div>
 </Layout>
 

@@ -319,6 +319,17 @@ import Layout from "../../components/Layout.astro";
         <button type="button" class="btn btn--sm" data-pub-refresh title="Actualizar">↻</button>
       </div>
       <p class="lead lead--sm">Catálogo vivo · celdas · 🎧 = mix play</p>
+      <!-- Barra de progreso del botón 🎧 Previews (justo debajo del texto) -->
+      <div class="preview-job" data-preview-job hidden role="status" aria-live="polite">
+        <div class="preview-job__top">
+          <span class="preview-job__msg" data-preview-job-msg>Listo</span>
+          <span class="preview-job__pct" data-preview-job-pct></span>
+        </div>
+        <div class="preview-job__track" aria-hidden="true">
+          <div class="preview-job__fill" data-preview-job-fill style="--p:0%"></div>
+        </div>
+        <p class="preview-job__detail" data-preview-job-detail></p>
+      </div>
       <div class="pub-frame" data-pub-frame>
         <div class="pub-grid" data-pub-grid>
           <p class="pub-empty">Cargando…</p>
@@ -1433,11 +1444,43 @@ import Layout from "../../components/Layout.astro";
     void loadPubs();
   });
 
-  /** Rebuild mix preview (1 archivo) para obras con stems y sin preview. */
+  const setPreviewJob = (opts: {
+    show?: boolean;
+    msg: string;
+    detail?: string;
+    pct?: number;
+    kind?: "load" | "ok" | "err";
+  }) => {
+    const box = document.querySelector("[data-preview-job]");
+    const msgEl = document.querySelector("[data-preview-job-msg]");
+    const pctEl = document.querySelector("[data-preview-job-pct]");
+    const fill = document.querySelector("[data-preview-job-fill]");
+    const detail = document.querySelector("[data-preview-job-detail]");
+    if (!(box instanceof HTMLElement)) return;
+    box.hidden = opts.show === false;
+    box.classList.remove("is-ok", "is-err", "is-load");
+    if (opts.kind === "ok") box.classList.add("is-ok");
+    if (opts.kind === "err") box.classList.add("is-err");
+    if (opts.kind === "load") box.classList.add("is-load");
+    if (msgEl) msgEl.textContent = opts.msg;
+    const p = Math.max(0, Math.min(100, opts.pct ?? 0));
+    if (pctEl) pctEl.textContent = opts.pct != null ? `${Math.round(p)}%` : "";
+    if (fill instanceof HTMLElement) fill.style.setProperty("--p", `${p}%`);
+    if (detail) detail.textContent = opts.detail || "";
+  };
+
+  /** Rebuild mix preview (1 archivo) — barra justo bajo «🎧 = mix play». */
   document.querySelector("[data-rebuild-previews]")?.addEventListener("click", async () => {
     const btn = document.querySelector("[data-rebuild-previews]");
     if (btn instanceof HTMLButtonElement) btn.disabled = true;
     try {
+      setPreviewJob({
+        show: true,
+        msg: "Leyendo catálogo…",
+        detail: "",
+        pct: 2,
+        kind: "load",
+      });
       await loadPubs();
       const need = publications.filter((p) => {
         const stems = Array.isArray(p.stems) ? p.stems : [];
@@ -1445,9 +1488,23 @@ import Layout from "../../components/Layout.astro";
         return stems.length > 0 && !prev;
       });
       if (!need.length) {
+        setPreviewJob({
+          show: true,
+          msg: "✅ Nada pendiente",
+          detail: "Todas las obras con stems ya tienen mix preview (o no hay stems).",
+          pct: 100,
+          kind: "ok",
+        });
         setStatus("✅ Todas las obras con stems ya tienen preview (o no hay stems).");
         return;
       }
+      setPreviewJob({
+        show: true,
+        msg: `Generando 0/${need.length}`,
+        detail: "Bajando stems → mezclando → subiendo preview…",
+        pct: 0,
+        kind: "load",
+      });
       setStatus(`Generando previews 0/${need.length}…`);
       let ok = 0;
       let fail = 0;
@@ -1458,11 +1515,26 @@ import Layout from "../../components/Layout.astro";
         const srcs = (Array.isArray(p.stems) ? p.stems : [])
           .map((s: { src?: string }) => String(s.src || "").trim())
           .filter(Boolean);
+        const pct = ((i + 0.15) / need.length) * 100;
+        setPreviewJob({
+          show: true,
+          msg: `${i + 1}/${need.length} · «${title}»`,
+          detail: `Mezclando ${srcs.length} capa(s)…`,
+          pct,
+          kind: "load",
+        });
         setStatus(`Preview ${i + 1}/${need.length}: «${title}»…`);
         try {
           const mix = await bakeMixPreviewFromUrls(srcs, {
             credentials: "same-origin",
             cache: "reload",
+          });
+          setPreviewJob({
+            show: true,
+            msg: `${i + 1}/${need.length} · «${title}»`,
+            detail: "Subiendo mix a R2…",
+            pct: ((i + 0.7) / need.length) * 100,
+            kind: "load",
           });
           const body = new FormData();
           body.set("title", title);
@@ -1487,15 +1559,42 @@ import Layout from "../../components/Layout.astro";
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || res.status);
           ok++;
+          setPreviewJob({
+            show: true,
+            msg: `${i + 1}/${need.length} · ok «${title}»`,
+            detail: `Listos ${ok} · fallos ${fail}`,
+            pct: ((i + 1) / need.length) * 100,
+            kind: "load",
+          });
         } catch (e) {
           fail++;
           console.warn("[rebuild preview]", slug, e);
+          setPreviewJob({
+            show: true,
+            msg: `${i + 1}/${need.length} · error «${title}»`,
+            detail: e instanceof Error ? e.message : "fallo",
+            pct: ((i + 1) / need.length) * 100,
+            kind: "err",
+          });
         }
       }
-      setStatus(`✅ Previews: ${ok} ok · ${fail} fallos. Ctrl+F5 en /es/biblioteca/`);
+      const finalMsg = `✅ Previews: ${ok} ok · ${fail} fallos`;
+      setPreviewJob({
+        show: true,
+        msg: finalMsg,
+        detail:
+          fail > 0
+            ? "Revisa la consola si falló alguna. Luego Ctrl+F5 en /es/biblioteca/"
+            : "Listo. Ctrl+F5 en /es/biblioteca/ para oír play rápido.",
+        pct: 100,
+        kind: fail > 0 && ok === 0 ? "err" : "ok",
+      });
+      setStatus(`${finalMsg}. Ctrl+F5 en /es/biblioteca/`);
       await loadPubs();
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Error previews", false);
+      const msg = e instanceof Error ? e.message : "Error previews";
+      setPreviewJob({ show: true, msg: "Error", detail: msg, pct: 0, kind: "err" });
+      setStatus(msg, false);
     } finally {
       if (btn instanceof HTMLButtonElement) btn.disabled = false;
     }
@@ -1890,6 +1989,78 @@ import Layout from "../../components/Layout.astro";
     font-size: 0.85rem;
     font-weight: 600;
   }
+  .preview-job {
+    margin: 0.35rem 0 0.75rem;
+    padding: 0.65rem 0.75rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.4);
+    background: linear-gradient(145deg, rgb(201 169 98 / 0.14), rgb(16 14 22 / 0.95));
+    box-shadow: 0 0 20px rgb(201 169 98 / 0.12);
+  }
+  .preview-job[hidden] {
+    display: none !important;
+  }
+  .preview-job.is-load {
+    border-color: rgb(100 160 255 / 0.4);
+  }
+  .preview-job.is-ok {
+    border-color: rgb(100 200 140 / 0.45);
+  }
+  .preview-job.is-err {
+    border-color: rgb(240 100 100 / 0.5);
+  }
+  .preview-job__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin-bottom: 0.4rem;
+  }
+  .preview-job__msg {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #f0e6c8;
+    line-height: 1.3;
+  }
+  .preview-job.is-ok .preview-job__msg {
+    color: #b8f0c8;
+  }
+  .preview-job.is-err .preview-job__msg {
+    color: #f0a8a8;
+  }
+  .preview-job__pct {
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    color: #c9a962;
+    flex-shrink: 0;
+  }
+  .preview-job__track {
+    height: 10px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.08);
+    overflow: hidden;
+  }
+  .preview-job__fill {
+    height: 100%;
+    width: var(--p, 0%);
+    border-radius: 999px;
+    background: linear-gradient(90deg, #c9a962, #e8d5a0);
+    box-shadow: 0 0 12px rgb(201 169 98 / 0.5);
+    transition: width 0.2s ease;
+  }
+  .preview-job.is-load .preview-job__fill {
+    background: linear-gradient(90deg, #6a9fff, #a8c8ff);
+  }
+  .preview-job.is-err .preview-job__fill {
+    background: linear-gradient(90deg, #e07070, #f0a0a0);
+  }
+  .preview-job__detail {
+    margin: 0.4rem 0 0;
+    font-size: 0.72rem;
+    color: rgb(160 160 175);
+    line-height: 1.35;
+  }
+
   .pub-rail {
     position: sticky;
     top: 5rem;

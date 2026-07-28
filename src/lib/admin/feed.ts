@@ -32,8 +32,15 @@ export function bindAdminFeed() {
         const title = String(item.title || "—");
         const date = String(item.date || "").slice(0, 10);
         const safeT = title.replace(/"/g, "");
-        const thumb = `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
-        const shortT = title.length > 22 ? `${title.slice(0, 20)}…` : title;
+        const imgRaw = String(item.image || "").trim();
+        const img =
+          imgRaw.startsWith("/") && !imgRaw.startsWith("//")
+            ? imgRaw.replace(/"/g, "")
+            : "";
+        const thumb = img
+          ? `<img src="${img}" alt="" width="64" height="64" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
+          : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+        const shortT = title.length > 18 ? `${title.slice(0, 16)}…` : title;
         return `<article class="tile" title="${safeT} · ${date}">
           <div class="tile__media" data-feed-edit="${idx}" role="button" tabindex="0" aria-label="Editar ${safeT}">
             ${thumb}

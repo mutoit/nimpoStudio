@@ -107,10 +107,23 @@
     border-radius: 12px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
+    /* height fija (no solo max): evita colapso flex 1+min-height:0 a 0px */
+    height: calc(100dvh - 6rem);
     max-height: calc(100dvh - 6rem);
+    min-height: 16rem;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+  @media (max-width: 959px) {
+    .pub-rail {
+      position: static;
+      max-width: none;
+      width: 100%;
+      height: auto;
+      max-height: none;
+      min-height: 0;
+    }
   }
   .pub-rail__head {
     display: flex;
@@ -121,8 +134,8 @@
     flex-shrink: 0;
   }
   .pub-frame {
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 12rem;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--color-border);
@@ -130,9 +143,15 @@
     background: #0a0a0c;
     overflow: hidden;
   }
+  @media (max-width: 959px) {
+    .pub-frame {
+      min-height: 14rem;
+      max-height: min(50dvh, 22rem);
+    }
+  }
   .pub-grid {
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 10rem;
     overflow-x: hidden;
     overflow-y: auto;
     display: grid;

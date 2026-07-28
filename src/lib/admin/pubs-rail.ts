@@ -56,8 +56,15 @@ export function createPubsRail(opts: {
         const slug = String(item.slug || "");
         const title = String(item.title || slug);
         const safeSlug = slug.replace(/"/g, "");
-        const safeTitle = title.replace(/"/g, "");
-        const thumb = `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+        const safeTitle = title.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        const coverRaw = String(item.thumb || item.cover || "").trim();
+        const cover =
+          coverRaw.startsWith("/") && !coverRaw.startsWith("//")
+            ? coverRaw.replace(/"/g, "")
+            : "";
+        const thumb = cover
+          ? `<img src="${cover}" alt="" width="64" height="64" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
+          : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
         const shortTitle = title.length > 22 ? `${title.slice(0, 20)}…` : title;
         const safeShort = shortTitle.replace(/</g, "&lt;").replace(/"/g, "&quot;");
         return `<article class="tile" data-pub-slug="${safeSlug}" title="${safeTitle}">
@@ -112,10 +119,31 @@ export function createPubsRail(opts: {
 
   const loadPubs = async () => {
     const grid = document.querySelector("[data-pub-grid]");
+    if (grid instanceof HTMLElement) {
+      grid.innerHTML = `<p class="pub-empty">Cargando…</p>`;
+    }
     try {
-      const res = await fetch("/admin/items", { credentials: "same-origin" });
+      const res = await fetch("/admin/items", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+      if (!ct.includes("application/json")) {
+        throw new Error(
+          res.status === 401
+            ? "Sesión caducada — recarga e inicia sesión"
+            : `Respuesta no JSON (${res.status})`,
+        );
+      }
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo cargar");
+      if (!res.ok || !data.ok) {
+        const err = String(data.error || data.message || "No se pudo cargar");
+        if (err === "unauthorized" || res.status === 401) {
+          throw new Error("Sesión caducada — recarga e inicia sesión");
+        }
+        throw new Error(err);
+      }
       publications = Array.isArray(data.items) ? data.items : [];
       if (Array.isArray(data.moods) && data.moods.length) {
         opts.onMoodsFromServer(data.moods.map(String));
@@ -124,7 +152,13 @@ export function createPubsRail(opts: {
       renderPubs();
       const keep = opts.readSelectedMoods();
       opts.rebuildMoodPick(keep.length ? { selected: keep } : { selected: [] });
+      if (!publications.length) {
+        opts.setStatus("Catálogo vacío en R2 (ninguna publicación).", false);
+      } else {
+        opts.setStatus(`${publications.length} publicación(es) en catálogo.`);
+      }
     } catch (e) {
+      publications = [];
       if (grid instanceof HTMLElement) {
         grid.innerHTML = `<p class="pub-empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
       }

@@ -461,10 +461,12 @@ import "../../styles/admin-biblioteca.css";
     }
   };
 
-  const stemsUi = createStemsUi({
+  // let (no const): onChange no puede capturar const antes de la asignación
+  let stemsUi: ReturnType<typeof createStemsUi>;
+  stemsUi = createStemsUi({
     onStatus: (msg, ok) => setStatus(msg, ok !== false),
     onChange: () => {
-      stemRows = stemsUi.getRows();
+      stemRows = stemsUi?.getRows?.() ?? [];
       refreshLocalPendingLights();
     },
   });

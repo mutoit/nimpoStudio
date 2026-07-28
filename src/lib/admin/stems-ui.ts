@@ -25,11 +25,14 @@ export function createStemsUi(opts: {
     return (f.type || "").startsWith("audio/");
   };
 
+  /** false durante el primer paint: evita onChange → stemsUi.getRows() antes de asignar const */
+  let ready = false;
+
   const render = () => {
     if (!stemsList) return;
     if (!stemRows.length) {
       stemsList.innerHTML = `<p class="stems-empty">Aún no hay capas. Arrastra archivos arriba.</p>`;
-      opts.onChange?.();
+      if (ready) opts.onChange?.();
       return;
     }
     stemsList.innerHTML = stemRows
@@ -52,7 +55,7 @@ export function createStemsUi(opts: {
         render();
       });
     });
-    opts.onChange?.();
+    if (ready) opts.onChange?.();
   };
 
   const addFiles = (files: FileList | File[]) => {
@@ -119,6 +122,7 @@ export function createStemsUi(opts: {
 
   stemRows = [];
   render();
+  ready = true;
 
   return {
     getRows: () => stemRows,

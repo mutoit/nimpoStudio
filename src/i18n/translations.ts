@@ -156,6 +156,20 @@ export const translations = {
     productPriceFrom: "desde",
     productVersion: "v",
 
+    accountEyebrow: "Cliente",
+    accountTitle: "Tu cuenta",
+    accountLead:
+      "Introduce tu email de compra: te enviamos un enlace mágico para ver licencias y re-descargar.",
+    accountSendLink: "Enviar enlace",
+    accountLinkSent: "Revisa tu email (el enlace caduca en 30 min).",
+    accountLogout: "Cerrar sesión",
+    accountOrders: "Tus pedidos",
+    accountEmpty: "Aún no hay pedidos con este email.",
+    accountDownload: "Descargar",
+    accountLicense: "Licencia",
+    accountError: "No se pudo completar la acción.",
+    accountCheckoutOk: "Pago recibido. Revisa tu email y esta cuenta.",
+
     // Music detail
     musicBack: "← Volver a música",
     musicFormat: "Formato",
@@ -534,6 +548,20 @@ export const translations = {
     productPriceFrom: "from",
     productVersion: "v",
 
+    accountEyebrow: "Account",
+    accountTitle: "Your account",
+    accountLead:
+      "Enter your purchase email: we'll send a magic link to view licenses and re-download.",
+    accountSendLink: "Send link",
+    accountLinkSent: "Check your email (link expires in 30 min).",
+    accountLogout: "Log out",
+    accountOrders: "Your orders",
+    accountEmpty: "No orders for this email yet.",
+    accountDownload: "Download",
+    accountLicense: "License",
+    accountError: "Could not complete the action.",
+    accountCheckoutOk: "Payment received. Check your email and this account.",
+
     musicBack: "← Back to music",
     musicFormat: "Format",
     musicYear: "Year",
@@ -899,8 +927,20 @@ export const translations = {
     productFeedbackErr: "Échec de l'envoi. Réessayez.",
     productPriceFrom: "à partir de",
     productVersion: "v",
-    productPriceFrom: "à partir de",
-    productVersion: "v",
+
+    accountEyebrow: "Compte",
+    accountTitle: "Votre compte",
+    accountLead:
+      "Entrez l'email d'achat : nous envoyons un lien magique pour voir licences et re-télécharger.",
+    accountSendLink: "Envoyer le lien",
+    accountLinkSent: "Vérifiez votre email (lien valable 30 min).",
+    accountLogout: "Déconnexion",
+    accountOrders: "Vos commandes",
+    accountEmpty: "Aucune commande pour cet email.",
+    accountDownload: "Télécharger",
+    accountLicense: "Licence",
+    accountError: "Action impossible.",
+    accountCheckoutOk: "Paiement reçu. Vérifiez votre email et ce compte.",
 
     musicBack: "← Retour à la musique",
     musicFormat: "Format",

@@ -38,15 +38,20 @@ function publicProduct(p: ReturnType<typeof sanitizeSoftwareProduct>) {
         notes: p.demo.notes || "",
       }
     : { kind: "none" as const, url: null, notes: "" };
+  const { fullKey: _full, ...rest } = p;
   return {
-    ...p,
+    ...rest,
     demo,
     pricing: (p.pricing || []).map((plan) => ({
       id: plan.id,
       name: plan.name,
       priceEur: plan.priceEur,
       buyUrl: plan.buyUrl || null,
+      // stripePriceId public so client can call checkout (not secret)
+      stripePriceId: plan.stripePriceId || null,
+      checkoutReady: Boolean(plan.stripePriceId),
     })),
+    hasFullBuild: Boolean(p.fullKey && String(p.fullKey).includes("/full/")),
   };
 }
 

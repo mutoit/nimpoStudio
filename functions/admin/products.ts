@@ -156,32 +156,48 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const planName = clipText(form.get("planName"), 80);
   const priceEurRaw = String(form.get("priceEur") ?? "").trim();
   const buyUrl = clipText(form.get("buyUrl"), 500);
+  const stripePriceId = clipText(form.get("stripePriceId"), 80);
   const version = clipText(form.get("version"), 40);
 
   let totalBytes = 0;
   const putFile = async (
     file: File,
-    mediaRole: "image" | "video",
+    mediaRole: "image" | "video" | "bin",
     fileBase: string,
+    subdir?: string,
   ): Promise<string> => {
     const sizeErr = checkFileSize(file.size);
     if (sizeErr) throw new Error(sizeErr);
     totalBytes += file.size;
     const totalErr = checkTotalSize(totalBytes);
     if (totalErr) throw new Error(totalErr);
-    const ext = resolveExt(file.name, mediaRole);
+    let ext = resolveExt(file.name, mediaRole === "bin" ? "image" : mediaRole);
+    if (mediaRole === "bin") {
+      const n = file.name.toLowerCase();
+      const m = n.match(/\.([a-z0-9]{1,8})$/);
+      ext = m?.[1] || "bin";
+      // allow zip/exe/msi/dmg/7z
+      if (!/^(zip|7z|rar|exe|msi|dmg|pkg|tar|gz|tgz|appimage|bin)$/i.test(ext)) {
+        throw new Error("bad_extension:bin");
+      }
+    }
     if (!ext) throw new Error(`bad_extension:${mediaRole}`);
     const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
     const fileName = `${safeName(fileBase).slice(0, 40) || mediaRole}-${stamp}.${ext}`;
-    const key = `library/products/${slug}/${fileName}`;
+    const key = subdir
+      ? `library/products/${slug}/${subdir}/${fileName}`
+      : `library/products/${slug}/${fileName}`;
     const buf = await file.arrayBuffer();
     await bucket.put(key, buf, {
       httpMetadata: {
-        contentType: contentTypeForExt(ext),
-        cacheControl: "public, max-age=86400",
+        contentType:
+          mediaRole === "bin"
+            ? "application/octet-stream"
+            : contentTypeForExt(ext),
+        cacheControl: mediaRole === "bin" ? "private, no-store" : "public, max-age=86400",
       },
     });
-    return `/api/media/${key}`;
+    return mediaRole === "bin" ? key : `/api/media/${key}`;
   };
 
   try {
@@ -213,6 +229,21 @@ export async function onRequest(context: { request: Request; env: Env }) {
       video = await putFile(videoFile, "video", "video");
     }
 
+    let fullKey: string | null = existing?.fullKey ?? null;
+    const fullFile = form.get("full");
+    if (fullFile instanceof File && fullFile.size > 0) {
+      fullKey = await putFile(fullFile, "bin", "full", "full");
+    }
+
+    // Demo binary upload → public media under demo/
+    let demoUrlResolved = demoUrl || existing?.demo?.url || "";
+    const demoFile = form.get("demoFile");
+    if (demoFile instanceof File && demoFile.size > 0) {
+      const demoKey = await putFile(demoFile, "bin", "demo", "demo");
+      // putFile for bin returns raw key — expose via /api/media (demo/ allowed)
+      demoUrlResolved = `/api/media/${demoKey}`;
+    }
+
     const itemRaw: Record<string, unknown> = {
       id: existing?.id || productIdFromSlug(slug),
       slug,
@@ -227,12 +258,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
       formats: formats.length ? formats : existing?.formats || [],
       featured,
       demoKind,
-      demoUrl: demoUrl || existing?.demo?.url || "",
+      demoUrl: demoUrlResolved,
       demoNotes: demoNotes || existing?.demo?.notes || "",
       planName: planName || existing?.pricing?.[0]?.name || "Standard",
       priceEur: priceEurRaw !== "" ? priceEurRaw : existing?.pricing?.[0]?.priceEur ?? "",
       buyUrl: buyUrl || existing?.pricing?.[0]?.buyUrl || "",
+      stripePriceId: stripePriceId || existing?.pricing?.[0]?.stripePriceId || "",
       version: version || existing?.version || "",
+      fullKey,
       demo: existing?.demo,
       pricing: existing?.pricing,
     };

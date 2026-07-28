@@ -46,10 +46,12 @@ export type ProductDemo = {
 export type ProductPlan = {
   id: string;
   name: string;
-  /** Precio público en EUR (display). Stripe ids solo ola 2. */
+  /** Precio público en EUR (display). */
   priceEur: number | null;
-  /** CTA compra ola 1: Payment Link o vacío → mailto */
+  /** CTA compra fallback: Payment Link o vacío → checkout API / mailto */
   buyUrl?: string | null;
+  /** Stripe Price id (price_…) para Checkout ola 2 */
+  stripePriceId?: string | null;
 };
 
 export type SoftwareProduct = {
@@ -70,6 +72,11 @@ export type SoftwareProduct = {
   /** Planes / precios públicos (sin secrets). */
   pricing?: ProductPlan[];
   version?: string;
+  /**
+   * R2 key del binario full (library/products/{slug}/full/…).
+   * Nunca se expone en API pública.
+   */
+  fullKey?: string | null;
   updatedAt?: string;
 };
 
@@ -124,11 +131,16 @@ function sanitizePricing(raw: unknown, existing?: ProductPlan[]): ProductPlan[] 
       if (buyUrl && !/^https:\/\//i.test(buyUrl) && !buyUrl.startsWith("mailto:")) {
         buyUrl = "";
       }
+      let stripePriceId = String(o.stripePriceId || "").trim().slice(0, 80);
+      if (stripePriceId && !/^price_[a-zA-Z0-9]+$/.test(stripePriceId)) {
+        stripePriceId = "";
+      }
       return {
         id,
         name,
         priceEur,
         buyUrl: buyUrl || null,
+        stripePriceId: stripePriceId || null,
       } satisfies ProductPlan;
     })
     .filter((x): x is ProductPlan => x != null);
@@ -191,16 +203,22 @@ export function sanitizeSoftwareProduct(raw: unknown): SoftwareProduct | null {
 
   let pricing = sanitizePricing(o.pricing);
   // Flat form: priceEur + planName + buyUrl → single plan
-  if (o.priceEur != null || o.planName || o.buyUrl) {
+  if (o.priceEur != null || o.planName || o.buyUrl || o.stripePriceId) {
     const fromFlat = sanitizePricing([
       {
         id: o.planId || "standard",
         name: o.planName || "Standard",
         priceEur: o.priceEur,
         buyUrl: o.buyUrl,
+        stripePriceId: o.stripePriceId,
       },
     ]);
     if (fromFlat.length) pricing = fromFlat;
+  }
+
+  let fullKey = String(o.fullKey || "").trim();
+  if (fullKey && (!fullKey.startsWith("library/products/") || !fullKey.includes("/full/"))) {
+    fullKey = "";
   }
 
   return {
@@ -219,6 +237,7 @@ export function sanitizeSoftwareProduct(raw: unknown): SoftwareProduct | null {
     demo,
     pricing,
     version: clipText(o.version, 40) || undefined,
+    fullKey: fullKey || null,
     updatedAt:
       typeof o.updatedAt === "string" ? o.updatedAt.slice(0, 40) : undefined,
   };

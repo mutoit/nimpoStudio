@@ -91,6 +91,11 @@ export async function onRequest(context: {
     return bad(400, "invalid_key");
   }
 
+  // Binarios de pago: solo vía /api/download?token= (nunca público)
+  if (key.includes("/full/")) {
+    return bad(403, "forbidden_full_asset");
+  }
+
   // Tamaño: head si existe, si no get completo
   let size = 0;
   let contentType = "application/octet-stream";

@@ -129,6 +129,7 @@ const payload = {
           <div class="pb__actions" data-pb-actions>
             <a class="pb__btn pb__btn--ghost" data-pb-demo hidden target="_blank" rel="noopener">{t("productDemo")}</a>
             <button type="button" class="pb__btn pb__btn--ghost" data-pb-demo-request hidden>{t("productDemoRequest")}</button>
+            <button type="button" class="pb__btn pb__btn--gold" data-pb-checkout hidden>{t("productBuy")}</button>
             <a class="pb__btn pb__btn--gold" data-pb-buy hidden target="_blank" rel="noopener">{t("productBuy")}</a>
             <a class="pb__btn pb__btn--gold" data-pb-buy-mail hidden>{t("productBuyRequest")}</a>
             <button type="button" class="pb__btn pb__btn--ghost" data-pb-feedback>{t("productFeedback")}</button>
@@ -179,6 +180,8 @@ const payload = {
     name: string;
     priceEur: number | null;
     buyUrl?: string | null;
+    stripePriceId?: string | null;
+    checkoutReady?: boolean;
   };
 
   type Item = {
@@ -263,6 +266,7 @@ const payload = {
     const demoReqEl = root.querySelector("[data-pb-demo-request]");
     const buyEl = root.querySelector("[data-pb-buy]");
     const buyMailEl = root.querySelector("[data-pb-buy-mail]");
+    const checkoutEl = root.querySelector("[data-pb-checkout]");
     const feedbackBtn = root.querySelector("[data-pb-feedback]");
     const feedbackForm = root.querySelector("[data-pb-feedback-form]");
 
@@ -345,6 +349,32 @@ const payload = {
     }
 
     demoReqEl?.addEventListener("click", () => showFeedback("idea"));
+
+    checkoutEl?.addEventListener("click", async () => {
+      const item = items.find((x) => x.slug === activeSlug);
+      if (!item) return;
+      const plan = item.pricing?.[0];
+      if (checkoutEl instanceof HTMLButtonElement) checkoutEl.disabled = true;
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            productSlug: item.slug,
+            planId: plan?.id,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok || !data.url) {
+          throw new Error(data.message || data.error || `Error ${res.status}`);
+        }
+        window.location.href = data.url;
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Checkout error");
+      } finally {
+        if (checkoutEl instanceof HTMLButtonElement) checkoutEl.disabled = false;
+      }
+    });
 
     const stopVideos = () => {
       stageEl?.querySelectorAll("video").forEach((v) => {
@@ -471,10 +501,14 @@ const payload = {
         demoReqEl.hidden = demoKind !== "request";
       }
 
-      // Buy CTA
+      // Buy CTA: Checkout (stripe price) → Payment Link → mailto
       const buyUrl = plan?.buyUrl ? String(plan.buyUrl).trim() : "";
+      const canCheckout = Boolean(plan?.stripePriceId || plan?.checkoutReady);
+      if (checkoutEl instanceof HTMLElement) {
+        checkoutEl.hidden = !canCheckout;
+      }
       if (buyEl instanceof HTMLAnchorElement) {
-        if (buyUrl && /^https:\/\//i.test(buyUrl)) {
+        if (!canCheckout && buyUrl && /^https:\/\//i.test(buyUrl)) {
           buyEl.hidden = false;
           buyEl.href = buyUrl;
           buyEl.textContent = L.buy || "Buy";
@@ -484,7 +518,7 @@ const payload = {
         }
       }
       if (buyMailEl instanceof HTMLAnchorElement) {
-        if (!buyUrl || !/^https:\/\//i.test(buyUrl)) {
+        if (!canCheckout && (!buyUrl || !/^https:\/\//i.test(buyUrl))) {
           buyMailEl.hidden = false;
           const subj = encodeURIComponent(`Compra / buy: ${item.name}`);
           const body = encodeURIComponent(
@@ -629,6 +663,8 @@ const payload = {
                   ? null
                   : Number(o.priceEur),
               buyUrl: o.buyUrl != null ? String(o.buyUrl) : null,
+              stripePriceId: o.stripePriceId != null ? String(o.stripePriceId) : null,
+              checkoutReady: Boolean(o.checkoutReady || o.stripePriceId),
             } satisfies PlanInfo;
           })
           .filter((x): x is PlanInfo => x != null),

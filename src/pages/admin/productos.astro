@@ -15,6 +15,7 @@ import Layout from "../../components/Layout.astro";
       </div>
       <div class="head__actions">
         <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
+        <a class="btn btn--ghost" href="/admin/pedidos/">Pedidos</a>
         <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
       </div>
     </header>
@@ -123,9 +124,22 @@ import Layout from "../../components/Layout.astro";
             </label>
           </div>
           <label>
-            URL compra (Stripe Payment Link https… · vacío = mailto)
+            URL compra fallback (Payment Link https… · vacío = Checkout API o mailto)
             <input name="buyUrl" data-buy-url maxlength="500" placeholder="https://buy.stripe.com/…" />
           </label>
+          <label>
+            Stripe Price ID (price_… → Checkout)
+            <input name="stripePriceId" data-stripe-price maxlength="80" placeholder="price_…" />
+          </label>
+          <label>
+            Demo file (zip, opcional — se publica en demo/)
+            <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-demo-file />
+          </label>
+          <label>
+            Full build (zip — privado full/, solo post-pago)
+            <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-full-file />
+          </label>
+          <p class="lead lead--sm" data-full-status hidden></p>
 
           <label>
             Imágenes / GIF (hasta 8)
@@ -184,8 +198,15 @@ import Layout from "../../components/Layout.astro";
     formats?: string[];
     featured?: boolean;
     version?: string;
+    fullKey?: string | null;
     demo?: { kind?: string; url?: string | null; notes?: string };
-    pricing?: { id?: string; name?: string; priceEur?: number | null; buyUrl?: string | null }[];
+    pricing?: {
+      id?: string;
+      name?: string;
+      priceEur?: number | null;
+      buyUrl?: string | null;
+      stripePriceId?: string | null;
+    }[];
   };
 
   let editingSlug: string | null = null;
@@ -308,6 +329,17 @@ import Layout from "../../components/Layout.astro";
     set("[data-plan-name]", plan?.name || "Standard");
     set("[data-price-eur]", plan?.priceEur != null ? String(plan.priceEur) : "");
     set("[data-buy-url]", plan?.buyUrl || "");
+    set("[data-stripe-price]", plan?.stripePriceId || "");
+    const fullSt = document.querySelector("[data-full-status]");
+    if (fullSt instanceof HTMLElement) {
+      if (item.fullKey) {
+        fullSt.hidden = false;
+        fullSt.textContent = `Full en R2: ${item.fullKey.split("/").pop()}`;
+      } else {
+        fullSt.hidden = true;
+        fullSt.textContent = "";
+      }
+    }
 
     form?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -410,8 +442,14 @@ import Layout from "../../components/Layout.astro";
       body.set("planName", String(fd.get("planName") || "Standard").trim());
       body.set("priceEur", String(fd.get("priceEur") || "").trim());
       body.set("buyUrl", String(fd.get("buyUrl") || "").trim());
+      body.set("stripePriceId", String(fd.get("stripePriceId") || "").trim());
       if (fd.get("featured") === "1" || fd.get("featured") === "on") body.set("featured", "1");
       if (fd.get("replaceMedia") === "1") body.set("replaceMedia", "1");
+
+      const demoFile = form.querySelector("[data-demo-file]") as HTMLInputElement | null;
+      if (demoFile?.files?.[0]) body.set("demoFile", demoFile.files[0]);
+      const fullFile = form.querySelector("[data-full-file]") as HTMLInputElement | null;
+      if (fullFile?.files?.[0]) body.set("full", fullFile.files[0]);
 
       const images = form.querySelector("[data-images]") as HTMLInputElement | null;
       if (images?.files?.length) {

@@ -1,0 +1,304 @@
+---
+/**
+ * Admin pedidos / licencias (commerce ola 2–3).
+ */
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Admin pedidos" description="Pedidos y licencias" lang="es">
+  <div class="container admin">
+    <header class="head">
+      <div>
+        <p class="eyebrow">Privado · commerce</p>
+        <h1>Pedidos y licencias</h1>
+      </div>
+      <div class="head__actions">
+        <a class="btn btn--ghost" href="/admin/productos/">Productos</a>
+        <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
+        <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
+      </div>
+    </header>
+    <p class="lead">
+      Stripe webhook → pedido paid + key. Reenvía descarga o revoca licencias.
+      <span data-stripe-flag></span>
+    </p>
+    <p class="status" data-status hidden></p>
+    <div class="toolbar">
+      <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
+    </div>
+    <section>
+      <h2 class="subhead">Pedidos</h2>
+      <div class="table-wrap" data-orders><p class="empty">Cargando…</p></div>
+    </section>
+    <section>
+      <h2 class="subhead">Licencias</h2>
+      <div class="table-wrap" data-licenses><p class="empty">Cargando…</p></div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  const statusEl = document.querySelector("[data-status]");
+  const setStatus = (msg: string, ok = true) => {
+    if (!(statusEl instanceof HTMLElement)) return;
+    statusEl.hidden = false;
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("is-err", !ok);
+  };
+
+  document.querySelector("[data-logout]")?.addEventListener("click", async () => {
+    await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
+    location.href = "/admin/pedidos/";
+  });
+
+  type Order = {
+    id: string;
+    email: string;
+    productName: string;
+    productSlug: string;
+    planName: string;
+    amountEur: number | null;
+    status: string;
+    licenseKey?: string;
+    paidAt?: string;
+    createdAt: string;
+  };
+  type Lic = {
+    key: string;
+    productSlug: string;
+    email: string;
+    planId: string;
+    seats: number;
+    activations: { machineId: string }[];
+    revoked: boolean;
+    createdAt: string;
+  };
+
+  const load = async () => {
+    const ordersEl = document.querySelector("[data-orders]");
+    const licEl = document.querySelector("[data-licenses]");
+    try {
+      const res = await fetch("/admin/orders", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      const flag = document.querySelector("[data-stripe-flag]");
+      if (flag) {
+        flag.textContent = data.stripeConfigured
+          ? "Stripe: configurado."
+          : "Stripe: falta STRIPE_SECRET_KEY.";
+      }
+      const orders = (data.orders || []) as Order[];
+      const licenses = (data.licenses || []) as Lic[];
+
+      if (ordersEl instanceof HTMLElement) {
+        if (!orders.length) {
+          ordersEl.innerHTML = `<p class="empty">Sin pedidos aún.</p>`;
+        } else {
+          ordersEl.innerHTML = `<table class="tbl">
+            <thead><tr><th>Fecha</th><th>Email</th><th>Producto</th><th>Plan</th><th>€</th><th>Key</th><th></th></tr></thead>
+            <tbody>
+            ${orders
+              .map((o) => {
+                const d = (o.paidAt || o.createdAt || "").slice(0, 10);
+                return `<tr>
+                  <td>${d}</td>
+                  <td>${o.email}</td>
+                  <td>${o.productName}<br/><code>${o.productSlug}</code></td>
+                  <td>${o.planName}<br/><span class="pill">${o.status}</span></td>
+                  <td>${o.amountEur != null ? o.amountEur : "—"}</td>
+                  <td><code>${o.licenseKey || "—"}</code></td>
+                  <td><button type="button" class="btn btn--sm" data-fulfill="${o.id}">Reenviar</button></td>
+                </tr>`;
+              })
+              .join("")}
+            </tbody></table>`;
+          ordersEl.querySelectorAll("[data-fulfill]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const orderId = (btn as HTMLElement).dataset.fulfill || "";
+              try {
+                const r = await fetch("/admin/orders", {
+                  method: "POST",
+                  credentials: "same-origin",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "fulfill", orderId }),
+                });
+                const j = await r.json();
+                if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+                setStatus(j.message || "OK");
+              } catch (e) {
+                setStatus(e instanceof Error ? e.message : "Error", false);
+              }
+            });
+          });
+        }
+      }
+
+      if (licEl instanceof HTMLElement) {
+        if (!licenses.length) {
+          licEl.innerHTML = `<p class="empty">Sin licencias.</p>`;
+        } else {
+          licEl.innerHTML = `<table class="tbl">
+            <thead><tr><th>Key</th><th>Email</th><th>Producto</th><th>Seats</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            ${licenses
+              .map((l) => {
+                return `<tr class="${l.revoked ? "is-revoked" : ""}">
+                  <td><code>${l.key}</code></td>
+                  <td>${l.email}</td>
+                  <td><code>${l.productSlug}</code></td>
+                  <td>${l.activations?.length || 0}/${l.seats}</td>
+                  <td>${l.revoked ? "revocada" : "activa"}</td>
+                  <td>${
+                    l.revoked
+                      ? ""
+                      : `<button type="button" class="btn btn--sm btn--danger" data-revoke="${l.key}">Revocar</button>`
+                  }</td>
+                </tr>`;
+              })
+              .join("")}
+            </tbody></table>`;
+          licEl.querySelectorAll("[data-revoke]").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const key = (btn as HTMLElement).dataset.revoke || "";
+              if (!confirm(`¿Revocar ${key}?`)) return;
+              try {
+                const r = await fetch("/admin/orders", {
+                  method: "POST",
+                  credentials: "same-origin",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "revoke", key }),
+                });
+                const j = await r.json();
+                if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+                setStatus(j.message || "Revocada");
+                await load();
+              } catch (e) {
+                setStatus(e instanceof Error ? e.message : "Error", false);
+              }
+            });
+          });
+        }
+      }
+    } catch (e) {
+      if (ordersEl instanceof HTMLElement) {
+        ordersEl.innerHTML = `<p class="empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  document.querySelector("[data-refresh]")?.addEventListener("click", () => void load());
+  void load();
+</script>
+
+<style>
+  .admin {
+    padding-block: 2rem 4rem;
+    max-width: 72rem;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent-dim);
+  }
+  h1 {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.85rem;
+    font-weight: 500;
+  }
+  .lead {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+  .subhead {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    margin: 1.5rem 0 0.75rem;
+  }
+  .toolbar {
+    margin: 0.75rem 0;
+  }
+  .status {
+    color: var(--color-accent);
+  }
+  .status.is-err {
+    color: #f0a0a0;
+  }
+  .empty {
+    color: var(--color-muted);
+    font-size: 0.88rem;
+  }
+  .empty.is-err {
+    color: #f0a0a0;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .tbl th,
+  .tbl td {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+  }
+  .tbl th {
+    color: var(--color-muted);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .tbl tr.is-revoked {
+    opacity: 0.55;
+  }
+  code {
+    font-size: 0.75rem;
+  }
+  .pill {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .btn {
+    display: inline-flex;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: inherit;
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn--sm {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.55rem;
+  }
+  .btn--ghost {
+    background: transparent;
+  }
+  .btn--danger {
+    color: #f0a0a0;
+  }
+</style>

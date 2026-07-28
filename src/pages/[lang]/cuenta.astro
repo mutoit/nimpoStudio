@@ -1,0 +1,345 @@
+---
+/**
+ * Área cliente: magic link + pedidos + re-descarga.
+ */
+import Layout from "../../components/Layout.astro";
+import type { Locale } from "../../i18n/translations";
+import { useTranslations } from "../../lib/locale";
+
+export function getStaticPaths() {
+  return [{ params: { lang: "es" } }, { params: { lang: "en" } }, { params: { lang: "fr" } }];
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = useTranslations(lang);
+
+const labels = {
+  title: t("accountTitle"),
+  lead: t("accountLead"),
+  email: t("quoteEmail"),
+  send: t("accountSendLink"),
+  sent: t("accountLinkSent"),
+  logout: t("accountLogout"),
+  orders: t("accountOrders"),
+  empty: t("accountEmpty"),
+  download: t("accountDownload"),
+  license: t("accountLicense"),
+  err: t("accountError"),
+  checkoutOk: t("accountCheckoutOk"),
+};
+---
+
+<Layout title={t("accountTitle")} description={t("accountLead")} lang={lang}>
+  <div class="container account" data-account-root data-labels={JSON.stringify(labels)}>
+    <header class="hero">
+      <p class="hero__eyebrow">{t("accountEyebrow")}</p>
+      <h1 class="hero__title">{t("accountTitle")}</h1>
+      <p class="hero__desc">{t("accountLead")}</p>
+    </header>
+
+    <p class="banner" data-banner hidden></p>
+
+    <section class="card" data-login>
+      <form class="form" data-magic-form>
+        <label>
+          {t("quoteEmail")}
+          <input type="email" name="email" required autocomplete="email" data-email />
+        </label>
+        <button type="submit" class="btn btn--gold" data-magic-submit>{t("accountSendLink")}</button>
+      </form>
+      <p class="status" data-login-status hidden></p>
+    </section>
+
+    <section class="card" data-panel hidden>
+      <div class="panel-head">
+        <p data-user-email></p>
+        <button type="button" class="btn btn--ghost" data-logout>{t("accountLogout")}</button>
+      </div>
+      <h2 class="sub">{t("accountOrders")}</h2>
+      <div data-orders-list>
+        <p class="muted">{t("accountEmpty")}</p>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  type Labels = Record<string, string>;
+
+  function bind(root: HTMLElement) {
+    if (root.dataset.bound === "1") return;
+    root.dataset.bound = "1";
+    let L: Labels = {};
+    try {
+      L = JSON.parse(root.dataset.labels || "{}");
+    } catch {
+      /* */
+    }
+
+    const login = root.querySelector("[data-login]");
+    const panel = root.querySelector("[data-panel]");
+    const banner = root.querySelector("[data-banner]");
+    const loginStatus = root.querySelector("[data-login-status]");
+    const ordersList = root.querySelector("[data-orders-list]");
+    const userEmail = root.querySelector("[data-user-email]");
+
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get("checkout") === "success" && banner instanceof HTMLElement) {
+        banner.hidden = false;
+        banner.textContent = L.checkoutOk || "Pago recibido. Revisa tu email y esta cuenta.";
+        banner.classList.add("is-ok");
+      }
+      if (u.searchParams.get("e") === "magic" && banner instanceof HTMLElement) {
+        banner.hidden = false;
+        banner.textContent = L.err || "Enlace inválido o caducado.";
+        banner.classList.add("is-err");
+      }
+    } catch {
+      /* */
+    }
+
+    const paintSession = async () => {
+      try {
+        const res = await fetch("/api/account/session", { credentials: "same-origin" });
+        const data = await res.json();
+        if (!data?.authenticated) {
+          if (login instanceof HTMLElement) login.hidden = false;
+          if (panel instanceof HTMLElement) panel.hidden = true;
+          return;
+        }
+        if (login instanceof HTMLElement) login.hidden = true;
+        if (panel instanceof HTMLElement) panel.hidden = false;
+        if (userEmail) userEmail.textContent = data.email;
+        const orders = Array.isArray(data.orders) ? data.orders : [];
+        if (!(ordersList instanceof HTMLElement)) return;
+        if (!orders.length) {
+          ordersList.innerHTML = `<p class="muted">${L.empty || "—"}</p>`;
+          return;
+        }
+        ordersList.innerHTML = orders
+          .map((o: Record<string, unknown>) => {
+            const name = String(o.productName || o.productSlug || "");
+            const key = String(o.licenseKey || "");
+            const slug = String(o.productSlug || "");
+            const hasFull = Boolean(o.hasFullBuild);
+            const dl = hasFull
+              ? `<button type="button" class="btn btn--sm btn--gold" data-dl-key="${key}" data-dl-slug="${slug}">${L.download || "Download"}</button>`
+              : `<span class="muted">—</span>`;
+            return `<article class="order">
+              <div>
+                <strong>${name}</strong>
+                <p class="muted">${String(o.planName || "")} · ${String(o.paidAt || "").slice(0, 10)}</p>
+                <p class="key">${L.license || "License"}: <code>${key}</code></p>
+              </div>
+              <div>${dl}</div>
+            </article>`;
+          })
+          .join("");
+
+        ordersList.querySelectorAll("[data-dl-key]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const licenseKey = (btn as HTMLElement).dataset.dlKey || "";
+            const productSlug = (btn as HTMLElement).dataset.dlSlug || "";
+            try {
+              const r = await fetch("/api/download", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ licenseKey, productSlug }),
+              });
+              const j = await r.json();
+              if (!r.ok || !j.ok || !j.url) throw new Error(j.error || "download_failed");
+              window.location.href = j.url;
+            } catch (e) {
+              alert(e instanceof Error ? e.message : L.err || "Error");
+            }
+          });
+        });
+      } catch {
+        /* */
+      }
+    };
+
+    root.querySelector("[data-magic-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = String(
+        (root.querySelector("[data-email]") as HTMLInputElement | null)?.value || "",
+      ).trim();
+      const submit = root.querySelector("[data-magic-submit]");
+      if (submit instanceof HTMLButtonElement) submit.disabled = true;
+      if (loginStatus instanceof HTMLElement) {
+        loginStatus.hidden = false;
+        loginStatus.textContent = "…";
+      }
+      try {
+        const res = await fetch("/api/account/magic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+        if (loginStatus instanceof HTMLElement) {
+          loginStatus.textContent = L.sent || data.message || "OK";
+          loginStatus.classList.add("is-ok");
+        }
+      } catch (err) {
+        if (loginStatus instanceof HTMLElement) {
+          loginStatus.textContent = err instanceof Error ? err.message : L.err || "Error";
+          loginStatus.classList.add("is-err");
+        }
+      } finally {
+        if (submit instanceof HTMLButtonElement) submit.disabled = false;
+      }
+    });
+
+    root.querySelector("[data-logout]")?.addEventListener("click", async () => {
+      await fetch("/api/account/session", { method: "DELETE", credentials: "same-origin" });
+      location.reload();
+    });
+
+    void paintSession();
+  }
+
+  const init = () => {
+    document.querySelectorAll("[data-account-root]").forEach((el) => {
+      if (el instanceof HTMLElement) bind(el);
+    });
+  };
+  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("astro:page-load", init);
+</script>
+
+<style>
+  .account {
+    max-width: 36rem;
+    padding-block: 2rem 4rem;
+  }
+  .hero__eyebrow {
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  .hero__title {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 500;
+  }
+  .hero__desc {
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+  .banner {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    margin-bottom: 1rem;
+  }
+  .banner.is-ok {
+    border-color: rgb(100 200 140 / 0.4);
+    color: #b8f0c8;
+  }
+  .banner.is-err {
+    border-color: rgb(240 100 100 / 0.4);
+    color: #f0a0a0;
+  }
+  .card {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    padding: 1.15rem 1.25rem;
+  }
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .form input {
+    font: inherit;
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated, #121218);
+    color: var(--color-fg);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    font: inherit;
+    cursor: pointer;
+    color: inherit;
+  }
+  .btn--gold {
+    background: var(--color-accent);
+    color: #0a0a0c;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn--ghost {
+    background: transparent;
+  }
+  .btn--sm {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.65rem;
+  }
+  .status {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+  .status.is-ok {
+    color: #9ff0bc;
+  }
+  .status.is-err {
+    color: #f0a0a0;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .sub {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    margin: 0 0 0.75rem;
+  }
+  .muted {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+  .order {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .order:first-child {
+    border-top: none;
+  }
+  .key {
+    font-size: 0.8rem;
+  }
+  code {
+    font-size: 0.78rem;
+  }
+</style>

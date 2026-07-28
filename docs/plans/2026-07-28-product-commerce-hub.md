@@ -4,28 +4,33 @@ source: direct
 tier: L
 date: 2026-07-28
 slug: product-commerce-hub
-repro: "Hub producto: demo + compra + feedback centralizados y escalables"
+repro: "Hub producto: demo + compra + feedback + checkout + cuenta"
 ---
 
-# Plan L — Hub de productos (Ola 1 done)
+# Plan L — Hub de productos (Olas 1–3 done)
 
-## Ola 1 implementada
+## Implementado
 
-- Schema `SoftwareProduct`: `demo`, `pricing`, `version`
-- Admin `/admin/productos/`: campos demo/precio/buyUrl
-- `GET /api/products` + `?slug=` (sin paths `full/`)
-- `POST /api/feedback` → mail estudio
-- ProductsBrowser: CTAs Demo / Comprar / Feedback + form
+### Ola 1
+- Schema demo + pricing + version
+- Feedback API + hub CTAs
 
-## Ola 2/3 (pendiente)
+### Ola 2
+- POST `/api/checkout` (Stripe Session)
+- POST `/api/webhooks/stripe` → order paid + license key + email
+- GET/POST `/api/download` token firmado
+- Media `/full/` → 403
+- Admin full/demo upload + stripePriceId
+- Store R2 `catalog/commerce/orders.json` + `licenses.json`
 
-- Stripe Checkout + webhook · D1 orders/licenses · download firmado · `/cuenta` · activate API
+### Ola 3
+- `/[lang]/cuenta/` magic link
+- POST `/api/license/activate`
+- Admin `/admin/pedidos/` revocar / reenviar
 
-## Verify Ola 1
+## Secrets Pages
 
-1. Admin guarda demo/pricing → GET `/api/products` lo devuelve  
-2. Catálogo: CTAs en ficha  
-3. Feedback → 200 + mail/log  
-4. Rate limit feedback  
-5. `npm run build` OK  
-6. Sin `full/` en API pública  
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `DOWNLOAD_SECRET` (opcional), mail secrets ya existentes.
+
+Webhook URL: `https://nimpo3dstudio.com/api/webhooks/stripe`  
+Event: `checkout.session.completed`

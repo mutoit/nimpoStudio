@@ -103,23 +103,25 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] UX móvil modal/formulario (densidad, desplegables, safe-area, hamburguesa) — re-QA en dispositivo real si hace falta
 - [ ] Bloque **testimonios / valoraciones** (cuando haya casos reales; ver ESTRATEGIA-LANZAMIENTO)
 
-### Fase A hub productos (2026-07-28) — hecha
-- [x] Schema producto: `demo` (none|download|web|request) + `pricing[]` + `version`
-- [x] Admin productos: campos demo/precio/buyUrl
-- [x] GET `/api/products?slug=` detail + list con demo/pricing públicos (sin `full/`)
-- [x] POST `/api/feedback` (bug/idea/complaint/other + productSlug) → mail estudio
-- [x] ProductsBrowser hub: Demo / Comprar (Payment Link o mailto) / Feedback en ficha
+### Fase A–C hub productos / commerce (2026-07-28) — hecha
+- [x] Schema producto: `demo` + `pricing[]` + `version` + `fullKey` + `stripePriceId`
+- [x] Admin productos: demo file, full build privado, Stripe price
+- [x] GET `/api/products?slug=` (sin `full/` en público)
+- [x] POST `/api/feedback`
+- [x] ProductsBrowser: Demo / Checkout / Feedback
+- [x] POST `/api/checkout` (Stripe Session)
+- [x] POST `/api/webhooks/stripe` → order + license key + mail
+- [x] GET/POST `/api/download` (token firmado; `/full/` bloqueado en media)
+- [x] Commerce store R2 `catalog/commerce/*` (D1 schema opcional en migrations/)
+- [x] `/es/cuenta/` magic link + re-descarga
+- [x] POST `/api/license/activate` (seats + machineId)
+- [x] Admin `/admin/pedidos/` listar / revocar / reenviar
 
-### Fase 2 — Venta / entrega automática
-- [ ] Stripe Checkout + webhook (ola 2)
-- [ ] D1 pedidos + license keys
-- [ ] Enlace descarga **masters** firmado (R2 `full/` privado)
-- [ ] Email confirmación compra con key
-- [ ] Botón comprar licencia musical (hoy: cotizar + contacto)
-
-### Fase 2b — Área cliente
-- [ ] `/cuenta` — mis compras, magic link, re-descarga
-- [ ] Activación key online (ola 3)
+### Pendiente ops (tú)
+- [ ] Secrets Pages: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `DOWNLOAD_SECRET` (o reusa session secret)
+- [ ] Webhook Stripe → `https://nimpo3dstudio.com/api/webhooks/stripe` event `checkout.session.completed`
+- [ ] Price IDs Stripe en cada plan de producto (admin)
+- [ ] Subir full build en admin productos
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

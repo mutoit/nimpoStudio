@@ -110,7 +110,9 @@ export async function onRequest(context: {
   if (!title) return json({ ok: false, error: "missing_title" }, 400);
 
   const slug = safeSlug(String(form.get("slug") || ""), title);
-  const kind = String(form.get("kind") || "video") === "stems" ? "stems" : "video";
+  // Canal admin o presencia de stems → siempre clasificar como stems
+  const kindFromForm = String(form.get("kind") || "video") === "stems" ? "stems" : "video";
+  let kind: "stems" | "video" = kindFromForm;
   const aspect = safeAspect(String(form.get("aspect") || "1:1"));
   const publicBase = "/api/media";
 
@@ -251,6 +253,11 @@ export async function onRequest(context: {
       preview = await putFile("preview", previewFile as File, "audio", `${slug}-preview`);
     }
 
+    // Si hay capas de audio, forzar kind stems (clasificación canónica)
+    if (Array.isArray(stems) && stems.length > 0) {
+      kind = "stems";
+    }
+
     const item = {
       id: existing?.id || safeItemId(slug),
       slug,
@@ -261,6 +268,7 @@ export async function onRequest(context: {
       video,
       preview,
       stems,
+      hasStems: Array.isArray(stems) && stems.length > 0,
       tags,
       moods,
       filterMoods,

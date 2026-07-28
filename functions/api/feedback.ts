@@ -1,10 +1,11 @@
 /**
  * POST /api/feedback — bug / idea / complaint / other → email estudio.
- * Reusa patrones de quote (cors, rate limit, turnstile, mail worker).
+ * Mail: sendStudioMail (canónico). CORS/rate/turnstile locales.
  */
 
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
 import { verifyTurnstile } from "../lib/turnstile";
+import { sendStudioMail, type MailEnv } from "../lib/send-mail";
 
 type FeedbackBody = {
   productSlug?: string;
@@ -15,15 +16,7 @@ type FeedbackBody = {
   turnstileToken?: string;
 };
 
-type Env = {
-  RESEND_API_KEY?: string;
-  CLOUDFLARE_API_TOKEN?: string;
-  CLOUDFLARE_ACCOUNT_ID?: string;
-  QUOTE_TO_EMAIL?: string;
-  QUOTE_FROM_EMAIL?: string;
-  MAIL_SECRET?: string;
-  MAIL_WORKER_URL?: string;
-  MAIL?: { fetch: (input: RequestInfo, init?: RequestInit) => Promise<Response> };
+type Env = MailEnv & {
   TURNSTILE_SECRET_KEY?: string;
   RATE_LIMIT_KV?: RateLimitKv;
 };
@@ -74,85 +67,6 @@ function json(
     }
   }
   return new Response(JSON.stringify(data), { status, headers });
-}
-
-async function sendViaMailWorker(
-  env: Env,
-  opts: { to: string[]; subject: string; text: string; replyTo?: string },
-): Promise<{ ok: boolean; error?: string }> {
-  const payload = JSON.stringify({
-    to: opts.to,
-    subject: opts.subject,
-    text: opts.text,
-    replyTo: opts.replyTo,
-    from: "contacto@nimpo3dstudio.com",
-    fromName: "Nimpo 3D Studio",
-  });
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (env.MAIL_SECRET) headers["X-Mail-Secret"] = env.MAIL_SECRET;
-
-  if (env.MAIL) {
-    try {
-      const res = await env.MAIL.fetch("https://mail.internal/send", {
-        method: "POST",
-        headers,
-        body: payload,
-      });
-      if (res.ok) return { ok: true };
-    } catch {
-      /* fall through */
-    }
-  }
-
-  const url = env.MAIL_WORKER_URL || "https://nimpo-mail.nosinfantasia.workers.dev/";
-  if (!env.MAIL_SECRET) return { ok: false, error: "no_mail_secret" };
-  try {
-    const res = await fetch(url, { method: "POST", headers, body: payload });
-    if (!res.ok) return { ok: false, error: `mail_http_${res.status}` };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "mail_http_network" };
-  }
-}
-
-async function sendResend(
-  env: Env,
-  opts: { to: string[]; subject: string; text: string; replyTo?: string },
-): Promise<{ ok: boolean; error?: string }> {
-  const key = env.RESEND_API_KEY;
-  if (!key) return { ok: false, error: "no_resend_key" };
-  const from = env.QUOTE_FROM_EMAIL || "Nimpo 3D Studio <onboarding@resend.dev>";
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: opts.to,
-        subject: opts.subject,
-        text: opts.text,
-        reply_to: opts.replyTo,
-      }),
-    });
-    if (!res.ok) return { ok: false, error: `resend_${res.status}` };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "resend_network" };
-  }
-}
-
-async function sendEmail(
-  env: Env,
-  opts: { to: string[]; subject: string; text: string; replyTo?: string },
-) {
-  const viaWorker = await sendViaMailWorker(env, opts);
-  if (viaWorker.ok) return viaWorker;
-  const viaResend = await sendResend(env, opts);
-  if (viaResend.ok) return viaResend;
-  return { ok: false, error: viaWorker.error || viaResend.error || "no_email_provider" };
 }
 
 export async function onRequest(context: { request: Request; env: Env }) {
@@ -248,10 +162,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   console.log(
     "[FEEDBACK]",
-    JSON.stringify({ type, productSlug: productSlug || undefined, email, time: new Date().toISOString() }),
+    JSON.stringify({
+      type,
+      productSlug: productSlug || undefined,
+      email,
+      time: new Date().toISOString(),
+    }),
   );
 
-  const mail = await sendEmail(env, {
+  const mail = await sendStudioMail(env, {
     to: [toStudio],
     subject,
     text,

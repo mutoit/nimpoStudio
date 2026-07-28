@@ -82,14 +82,21 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const whSecret = String(env.STRIPE_WEBHOOK_SECRET || "").trim();
   const sig = request.headers.get("Stripe-Signature");
 
-  if (whSecret) {
-    const valid = await stripeVerify(whSecret, payload, sig);
-    if (!valid) {
-      console.warn("[stripe-webhook] invalid signature");
-      return json({ ok: false, error: "invalid_signature" }, 400);
-    }
-  } else {
-    console.warn("[stripe-webhook] STRIPE_WEBHOOK_SECRET missing — accepting unsigned (dev only)");
+  if (!whSecret || whSecret.length < 16) {
+    console.error("[stripe-webhook] STRIPE_WEBHOOK_SECRET missing — refuse");
+    return json(
+      {
+        ok: false,
+        error: "webhook_not_configured",
+        message: "Configura STRIPE_WEBHOOK_SECRET en Pages secrets.",
+      },
+      503,
+    );
+  }
+  const valid = await stripeVerify(whSecret, payload, sig);
+  if (!valid) {
+    console.warn("[stripe-webhook] invalid signature");
+    return json({ ok: false, error: "invalid_signature" }, 400);
   }
 
   let event: {

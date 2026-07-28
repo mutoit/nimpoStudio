@@ -447,16 +447,27 @@ export function bindLibraryBrowser() {
         }
       };
 
+      /** ids de ítem pueden ser lib-slug o slug; stemsTx guarda item.id del load */
+      const stemsLoadedForActive = () => {
+        if (!active) return false;
+        const loaded = stemsTx.loadedItemId;
+        if (!loaded) return false;
+        const ids = [active.id, safeDomId(active.id), active.slug, safeDomId(active.slug || "")]
+          .map(String)
+          .filter(Boolean);
+        return ids.includes(String(loaded));
+      };
+
+      /**
+       * Aplica mute de checkboxes al StemTransport.
+       * P: modal abierto + stems cargados para active.
+       * Q: gain por capa según checked. Empty Set = todas mute.
+       * Nunca pasar null por “vacío” (null = todas ON en applyMix).
+       */
       const applyStemMixFromUi = () => {
         const modalOpen =
-          overlay instanceof HTMLElement &&
-          !overlay.hidden &&
-          !!active &&
-          stemsTx.loadedItemId === active.id;
-        if (!modalOpen) {
-          stemsTx.applyMix(null);
-          return;
-        }
+          overlay instanceof HTMLElement && !overlay.hidden && !!active;
+        if (!modalOpen || !stemsLoadedForActive()) return;
         const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]");
         const on = new Set(
           [...checks]
@@ -464,7 +475,7 @@ export function bindLibraryBrowser() {
             .map((c) => normSrc(c.dataset.stemSrc || ""))
             .filter(Boolean),
         );
-        stemsTx.applyMix(on.size ? on : null);
+        stemsTx.applyMix(on);
       };
 
       const showStemError = (msg: string, kind: "err" | "info" = "err") => {
@@ -503,8 +514,11 @@ export function bindLibraryBrowser() {
         }
       };
 
-      /** Play industria: 1 preview URL. Stems = solo mixer (modal con capas). */
-      const { playPreviewOrStems } = createPlaySession({
+      /**
+       * Grid: preview 1 archivo (rápido).
+       * Modal con capas: StemTransport multi-track (checkboxes reales).
+       */
+      const { playPreviewOrStems, playStems } = createPlaySession({
         previewPlayer,
         stemsTx,
         abortPlay,
@@ -532,8 +546,28 @@ export function bindLibraryBrowser() {
         applyStemMixFromUi,
       });
 
+      /** Toggle checkbox: garantiza modo stems y aplica mute. */
       const onStemMixChange = () => {
-        applyStemMixFromUi();
+        void (async () => {
+          if (!(overlay instanceof HTMLElement) || overlay.hidden || !active) return;
+          let full = active;
+          if (!full.stems?.length && (full.hasStems || full.kind === "stems")) {
+            const d = await ensureDetail(full);
+            if (d) {
+              full = d;
+              active = d;
+            }
+          }
+          if (!full.stems?.length) return;
+
+          if (!stemsLoadedForActive()) {
+            // Estaba en preview mono o idle → cargar capas reales
+            previewPlayer.stop();
+            const modalPlayId = "modal-" + full.id;
+            await playStems(full, modalPlayId);
+          }
+          applyStemMixFromUi();
+        })();
       };
 
       const seekToRatio = async (ratio: number): Promise<boolean> => {
@@ -1160,26 +1194,22 @@ export function bindLibraryBrowser() {
           return;
         }
         void stemsTx.resumeCtx();
-        // Modal: prefer preview; si el usuario tiene mixer de stems y quiere capas,
-        // el preview sigue siendo el default (rápido). Stems al mutear capas vía Web Audio
-        // solo si no hay preview.
+        // Modal: si hay capas → siempre multi-stem (mute por checkbox).
+        // Grid sigue usando preview 1 archivo.
         void (async () => {
           let full = active!;
-          if (!safeMediaUrl(full.preview) || (full.hasStems && !full.stems?.length)) {
+          if (
+            !full.stems?.length &&
+            (full.hasStems || full.kind === "stems" || safeMediaUrl(full.preview))
+          ) {
             const d = await ensureDetail(full);
             if (d) {
               full = d;
               active = d;
             }
           }
-          // Si hay mixer visible y stems, y el user ya tocó checkboxes → prefer stems
-          const mixer = root.querySelector("[data-lb-mixer]");
-          const preferStems =
-            !safeMediaUrl(full.preview) &&
-            !!(full.stems?.length) &&
-            mixer &&
-            !mixer.hasAttribute("hidden");
-          await playPreviewOrStems(full, modalPlayId, !!preferStems && !safeMediaUrl(full.preview));
+          const preferStems = !!(full.stems && full.stems.length);
+          await playPreviewOrStems(full, modalPlayId, preferStems);
           if (!safeMediaUrl(full.preview) && !full.stems?.length) {
             const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
             if (v) {

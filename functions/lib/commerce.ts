@@ -1,6 +1,9 @@
 /**
  * Commerce SSoT: orders, licenses, download tokens, magic-link sessions.
- * Storage: R2 JSON (siempre) — D1 opcional si ORDERS_DB está bound (misma API).
+ * Storage: R2 JSON monofile (catalog/commerce/*).
+ * Limitación conocida: no atómico bajo concurrencia alta — D1 schema en
+ * migrations/0001_commerce.sql para migrar cuando haya volumen real.
+ * ORDERS_DB tipado para el binding futuro; no hay dual-write aún.
  */
 
 import type { AdminEnv } from "./admin-auth";
@@ -100,13 +103,17 @@ async function hmacSign(secret: string, payload: string): Promise<string> {
   return b64url(sig);
 }
 
+/**
+ * Signing key for download tokens + magic link + account session.
+ * P: DOWNLOAD_SECRET o ADMIN_SESSION_SECRET (≥16).
+ * Q: secret usable. Nunca el password de login (ADMIN_LIBRARY_SECRET).
+ */
 export function commerceSecret(env: CommerceEnv): string {
-  return (
-    String(env.DOWNLOAD_SECRET || "").trim() ||
-    String(env.ADMIN_SESSION_SECRET || "").trim() ||
-    String(env.ADMIN_LIBRARY_SECRET || "").trim() ||
-    ""
-  );
+  const download = String(env.DOWNLOAD_SECRET || "").trim();
+  if (download.length >= 16) return download;
+  const session = String(env.ADMIN_SESSION_SECRET || "").trim();
+  if (session.length >= 16) return session;
+  return "";
 }
 
 export function siteBase(env: CommerceEnv, request?: Request): string {

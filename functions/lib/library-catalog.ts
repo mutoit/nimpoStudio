@@ -90,7 +90,12 @@ export function toIndexEntry(raw: unknown): CatalogIndexEntry | null {
     id: String(o.id || `lib-${slug}`),
     slug,
     title: String(o.title || slug),
-    kind: String(o.kind || "stems"),
+    kind:
+      stems.length > 0 || String(o.kind || "") === "stems"
+        ? "stems"
+        : String(o.kind || "video") === "video"
+          ? "video"
+          : String(o.kind || "stems"),
     aspect: String(o.aspect || "1:1"),
     cover,
     preview,

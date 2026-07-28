@@ -79,19 +79,26 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     ? String(o.availability)
     : "available";
 
+  const hasStems = stems.length > 0 || kind === "stems";
+  const hasVideo = Boolean(safeMediaUrlField(o.video));
+  const hasPreview = Boolean(safeMediaUrlField(o.preview));
+
   return {
     id,
     slug,
     title: clipText(o.title || slug, 200) || slug,
-    kind,
+    kind: hasStems ? "stems" : kind,
     aspect: safeAspect(String(o.aspect || "1:1")),
     cover: safeMediaUrlField(o.cover),
     /** Miniatura de grid (opcional; si falta se usa cover). */
     thumb: safeMediaUrlField(o.thumb),
-    /** Mix preview público (1 archivo mono). Preferido para ▶. */
+    /** Mix preview público (1 archivo mono). Grid ▶; modal con capas usa stems[]. */
     preview: safeMediaUrlField(o.preview),
     video: safeMediaUrlField(o.video),
     stems: stems.length ? stems : undefined,
+    hasStems,
+    hasVideo,
+    hasPreview,
     tags: clipStringList(o.tags),
     moods: clipStringList(o.moods),
     filterMoods: clipStringList(o.filterMoods),

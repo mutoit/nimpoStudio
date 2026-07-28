@@ -1,11 +1,13 @@
 /**
  * GET /api/products — catálogo público software (R2), paginado.
- * Query: limit, cursor, category
+ * Query: limit, cursor, category, slug (detail)
  */
 
 import {
+  findProduct,
   readProducts,
   sanitizeProductsList,
+  sanitizeSoftwareProduct,
   type ProductsBucket,
 } from "../lib/products-catalog";
 import { filterAndPage } from "../lib/library-query";
@@ -21,6 +23,31 @@ function json(data: unknown, status = 200) {
       "Access-Control-Allow-Origin": "*",
     },
   });
+}
+
+/** Strip anything that could point at full/ binaries. */
+function publicProduct(p: ReturnType<typeof sanitizeSoftwareProduct>) {
+  if (!p) return null;
+  const demo = p.demo
+    ? {
+        kind: p.demo.kind,
+        url:
+          p.demo.url && !String(p.demo.url).includes("/full/")
+            ? p.demo.url
+            : null,
+        notes: p.demo.notes || "",
+      }
+    : { kind: "none" as const, url: null, notes: "" };
+  return {
+    ...p,
+    demo,
+    pricing: (p.pricing || []).map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      priceEur: plan.priceEur,
+      buyUrl: plan.buyUrl || null,
+    })),
+  };
 }
 
 export async function onRequest(context: { request: Request; env: Env }) {
@@ -52,6 +79,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
+  const url = new URL(request.url);
+  const slugParam = (url.searchParams.get("slug") || "").trim();
+
+  if (slugParam) {
+    const found = await findProduct(env.LIBRARY_BUCKET, slugParam);
+    if (!found || found.status === "draft") {
+      return json({ ok: false, error: "not_found", source: "r2" }, 404);
+    }
+    const item = publicProduct(sanitizeSoftwareProduct(found));
+    return json({ ok: true, source: "r2", view: "detail", item });
+  }
+
   const raw = await readProducts(env.LIBRARY_BUCKET);
   if (!raw) {
     return json({
@@ -65,7 +104,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
-  const url = new URL(request.url);
   const category = (url.searchParams.get("category") || "").trim().toLowerCase();
   let items = sanitizeProductsList(raw, { includeDraft: false });
   if (category && category !== "all") {
@@ -78,10 +116,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
     type: "all",
   });
 
+  const publicItems = page.items
+    .map((rawItem) => publicProduct(sanitizeSoftwareProduct(rawItem)))
+    .filter(Boolean);
+
   return json({
     ok: true,
     source: "r2",
-    items: page.items,
+    view: "card",
+    items: publicItems,
     count: page.count,
     nextCursor: page.nextCursor,
     hasMore: page.hasMore,

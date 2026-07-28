@@ -56,8 +56,29 @@ const payload = {
     video: lang === "en" ? "Video" : lang === "fr" ? "Vidéo" : "Vídeo",
     image: lang === "en" ? "Image" : "Imagen",
     select: lang === "en" ? "Select a product" : lang === "fr" ? "Choisissez un produit" : "Elige un producto",
+    demo: t("productDemo"),
+    demoRequest: t("productDemoRequest"),
+    buy: t("productBuy"),
+    buyRequest: t("productBuyRequest"),
+    feedback: t("productFeedback"),
+    feedbackTitle: t("productFeedbackTitle"),
+    feedbackLead: t("productFeedbackLead"),
+    feedbackType: t("productFeedbackType"),
+    feedbackBug: t("productFeedbackBug"),
+    feedbackIdea: t("productFeedbackIdea"),
+    feedbackComplaint: t("productFeedbackComplaint"),
+    feedbackOther: t("productFeedbackOther"),
+    feedbackName: t("quoteName"),
+    feedbackEmail: t("quoteEmail"),
+    feedbackMessage: t("productFeedbackMessage"),
+    feedbackSend: t("productFeedbackSend"),
+    feedbackOk: t("productFeedbackOk"),
+    feedbackErr: t("productFeedbackErr"),
+    priceFrom: t("productPriceFrom"),
+    version: t("productVersion"),
   },
   contactHref: `/${lang}/contacto/`,
+  contactEmail: "contacto@nimpo3dstudio.com",
   seed,
 };
 ---
@@ -104,9 +125,45 @@ const payload = {
             <span class="pb__meta-label" data-pb-tags-label>{t("productTags")}</span>
             <div class="pb__tags" data-pb-tags></div>
           </div>
-          <div class="pb__actions">
-            <a class="pb__btn pb__btn--gold" data-pb-contact href={`/${lang}/contacto/`}>{t("navContact")}</a>
+          <div class="pb__price" data-pb-price hidden></div>
+          <div class="pb__actions" data-pb-actions>
+            <a class="pb__btn pb__btn--ghost" data-pb-demo hidden target="_blank" rel="noopener">{t("productDemo")}</a>
+            <button type="button" class="pb__btn pb__btn--ghost" data-pb-demo-request hidden>{t("productDemoRequest")}</button>
+            <a class="pb__btn pb__btn--gold" data-pb-buy hidden target="_blank" rel="noopener">{t("productBuy")}</a>
+            <a class="pb__btn pb__btn--gold" data-pb-buy-mail hidden>{t("productBuyRequest")}</a>
+            <button type="button" class="pb__btn pb__btn--ghost" data-pb-feedback>{t("productFeedback")}</button>
+            <a class="pb__btn pb__btn--ghost" data-pb-contact href={`/${lang}/contacto/`}>{t("navContact")}</a>
           </div>
+          <form class="pb__feedback" data-pb-feedback-form hidden>
+            <p class="pb__feedback-title" data-pb-feedback-title>{t("productFeedbackTitle")}</p>
+            <p class="pb__feedback-lead">{t("productFeedbackLead")}</p>
+            <label>
+              {t("productFeedbackType")}
+              <select name="type" data-fb-type>
+                <option value="bug">{t("productFeedbackBug")}</option>
+                <option value="idea">{t("productFeedbackIdea")}</option>
+                <option value="complaint">{t("productFeedbackComplaint")}</option>
+                <option value="other">{t("productFeedbackOther")}</option>
+              </select>
+            </label>
+            <label>
+              {t("quoteName")}
+              <input name="name" data-fb-name maxlength="120" autocomplete="name" />
+            </label>
+            <label>
+              {t("quoteEmail")}
+              <input name="email" type="email" required data-fb-email maxlength="200" autocomplete="email" />
+            </label>
+            <label>
+              {t("productFeedbackMessage")}
+              <textarea name="message" required data-fb-message rows="4" maxlength="4000"></textarea>
+            </label>
+            <div class="pb__feedback-actions">
+              <button type="submit" class="pb__btn pb__btn--gold" data-fb-submit>{t("productFeedbackSend")}</button>
+              <button type="button" class="pb__btn pb__btn--ghost" data-fb-cancel>{t("libClose")}</button>
+            </div>
+            <p class="pb__feedback-status" data-fb-status hidden></p>
+          </form>
         </div>
       </div>
     </article>
@@ -115,6 +172,14 @@ const payload = {
 
 <script>
   import { escapeHtml, safeMediaUrl, safeDomId } from "../lib/dom-escape";
+
+  type DemoInfo = { kind: string; url?: string | null; notes?: string };
+  type PlanInfo = {
+    id: string;
+    name: string;
+    priceEur: number | null;
+    buyUrl?: string | null;
+  };
 
   type Item = {
     slug: string;
@@ -128,6 +193,9 @@ const payload = {
     tags: string[];
     formats: string[];
     featured?: boolean;
+    demo?: DemoInfo;
+    pricing?: PlanInfo[];
+    version?: string;
   };
 
   type Media = { type: "image" | "video"; src: string };
@@ -160,8 +228,9 @@ const payload = {
     let payload: {
       labels: Record<string, string>;
       contactHref: string;
+      contactEmail?: string;
       seed: Item[];
-    } = { labels: {}, contactHref: "/es/contacto/", seed: [] };
+    } = { labels: {}, contactHref: "/es/contacto/", contactEmail: "contacto@nimpo3dstudio.com", seed: [] };
     try {
       payload = JSON.parse(root.dataset.payload || "{}");
     } catch {
@@ -169,6 +238,7 @@ const payload = {
     }
 
     const L = payload.labels || {};
+    const studioMail = payload.contactEmail || "contacto@nimpo3dstudio.com";
     let items: Item[] = Array.isArray(payload.seed) ? [...payload.seed] : [];
     let activeSlug = items[0]?.slug || "";
     let mediaIndex = 0;
@@ -188,10 +258,93 @@ const payload = {
     const tagsWrap = root.querySelector("[data-pb-tags-wrap]");
     const tagsEl = root.querySelector("[data-pb-tags]");
     const contactEl = root.querySelector("[data-pb-contact]");
+    const priceEl = root.querySelector("[data-pb-price]");
+    const demoEl = root.querySelector("[data-pb-demo]");
+    const demoReqEl = root.querySelector("[data-pb-demo-request]");
+    const buyEl = root.querySelector("[data-pb-buy]");
+    const buyMailEl = root.querySelector("[data-pb-buy-mail]");
+    const feedbackBtn = root.querySelector("[data-pb-feedback]");
+    const feedbackForm = root.querySelector("[data-pb-feedback-form]");
 
     if (contactEl instanceof HTMLAnchorElement && payload.contactHref) {
       contactEl.href = payload.contactHref;
     }
+
+    const showFeedback = (preType?: string) => {
+      if (!(feedbackForm instanceof HTMLFormElement)) return;
+      feedbackForm.hidden = false;
+      if (preType) {
+        const sel = feedbackForm.querySelector("[data-fb-type]") as HTMLSelectElement | null;
+        if (sel) sel.value = preType;
+      }
+      feedbackForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+
+    feedbackBtn?.addEventListener("click", () => showFeedback("other"));
+    root.querySelector("[data-fb-cancel]")?.addEventListener("click", () => {
+      if (feedbackForm instanceof HTMLFormElement) feedbackForm.hidden = true;
+    });
+
+    if (feedbackForm instanceof HTMLFormElement) {
+      feedbackForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const status = feedbackForm.querySelector("[data-fb-status]");
+        const submit = feedbackForm.querySelector("[data-fb-submit]");
+        const name = String(
+          (feedbackForm.querySelector("[data-fb-name]") as HTMLInputElement | null)?.value || "",
+        ).trim();
+        const email = String(
+          (feedbackForm.querySelector("[data-fb-email]") as HTMLInputElement | null)?.value || "",
+        ).trim();
+        const message = String(
+          (feedbackForm.querySelector("[data-fb-message]") as HTMLTextAreaElement | null)?.value ||
+            "",
+        ).trim();
+        const type = String(
+          (feedbackForm.querySelector("[data-fb-type]") as HTMLSelectElement | null)?.value ||
+            "other",
+        );
+        if (submit instanceof HTMLButtonElement) submit.disabled = true;
+        if (status instanceof HTMLElement) {
+          status.hidden = false;
+          status.textContent = "…";
+          status.classList.remove("is-err", "is-ok");
+        }
+        try {
+          const res = await fetch("/api/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              productSlug: activeSlug || undefined,
+              type,
+              name,
+              email,
+              message,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || data.error || `Error ${res.status}`);
+          }
+          if (status instanceof HTMLElement) {
+            status.textContent = L.feedbackOk || data.message || "OK";
+            status.classList.add("is-ok");
+          }
+          (feedbackForm.querySelector("[data-fb-message]") as HTMLTextAreaElement | null)?.form?.reset?.();
+          feedbackForm.reset();
+        } catch (err) {
+          if (status instanceof HTMLElement) {
+            status.textContent =
+              err instanceof Error ? err.message : L.feedbackErr || "Error";
+            status.classList.add("is-err");
+          }
+        } finally {
+          if (submit instanceof HTMLButtonElement) submit.disabled = false;
+        }
+      });
+    }
+
+    demoReqEl?.addEventListener("click", () => showFeedback("idea"));
 
     const stopVideos = () => {
       stageEl?.querySelectorAll("video").forEach((v) => {
@@ -278,6 +431,75 @@ const payload = {
         const tg = item.tags || [];
         tagsWrap.hidden = !tg.length;
         tagsEl.innerHTML = tg.map((x) => `<span class="pb__tag">${escapeHtml(x)}</span>`).join("");
+      }
+
+      // Pricing display
+      const plan = (item.pricing && item.pricing[0]) || null;
+      if (priceEl instanceof HTMLElement) {
+        if (plan && plan.priceEur != null) {
+          priceEl.hidden = false;
+          const ver = item.version ? ` · ${L.version || "v"} ${escapeHtml(item.version)}` : "";
+          priceEl.innerHTML = `<strong>${escapeHtml(plan.name || "")}</strong> · ${L.priceFrom || ""} ${plan.priceEur} €${ver}`;
+        } else if (item.version) {
+          priceEl.hidden = false;
+          priceEl.textContent = `${L.version || "v"} ${item.version}`;
+        } else {
+          priceEl.hidden = true;
+          priceEl.textContent = "";
+        }
+      }
+
+      // Demo CTA
+      const demo = item.demo || { kind: "none" };
+      const demoKind = String(demo.kind || "none");
+      const demoUrlRaw = String(demo.url || "").trim();
+      const demoUrl =
+        safeMediaUrl(demoUrlRaw) ||
+        (/^https:\/\//i.test(demoUrlRaw) ? demoUrlRaw : "") ||
+        (demoUrlRaw.startsWith("mailto:") ? demoUrlRaw : "");
+      if (demoEl instanceof HTMLAnchorElement) {
+        if ((demoKind === "download" || demoKind === "web") && demoUrl) {
+          demoEl.hidden = false;
+          demoEl.href = demoUrl;
+          demoEl.textContent = L.demo || "Demo";
+        } else {
+          demoEl.hidden = true;
+          demoEl.removeAttribute("href");
+        }
+      }
+      if (demoReqEl instanceof HTMLElement) {
+        demoReqEl.hidden = demoKind !== "request";
+      }
+
+      // Buy CTA
+      const buyUrl = plan?.buyUrl ? String(plan.buyUrl).trim() : "";
+      if (buyEl instanceof HTMLAnchorElement) {
+        if (buyUrl && /^https:\/\//i.test(buyUrl)) {
+          buyEl.hidden = false;
+          buyEl.href = buyUrl;
+          buyEl.textContent = L.buy || "Buy";
+        } else {
+          buyEl.hidden = true;
+          buyEl.removeAttribute("href");
+        }
+      }
+      if (buyMailEl instanceof HTMLAnchorElement) {
+        if (!buyUrl || !/^https:\/\//i.test(buyUrl)) {
+          buyMailEl.hidden = false;
+          const subj = encodeURIComponent(`Compra / buy: ${item.name}`);
+          const body = encodeURIComponent(
+            `Producto: ${item.name} (${item.slug})\nPlan: ${plan?.name || "standard"}\n\n`,
+          );
+          buyMailEl.href = `mailto:${studioMail}?subject=${subj}&body=${body}`;
+          buyMailEl.textContent = L.buyRequest || L.buy || "Buy";
+        } else {
+          buyMailEl.hidden = true;
+          buyMailEl.removeAttribute("href");
+        }
+      }
+
+      if (feedbackForm instanceof HTMLFormElement) {
+        feedbackForm.hidden = true;
       }
 
       const media = buildMedia(item);
@@ -371,6 +593,8 @@ const payload = {
       const slug = String(raw.slug || "");
       const name = String(raw.name || "");
       if (!slug || !name) return null;
+      const demoRaw = raw.demo && typeof raw.demo === "object" ? (raw.demo as Record<string, unknown>) : null;
+      const pricingRaw = Array.isArray(raw.pricing) ? raw.pricing : [];
       return {
         slug,
         name,
@@ -385,6 +609,29 @@ const payload = {
         tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
         formats: Array.isArray(raw.formats) ? raw.formats.map(String) : [],
         featured: Boolean(raw.featured),
+        version: raw.version ? String(raw.version) : undefined,
+        demo: demoRaw
+          ? {
+              kind: String(demoRaw.kind || "none"),
+              url: demoRaw.url != null ? String(demoRaw.url) : null,
+              notes: demoRaw.notes != null ? String(demoRaw.notes) : "",
+            }
+          : { kind: "none", url: null, notes: "" },
+        pricing: pricingRaw
+          .map((p) => {
+            if (!p || typeof p !== "object") return null;
+            const o = p as Record<string, unknown>;
+            return {
+              id: String(o.id || "standard"),
+              name: String(o.name || "Standard"),
+              priceEur:
+                o.priceEur == null || o.priceEur === ""
+                  ? null
+                  : Number(o.priceEur),
+              buyUrl: o.buyUrl != null ? String(o.buyUrl) : null,
+            } satisfies PlanInfo;
+          })
+          .filter((x): x is PlanInfo => x != null),
       };
     };
 
@@ -734,6 +981,11 @@ const payload = {
     padding: 0.15rem 0.45rem;
     border-radius: 999px;
   }
+  .pb__price {
+    font-size: 0.9rem;
+    color: var(--color-accent);
+    margin-top: 0.15rem;
+  }
   .pb__actions {
     display: flex;
     flex-wrap: wrap;
@@ -752,6 +1004,8 @@ const payload = {
     font-weight: 500;
     text-decoration: none;
     color: inherit;
+    font: inherit;
+    cursor: pointer;
     transition: background 0.12s, border-color 0.12s;
   }
   .pb__btn:hover {
@@ -767,5 +1021,70 @@ const payload = {
   .pb__btn--gold:hover {
     filter: brightness(1.06);
     background: var(--color-accent);
+  }
+  .pb__btn--ghost {
+    background: transparent;
+  }
+  .pb__btn[hidden],
+  a.pb__btn[hidden] {
+    display: none !important;
+  }
+  .pb__feedback {
+    margin-top: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.28);
+    background: rgb(0 0 0 / 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .pb__feedback[hidden] {
+    display: none !important;
+  }
+  .pb__feedback-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 500;
+  }
+  .pb__feedback-lead {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    line-height: 1.4;
+  }
+  .pb__feedback label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .pb__feedback input,
+  .pb__feedback select,
+  .pb__feedback textarea {
+    font: inherit;
+    color: var(--color-fg);
+    background: var(--color-bg-elevated, #121218);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+  }
+  .pb__feedback-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .pb__feedback-status {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-accent);
+  }
+  .pb__feedback-status.is-err {
+    color: #f0a0a0;
+  }
+  .pb__feedback-status.is-ok {
+    color: #9ff0bc;
   }
 </style>

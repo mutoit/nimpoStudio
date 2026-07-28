@@ -88,6 +88,45 @@ import Layout from "../../components/Layout.astro";
             Destacado (arriba en el panel)
           </label>
 
+          <p class="lead lead--sm">Demo · precio (hub ficha pública)</p>
+          <div class="row">
+            <label>
+              Demo
+              <select name="demoKind" data-demo-kind>
+                <option value="none">Sin demo</option>
+                <option value="download">Descarga</option>
+                <option value="web">Web / URL</option>
+                <option value="request">Solicitar (form)</option>
+              </select>
+            </label>
+            <label>
+              Versión
+              <input name="version" data-version maxlength="40" placeholder="1.0.0" />
+            </label>
+          </div>
+          <label>
+            URL demo (path /api/media/… o https)
+            <input name="demoUrl" data-demo-url maxlength="500" placeholder="/api/media/library/products/…/demo.zip" />
+          </label>
+          <label>
+            Notas demo
+            <input name="demoNotes" data-demo-notes maxlength="500" placeholder="Windows x64 · sin export…" />
+          </label>
+          <div class="row">
+            <label>
+              Plan
+              <input name="planName" data-plan-name maxlength="80" placeholder="Standard" />
+            </label>
+            <label>
+              Precio EUR
+              <input name="priceEur" data-price-eur type="number" min="0" step="1" placeholder="49" />
+            </label>
+          </div>
+          <label>
+            URL compra (Stripe Payment Link https… · vacío = mailto)
+            <input name="buyUrl" data-buy-url maxlength="500" placeholder="https://buy.stripe.com/…" />
+          </label>
+
           <label>
             Imágenes / GIF (hasta 8)
             <input
@@ -144,6 +183,9 @@ import Layout from "../../components/Layout.astro";
     tags?: string[];
     formats?: string[];
     featured?: boolean;
+    version?: string;
+    demo?: { kind?: string; url?: string | null; notes?: string };
+    pricing?: { id?: string; name?: string; priceEur?: number | null; buyUrl?: string | null }[];
   };
 
   let editingSlug: string | null = null;
@@ -258,6 +300,14 @@ import Layout from "../../components/Layout.astro";
     set("[data-formats]", (item.formats || []).join(", "));
     const feat = form?.querySelector("[data-featured]") as HTMLInputElement | null;
     if (feat) feat.checked = Boolean(item.featured);
+    set("[data-demo-kind]", item.demo?.kind || "none");
+    set("[data-demo-url]", item.demo?.url || "");
+    set("[data-demo-notes]", item.demo?.notes || "");
+    set("[data-version]", item.version || "");
+    const plan = item.pricing?.[0];
+    set("[data-plan-name]", plan?.name || "Standard");
+    set("[data-price-eur]", plan?.priceEur != null ? String(plan.priceEur) : "");
+    set("[data-buy-url]", plan?.buyUrl || "");
 
     form?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -353,6 +403,13 @@ import Layout from "../../components/Layout.astro";
       body.set("description", String(fd.get("description") || "").trim());
       body.set("tags", String(fd.get("tags") || "").trim());
       body.set("formats", String(fd.get("formats") || "").trim());
+      body.set("demoKind", String(fd.get("demoKind") || "none"));
+      body.set("demoUrl", String(fd.get("demoUrl") || "").trim());
+      body.set("demoNotes", String(fd.get("demoNotes") || "").trim());
+      body.set("version", String(fd.get("version") || "").trim());
+      body.set("planName", String(fd.get("planName") || "Standard").trim());
+      body.set("priceEur", String(fd.get("priceEur") || "").trim());
+      body.set("buyUrl", String(fd.get("buyUrl") || "").trim());
       if (fd.get("featured") === "1" || fd.get("featured") === "on") body.set("featured", "1");
       if (fd.get("replaceMedia") === "1") body.set("replaceMedia", "1");
 

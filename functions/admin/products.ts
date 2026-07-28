@@ -150,6 +150,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
     form.get("featured") === "on" ||
     form.get("featured") === "true";
 
+  const demoKind = clipText(form.get("demoKind"), 20) || existing?.demo?.kind || "none";
+  const demoUrl = clipText(form.get("demoUrl"), 500) || existing?.demo?.url || "";
+  const demoNotes = clipText(form.get("demoNotes"), 500);
+  const planName = clipText(form.get("planName"), 80);
+  const priceEurRaw = String(form.get("priceEur") ?? "").trim();
+  const buyUrl = clipText(form.get("buyUrl"), 500);
+  const version = clipText(form.get("version"), 40);
+
   let totalBytes = 0;
   const putFile = async (
     file: File,
@@ -205,12 +213,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
       video = await putFile(videoFile, "video", "video");
     }
 
-    const item: SoftwareProduct = {
+    const itemRaw: Record<string, unknown> = {
       id: existing?.id || productIdFromSlug(slug),
       slug,
       name,
       category,
-      status: status as SoftwareProduct["status"],
+      status,
       shortDescription: shortDescription || existing?.shortDescription || "",
       description: description || existing?.description || "",
       images,
@@ -218,9 +226,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
       tags: tags.length ? tags : existing?.tags || [],
       formats: formats.length ? formats : existing?.formats || [],
       featured,
+      demoKind,
+      demoUrl: demoUrl || existing?.demo?.url || "",
+      demoNotes: demoNotes || existing?.demo?.notes || "",
+      planName: planName || existing?.pricing?.[0]?.name || "Standard",
+      priceEur: priceEurRaw !== "" ? priceEurRaw : existing?.pricing?.[0]?.priceEur ?? "",
+      buyUrl: buyUrl || existing?.pricing?.[0]?.buyUrl || "",
+      version: version || existing?.version || "",
+      demo: existing?.demo,
+      pricing: existing?.pricing,
     };
 
-    const clean = sanitizeSoftwareProduct(item);
+    const clean = sanitizeSoftwareProduct(itemRaw);
     if (!clean) {
       return json({ ok: false, error: "invalid_item" }, 400);
     }

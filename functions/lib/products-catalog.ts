@@ -33,6 +33,25 @@ export type ProductsBucket = {
 
 export type ProductStatus = "published" | "draft" | "coming-soon";
 
+/** Cómo se ofrece la demo (ola 1: meta + URL; full binary = ola 2). */
+export type ProductDemoKind = "none" | "download" | "web" | "request";
+
+export type ProductDemo = {
+  kind: ProductDemoKind;
+  /** URL pública o path /api/media/... (demo only — never full/) */
+  url?: string | null;
+  notes?: string;
+};
+
+export type ProductPlan = {
+  id: string;
+  name: string;
+  /** Precio público en EUR (display). Stripe ids solo ola 2. */
+  priceEur: number | null;
+  /** CTA compra ola 1: Payment Link o vacío → mailto */
+  buyUrl?: string | null;
+};
+
 export type SoftwareProduct = {
   id: string;
   slug: string;
@@ -46,10 +65,74 @@ export type SoftwareProduct = {
   tags: string[];
   formats: string[];
   featured: boolean;
+  /** Demo pública (download/web/request). */
+  demo?: ProductDemo;
+  /** Planes / precios públicos (sin secrets). */
+  pricing?: ProductPlan[];
+  version?: string;
   updatedAt?: string;
 };
 
 const STATUSES = new Set(["published", "draft", "coming-soon"]);
+const DEMO_KINDS = new Set(["none", "download", "web", "request"]);
+
+function sanitizeDemo(raw: unknown, existing?: ProductDemo): ProductDemo {
+  const base: ProductDemo = existing || { kind: "none", url: null, notes: "" };
+  if (raw == null || raw === "") return base;
+  if (typeof raw === "string") {
+    // form field demoKind alone
+    const kind = DEMO_KINDS.has(raw) ? (raw as ProductDemoKind) : base.kind;
+    return { ...base, kind };
+  }
+  if (typeof raw !== "object") return base;
+  const o = raw as Record<string, unknown>;
+  const kindRaw = String(o.kind || base.kind || "none");
+  const kind = DEMO_KINDS.has(kindRaw) ? (kindRaw as ProductDemoKind) : "none";
+  let url = rewriteProductMediaUrl(String(o.url || base.url || ""));
+  // Never expose full/ prefix as public demo
+  if (url.includes("/full/") || url.includes("library/products/") && url.includes("/full/")) {
+    url = "";
+  }
+  if (url.includes("/full/")) url = "";
+  return {
+    kind,
+    url: url || null,
+    notes: clipText(o.notes ?? base.notes, 500),
+  };
+}
+
+function sanitizePricing(raw: unknown, existing?: ProductPlan[]): ProductPlan[] {
+  const list = Array.isArray(raw) ? raw : existing || [];
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, 8)
+    .map((p, i) => {
+      if (!p || typeof p !== "object") return null;
+      const o = p as Record<string, unknown>;
+      const name = clipText(o.name || `Plan ${i + 1}`, 80);
+      if (!name) return null;
+      const id =
+        safeName(String(o.id || name)).slice(0, 40) || `plan-${i + 1}`;
+      const priceRaw = o.priceEur ?? o.price;
+      const priceEur =
+        priceRaw == null || priceRaw === ""
+          ? null
+          : Number.isFinite(Number(priceRaw))
+            ? Math.max(0, Number(priceRaw))
+            : null;
+      let buyUrl = String(o.buyUrl || o.url || "").trim().slice(0, 500);
+      if (buyUrl && !/^https:\/\//i.test(buyUrl) && !buyUrl.startsWith("mailto:")) {
+        buyUrl = "";
+      }
+      return {
+        id,
+        name,
+        priceEur,
+        buyUrl: buyUrl || null,
+      } satisfies ProductPlan;
+    })
+    .filter((x): x is ProductPlan => x != null);
+}
 
 /** Reescribe r2.dev → /api/media/... */
 export function rewriteProductMediaUrl(url: string): string {
@@ -92,6 +175,34 @@ export function sanitizeSoftwareProduct(raw: unknown): SoftwareProduct | null {
   const category =
     clipText(o.category, 48).toLowerCase().replace(/\s+/g, "-") || "other";
 
+  const existingDemo =
+    o.demo && typeof o.demo === "object" ? (o.demo as ProductDemo) : undefined;
+  const demo = sanitizeDemo(o.demo ?? o.demoKind, existingDemo);
+  // Allow form flat fields
+  if (o.demoUrl != null || o.demoNotes != null || o.demoKind != null) {
+    const kindRaw = String(o.demoKind || demo.kind || "none");
+    const kind = DEMO_KINDS.has(kindRaw) ? (kindRaw as ProductDemoKind) : demo.kind;
+    let url = rewriteProductMediaUrl(String(o.demoUrl ?? demo.url ?? ""));
+    if (url.includes("/full/")) url = "";
+    demo.kind = kind;
+    demo.url = url || null;
+    demo.notes = clipText(o.demoNotes ?? demo.notes, 500);
+  }
+
+  let pricing = sanitizePricing(o.pricing);
+  // Flat form: priceEur + planName + buyUrl → single plan
+  if (o.priceEur != null || o.planName || o.buyUrl) {
+    const fromFlat = sanitizePricing([
+      {
+        id: o.planId || "standard",
+        name: o.planName || "Standard",
+        priceEur: o.priceEur,
+        buyUrl: o.buyUrl,
+      },
+    ]);
+    if (fromFlat.length) pricing = fromFlat;
+  }
+
   return {
     id,
     slug,
@@ -105,6 +216,9 @@ export function sanitizeSoftwareProduct(raw: unknown): SoftwareProduct | null {
     tags: clipStringList(o.tags, 16, 40),
     formats: clipStringList(o.formats, 12, 32),
     featured: Boolean(o.featured),
+    demo,
+    pricing,
+    version: clipText(o.version, 40) || undefined,
     updatedAt:
       typeof o.updatedAt === "string" ? o.updatedAt.slice(0, 40) : undefined,
   };

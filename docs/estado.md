@@ -103,15 +103,23 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] UX móvil modal/formulario (densidad, desplegables, safe-area, hamburguesa) — re-QA en dispositivo real si hace falta
 - [ ] Bloque **testimonios / valoraciones** (cuando haya casos reales; ver ESTRATEGIA-LANZAMIENTO)
 
+### Fase A hub productos (2026-07-28) — hecha
+- [x] Schema producto: `demo` (none|download|web|request) + `pricing[]` + `version`
+- [x] Admin productos: campos demo/precio/buyUrl
+- [x] GET `/api/products?slug=` detail + list con demo/pricing públicos (sin `full/`)
+- [x] POST `/api/feedback` (bug/idea/complaint/other + productSlug) → mail estudio
+- [x] ProductsBrowser hub: Demo / Comprar (Payment Link o mailto) / Feedback en ficha
+
 ### Fase 2 — Venta / entrega automática
-- [ ] Stripe (test → live)
-- [ ] D1 pedidos (o equivalente)
-- [ ] Checkout + webhook + enlace descarga **masters** (R2 privado o firmado; distinto de previews públicos)
-- [ ] Email confirmación compra
-- [ ] Botón “Comprar / pagar” en flujo licencia (hoy: cotizar + contacto)
+- [ ] Stripe Checkout + webhook (ola 2)
+- [ ] D1 pedidos + license keys
+- [ ] Enlace descarga **masters** firmado (R2 `full/` privado)
+- [ ] Email confirmación compra con key
+- [ ] Botón comprar licencia musical (hoy: cotizar + contacto)
 
 ### Fase 2b — Área cliente
 - [ ] `/cuenta` — mis compras, magic link, re-descarga
+- [ ] Activación key online (ola 3)
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

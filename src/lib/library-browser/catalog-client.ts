@@ -86,6 +86,26 @@ function slugCandidates(card: LibraryItem): string[] {
   return out;
 }
 
+/**
+ * List cards (índice) traen preview/hasStems pero NO stems[] ni description.
+ * Solo se considera detalle hidratado si las capas/campos de ficha están de verdad.
+ */
+export function isHydratedDetail(item: LibraryItem): boolean {
+  const wantsStems =
+    item.hasStems === true ||
+    item.kind === "stems" ||
+    (Array.isArray(item.stems) && item.stems.length > 0);
+  if (wantsStems) {
+    return Array.isArray(item.stems) && item.stems.length > 0;
+  }
+  // Sin stems: detalle si hay URL de vídeo o description (solo vienen en ?slug=)
+  return (
+    Boolean(item.video) ||
+    typeof item.description === "string" ||
+    typeof item.notes === "string"
+  );
+}
+
 export type FetchListParams = {
   limit?: number;
   cursor?: string | null;
@@ -143,9 +163,10 @@ export async function fetchLibraryDetail(
 
   for (const k of keys) {
     const hit = cache.get(k);
-    if (hit && (hit.preview || hit.stems?.length || hit.video)) return hit;
+    if (hit && isHydratedDetail(hit)) return hit;
   }
-  if (card.preview || card.stems?.length) {
+  // Solo reutilizar la card si ya trae capas (nunca bastan preview/hasStems del list)
+  if (isHydratedDetail(card)) {
     const mapped = mapLiveItem(card);
     for (const k of keys) cache.set(k, mapped);
     if (mapped.slug) cache.set(mapped.slug, mapped);

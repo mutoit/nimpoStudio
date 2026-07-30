@@ -15,6 +15,40 @@
 
 ---
 
+## Cómo funciona (compacto)
+
+**Qué vendemos:** software digital, **pago único** (Stripe), no suscripción. Demo pública; full en R2 privado.
+
+**Identidad:** el **email de compra**. Sin password. Web = **magic link** → cookie 30 d. La **license key** es del binario (activate + seats), no del login web.
+
+```
+COMPRA
+  Producto → Checkout Stripe → webhook
+    → order paid + license key + customer (R2)
+    → mail user (key, descarga, /cuenta/) + mail tú [Venta]
+
+CUENTA  /es/cuenta/
+  email → magic link → ver pedidos, key, re-descarga, nick
+  recovery (email perdido) → ticket para ti (sin decir si el mail existe)
+
+TICKET  (form producto)
+  canal + subtipo (enums) + mensaje
+  servidor marca CLIENT si hay pedido paid (o sesión), si no PROSPECT
+  → tickets.json + mail [BUG·crash][CLIENT] …
+
+BINARIO
+  activate(key, machineId) → seats; devuelve nick si lo tiene
+
+TÚ
+  /admin/pedidos/  → clientes, reenviar, revocar, transfer email, rotate key, reset seats
+  /admin/tickets/  → bandeja filtrable, estados
+```
+
+**Datos:** solo en R2 `catalog/commerce/{orders,licenses,customers,tickets}.json` — no en la web pública.  
+**Venta real:** falta ops tuya (Stripe secrets, webhook, price + full del producto) → §0 abajo.
+
+---
+
 ## 0. Tablero rápido (leer primero)
 
 ### Hecho en código ✅

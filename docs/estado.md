@@ -128,11 +128,15 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] WP6 recovery form + transfer email / rotate key / reset seats
 - [x] WP7 docs mapa/estado
 
-### Pendiente ops (tú)
+### Pendiente ops (tú) — venta software real
+Detalle y orden: **`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` §0 y §10**
 - [ ] Secrets Pages: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `DOWNLOAD_SECRET` (o reusa session secret)
 - [ ] Webhook Stripe → `https://nimpo3dstudio.com/api/webhooks/stripe` event `checkout.session.completed`
 - [ ] Price IDs Stripe en cada plan de producto (admin)
 - [ ] Subir full build en admin productos
+- [ ] Smoke test compra → cuenta → ticket
+- [ ] (Rec.) Cloudflare Access `/admin*`
+- [ ] Legal OK antes de cobros live
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

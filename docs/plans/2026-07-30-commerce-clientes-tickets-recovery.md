@@ -307,9 +307,19 @@ Ejecución recomendada: **WP1 → WP2 → WP3 ∥ WP4 → WP5 → WP6 → WP7**
 
 ---
 
-## 10. STOP
+## 10. Cierre ejecución
 
-Plan en **draft**. Canon ya escrito; este archivo es SoT de ejecución.
+| WP | Estado |
+|----|--------|
+| WP1 customers + webhook | ✅ done |
+| WP2 tickets + feedback | ✅ done |
+| WP3 ProductsBrowser + i18n | ✅ done |
+| WP4 nick session/activate | ✅ done |
+| WP5 admin tickets | ✅ done |
+| WP6 recovery + transfer/rotate/reset | ✅ done |
+| WP7 docs | ✅ done |
 
-**¿Aplico el plan?**  
-Respuesta útil: “aplica todo” | “aplica solo WP1–WP3” | “ajusta X”.
+**Verify:** `npm run build` OK · push main.
+
+**Siguiente (humano):** ops en  
+`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` §0 (checks sin marcar) y §10.

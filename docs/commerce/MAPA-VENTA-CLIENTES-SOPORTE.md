@@ -1,6 +1,6 @@
 # Mapa — Venta de software, clientes, tickets y soporte
 
-**Estado del sistema:** código Fase A–D **implementado** · **venta real bloqueada por ops (tú)**  
+**Estado del sistema:** código A–D **implementado** · Stripe **cableado en Pages** · falta **producto en admin + banco/verificación Stripe** para cobros reales  
 **Última revisión:** 2026-07-30  
 **Ámbito:** productos **software** (hub productos, Stripe).  
 **No confundir** con licencias de **música** → `docs/licencias/`.
@@ -45,7 +45,8 @@ TÚ
 ```
 
 **Datos:** solo en R2 `catalog/commerce/{orders,licenses,customers,tickets}.json` — no en la web pública.  
-**Venta real:** falta ops tuya (Stripe secrets, webhook, price + full del producto) → §0 abajo.
+**Dinero / precios / IVA:** § **Dinero, precios y legal** más abajo.  
+**Ops restante:** producto publicado en admin + cuenta bancaria Stripe → §0.
 
 ---
 
@@ -67,52 +68,62 @@ TÚ
 | Admin tickets (filtros + estados) | ✅ |
 | Full binario privado (`full/`, no API pública) | ✅ |
 
-### Falta de tu parte (ops) — **bloquea venta real** 📝
+### Hecho en infra / ops (sesión 2026-07-30) ✅
 
-Sin esto el código no cobra ni entrega builds de verdad:
+| Pieza | Detalle |
+|-------|---------|
+| Cuenta Stripe | **nimpo3dStudio** (`acct_1Tyyww9hkzoHpGr7`) · pagos **no recurrentes** |
+| MCP Stripe + skills | Configurados en Grok; planner: Checkout hosted one-time |
+| Producto Stripe (live) | `prod_UyxEX5Z08ZnyNM` — *Nimpo Software — Standard* |
+| Price one-time (live) | `price_1TyzK89hkzoHpGr7QKVv2SgV` — **29,00 EUR** |
+| Webhook live | `we_1TyzKG9hkzoHpGr7l7LV1ovM` → `https://nimpo3dstudio.com/api/webhooks/stripe` · `checkout.session.completed` |
+| Pages secrets | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` en proyecto **nimpo-studio** |
+| Redeploy | Commit vacío `2150885` para que el runtime cargue secrets |
+| Probe producción | `GET /api/checkout` → **`stripeConfigured: true`** |
+| Mail Pages | `MAIL_*` / `QUOTE_TO_EMAIL` ya estaban |
 
-- [ ] **Secrets Pages** (`nimpo-studio` → Environment variables / Secrets):
-  - [ ] `STRIPE_SECRET_KEY`
-  - [ ] `STRIPE_WEBHOOK_SECRET`
-  - [ ] `DOWNLOAD_SECRET` (opcional si ya hay `ADMIN_SESSION_SECRET` ≥16 chars)
-  - [ ] Mail ya existente (`MAIL_*` / worker) para que lleguen mails de venta y tickets
-- [ ] **Webhook Stripe** (Dashboard → Developers → Webhooks):
-  - URL: `https://nimpo3dstudio.com/api/webhooks/stripe`  
-    (también vale apex/`www` según dominio canónico del sitio)
-  - Evento: `checkout.session.completed`
-  - Copiar signing secret → `STRIPE_WEBHOOK_SECRET`
-- [ ] **Producto listo para vender** (admin `/admin/productos/`):
-  - [ ] Al menos 1 plan con **`stripePriceId`** real (`price_…`)
-  - [ ] **Full build** subido (ruta `full/` en R2)
-  - [ ] Demo pública si aplica
-  - [ ] Status `published`
-- [ ] **Smoke end-to-end** (cuando lo de arriba esté):
-  - [ ] Compra test (Stripe test mode) → mail con key
-  - [ ] Aparece en `/admin/pedidos/` y en `customers`
-  - [ ] Magic link en `/es/cuenta/` → re-descarga
-  - [ ] Feedback como prospect y como cliente logueado → `/admin/tickets/`
-- [ ] **Recomendado seguridad admin:** Cloudflare Access en `/admin*`  
-  (`scripts/setup-access-admin.ps1` o panel CF)
-- [ ] **Legal:** revisar privacidad/términos antes de cobros reales (`src/content/legal/`)
+**Dónde se editan secrets (Cloudflare):**  
+**Workers & Pages** → proyecto **`nimpo-studio`** (no el dominio DNS) → pestaña **Settings** → **Variables and secrets** (Production).  
+Enlace:  
+`https://dash.cloudflare.com/<account>/pages/view/nimpo-studio/settings`  
+Tras cambiar un secret: **nuevo deploy** (retry o push) si el runtime no lo ve.
+
+### Falta de tu parte (ops) — bloquea **primera venta real** 📝
+
+- [x] Secrets Pages Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
+- [x] Webhook Stripe + evento `checkout.session.completed`
+- [x] Product + Price en Stripe (ejemplo 29 €; cambia el Price si quieres otro importe)
+- [ ] **Confirmar** que `STRIPE_SECRET_KEY` es la key **real** (no placeholder) y alineada con test vs live
+- [ ] **Stripe:** verificación de negocio + **cuenta bancaria** (payouts) — sin esto el dinero no te llega
+- [ ] **Producto en la web** (admin `/admin/productos/`):
+  - [ ] Plan con **`stripePriceId`** = `price_1TyzK89hkzoHpGr7QKVv2SgV` (o otro `price_…` que crees)
+  - [ ] **Full build** subido (`full/` en R2)
+  - [ ] Demo si aplica
+  - [ ] Status **`published`** (catálogo R2 hoy vacío → checkout devuelve `product_not_found`)
+- [ ] **Smoke end-to-end:**
+  - [ ] Compra → mail con key
+  - [ ] `/admin/pedidos/` + customer
+  - [ ] Magic link `/es/cuenta/` → re-descarga
+- [ ] (Rec.) Cloudflare Access en `/admin*`
+- [ ] **Legal:** privacidad/términos + criterio IVA/facturas (ver § dinero)
+- [ ] `DOWNLOAD_SECRET` opcional (si no, reusa session secret ≥16)
 
 ### Hecho en proceso (tú, cuando haya tickets/ventas) 🧑
 
-No es código; es operativa diaria:
+- [ ] Revisar `/admin/tickets/` (CLIENT vs PROSPECT)
+- [ ] Recovery: match fuerte → **Transfer email**; robo → **Rotate key**
+- [ ] Seats agotados → **Reset seats**
+- [ ] Pedido sin mail de descarga → **Reenviar**
 
-- [ ] Revisar `/admin/tickets/` (filtro CLIENT vs PROSPECT)
-- [ ] Recovery: si match fuerte → **Transfer email** en pedidos; si robo → **Rotate key**
-- [ ] Seats agotados → **Reset seats** (o rotate si filtraron la key)
-- [ ] Pedido sin mail de descarga → **Reenviar** en pedidos
+### Aplazado ⏸️
 
-### Aplazado (no bloquear venta) ⏸️
-
-- [ ] D1 runtime (schema stub ya en `migrations/0001_commerce.sql`; hoy todo es R2 monofile)
-- [ ] Cambio de email self-service logueado (flujo E completo con magic al mail nuevo) — hoy: recovery + transfer admin
-- [ ] `fulfill_session` admin (re-crear order desde Stripe session si webhook falló) — hoy: revisar Stripe + reenviar si el order ya existe
-- [ ] Cupo self-service “reset devices” desde cuenta del cliente
-- [ ] DRM / Keygen pesado
-- [ ] Suscripción SaaS
-- [ ] Pedir license key en form de bugs (a propósito **no**)
+- [ ] D1 runtime (stub en `migrations/0001_commerce.sql`)
+- [ ] Cambio email self-service (hoy: recovery + transfer admin)
+- [ ] `fulfill_session` si webhook falló y no hay order
+- [ ] Stripe Tax / `automatic_tax` en Checkout (IVA automático)
+- [ ] Cupo self-service reset devices
+- [ ] DRM / Keygen · Suscripción SaaS
+- [ ] Pedir license key en form de bugs (**no**)
 
 ### No hacer ❌
 
@@ -120,6 +131,70 @@ No es código; es operativa diaria:
 - Exponer `fullKey` en API pública de productos  
 - Confiar en checkbox “soy cliente” sin order `paid`  
 - Mezclar flujos de **música** (`/api/quote`) con software  
+- Buscar secrets en **Domains → nimpo3dstudio.com** (no están; están en el **proyecto Pages**)
+
+---
+
+## Dinero, precios y legal (resumen operativo)
+
+*No es asesoría legal ni fiscal. Modelo práctico con Stripe + esta web.*
+
+### Cómo te llega el dinero
+
+1. Cliente paga en **Checkout** (tarjeta, etc.).  
+2. El importe entra en el **saldo de Stripe** (cuenta nimpo3dStudio).  
+3. Stripe te hace **payouts** a la **cuenta bancaria** que configures en el Dashboard.
+
+**Tú debes** (Dashboard Stripe):
+
+- Completar **verificación** de identidad / negocio (onboarding).  
+- Añadir **cuenta bancaria** (Settings → Bank accounts / Cuentas bancarias y monedas).  
+
+Sin verificación + banco: en live a menudo **no cobras** o **no te transfieren**.  
+Stripe cobra su **comisión** por pago; el resto va a payouts (menos impuestos si usas Stripe Tax).
+
+| Modo | Efecto |
+|------|--------|
+| **Test** | No es dinero real |
+| **Live** | Cobros reales → payouts a tu banco (plazo según país) |
+
+### Dónde se pone el precio
+
+Hay **dos capas** y deben coincidir:
+
+| Dónde | Qué es |
+|--------|--------|
+| **Stripe** | Product + **Price** (`price_…`). Ahí se **cobra** de verdad. Ejemplo actual: **29 €** one-time → `price_1TyzK89hkzoHpGr7QKVv2SgV` |
+| **Web admin** `/admin/productos/` | En el plan: **`stripePriceId`** = ese `price_…`. Opcional `priceEur` solo para **mostrar** en la ficha |
+
+Flujo: catálogo → Comprar → API crea Checkout con el Price de Stripe → el cliente ve el precio de Stripe.
+
+**Cambiar precio:** crear (o usar otro) Price en Stripe → actualizar `stripePriceId` en el admin del producto.  
+Un número solo en la web **sin** `price_…` **no cobra**.
+
+### Facturas e IVA
+
+| Tema | Realidad con este stack |
+|------|-------------------------|
+| **Recibos Stripe** | Stripe puede enviar recibo/factura de cobro al cliente (emails/Checkout). |
+| **Facturación fiscal tuya** | Sigues siendo el comercio: obligaciones en tu país (p. ej. Francia en onboarding) — contabilidad, declaraciones. Stripe **no sustituye** a un asesor. |
+| **IVA por defecto** | El Checkout actual **no** activa `automatic_tax`. El Price (p. ej. 29 €) es lo que cobras “tal cual” salvo que tú metas IVA en el importe o actives Stripe Tax después. |
+| **Stripe Tax** | Opcional: registros fiscales en Stripe + cambios de código (`automatic_tax`). **Aplazado** hasta que decidas política de IVA. |
+
+### Software vs música
+
+| Canal | Dinero |
+|-------|--------|
+| **Software** | Stripe Checkout → key + descarga |
+| **Música** | Cotizador / plantillas (`docs/licencias/`) — **no** este Checkout (salvo unificar más adelante) |
+
+### Orden práctico (dinero + 1.ª venta)
+
+1. Stripe live: verificación + **cuenta bancaria**.  
+2. Confirmar Price (29 € u otro).  
+3. Admin: producto + `stripePriceId` + full + published.  
+4. Smoke compra (ojo: live = dinero real).  
+5. Contable / IVA cuando factures en serio.
 
 ---
 

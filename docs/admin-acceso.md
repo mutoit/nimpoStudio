@@ -4,6 +4,8 @@ URLs (no están en el menú público):
 
 - https://www.nimpo3dstudio.com/admin/biblioteca/ — biblioteca / música
 - https://www.nimpo3dstudio.com/admin/productos/ — productos software
+- https://www.nimpo3dstudio.com/admin/pedidos/ — pedidos, clientes, transfer, keys
+- https://www.nimpo3dstudio.com/admin/tickets/ — feedback / support / recovery
 
 ## Cómo entra solo tú
 

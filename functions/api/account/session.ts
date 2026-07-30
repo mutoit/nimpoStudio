@@ -6,9 +6,11 @@
 import {
   clearAccountSessionCookie,
   commerceSecret,
+  findCustomer,
   getAccountTokenFromRequest,
   licensesForEmail,
   ordersForEmail,
+  touchCustomerSeen,
   verifyAccountSession,
   type CommerceEnv,
 } from "../../lib/commerce";
@@ -57,6 +59,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   const orders = await ordersForEmail(env.LIBRARY_BUCKET, session.email);
   const licenses = await licensesForEmail(env.LIBRARY_BUCKET, session.email);
+  const customer = await findCustomer(env.LIBRARY_BUCKET, session.email);
+  await touchCustomerSeen(env.LIBRARY_BUCKET, session.email);
 
   const enriched = [];
   for (const o of orders) {
@@ -76,10 +80,20 @@ export async function onRequest(context: { request: Request; env: Env }) {
     });
   }
 
+  const productSlugs = Array.from(
+    new Set([
+      ...(customer?.productSlugs || []),
+      ...orders.map((o) => o.productSlug),
+    ]),
+  );
+
   return json({
     ok: true,
     authenticated: true,
     email: session.email,
+    buyer: orders.length > 0,
+    nick: customer?.nick ?? null,
+    productSlugs,
     orders: enriched,
     licenses: licenses.map((l) => ({
       key: l.key,

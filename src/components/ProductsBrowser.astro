@@ -63,10 +63,11 @@ const payload = {
     feedback: t("productFeedback"),
     feedbackTitle: t("productFeedbackTitle"),
     feedbackLead: t("productFeedbackLead"),
-    feedbackType: t("productFeedbackType"),
+    feedbackChannel: t("productFeedbackChannel"),
+    feedbackSubtype: t("productFeedbackSubtype"),
     feedbackBug: t("productFeedbackBug"),
-    feedbackIdea: t("productFeedbackIdea"),
-    feedbackComplaint: t("productFeedbackComplaint"),
+    feedbackSuggestion: t("productFeedbackSuggestion"),
+    feedbackSupport: t("productFeedbackSupport"),
     feedbackOther: t("productFeedbackOther"),
     feedbackName: t("quoteName"),
     feedbackEmail: t("quoteEmail"),
@@ -74,12 +75,17 @@ const payload = {
     feedbackSend: t("productFeedbackSend"),
     feedbackOk: t("productFeedbackOk"),
     feedbackErr: t("productFeedbackErr"),
+    feedbackVerified: t("productFeedbackVerified"),
+    feedbackProspect: t("productFeedbackProspect"),
+    feedbackVerify: t("productFeedbackVerify"),
     priceFrom: t("productPriceFrom"),
     version: t("productVersion"),
+    accountPath: `/${lang}/cuenta/`,
   },
   contactHref: `/${lang}/contacto/`,
   contactEmail: "contacto@nimpo3dstudio.com",
   seed,
+  accountPath: `/${lang}/cuenta/`,
 };
 ---
 
@@ -138,23 +144,31 @@ const payload = {
           <form class="pb__feedback" data-pb-feedback-form hidden>
             <p class="pb__feedback-title" data-pb-feedback-title>{t("productFeedbackTitle")}</p>
             <p class="pb__feedback-lead">{t("productFeedbackLead")}</p>
+            <p class="pb__feedback-badge" data-fb-badge hidden></p>
             <label>
-              {t("productFeedbackType")}
-              <select name="type" data-fb-type>
+              {t("productFeedbackChannel")}
+              <select name="channel" data-fb-channel>
                 <option value="bug">{t("productFeedbackBug")}</option>
-                <option value="idea">{t("productFeedbackIdea")}</option>
-                <option value="complaint">{t("productFeedbackComplaint")}</option>
+                <option value="suggestion">{t("productFeedbackSuggestion")}</option>
+                <option value="support">{t("productFeedbackSupport")}</option>
                 <option value="other">{t("productFeedbackOther")}</option>
               </select>
             </label>
             <label>
+              {t("productFeedbackSubtype")}
+              <select name="subtype" data-fb-subtype></select>
+            </label>
+            <label data-fb-name-wrap>
               {t("quoteName")}
               <input name="name" data-fb-name maxlength="120" autocomplete="name" />
             </label>
-            <label>
+            <label data-fb-email-wrap>
               {t("quoteEmail")}
-              <input name="email" type="email" required data-fb-email maxlength="200" autocomplete="email" />
+              <input name="email" type="email" data-fb-email maxlength="200" autocomplete="email" />
             </label>
+            <p class="pb__feedback-verify-row">
+              <a class="pb__btn pb__btn--ghost" data-fb-verify href={`/${lang}/cuenta/`}>{t("productFeedbackVerify")}</a>
+            </p>
             <label>
               {t("productFeedbackMessage")}
               <textarea name="message" required data-fb-message rows="4" maxlength="4000"></textarea>
@@ -274,22 +288,115 @@ const payload = {
       contactEl.href = payload.contactHref;
     }
 
-    const showFeedback = (preType?: string) => {
+    const SUBTYPES: Record<string, string[]> = {
+      bug: ["crash", "install", "license_activate", "performance", "ui", "data_loss", "other"],
+      suggestion: ["cosmetic", "visual", "feature", "workflow", "docs", "other"],
+      support: [
+        "download",
+        "license",
+        "billing",
+        "how_to",
+        "account_recovery",
+        "email_change",
+        "lost_license",
+        "reset_devices",
+        "missing_order",
+        "other",
+      ],
+      other: ["other"],
+    };
+
+    let accountEmail = "";
+    let accountBuyer = false;
+
+    const fillSubtypes = (channel: string) => {
+      if (!(feedbackForm instanceof HTMLFormElement)) return;
+      const sel = feedbackForm.querySelector("[data-fb-subtype]") as HTMLSelectElement | null;
+      if (!sel) return;
+      const list = SUBTYPES[channel] || SUBTYPES.other;
+      sel.innerHTML = list
+        .map((s) => `<option value="${s}">${s.replace(/_/g, " ")}</option>`)
+        .join("");
+    };
+
+    const paintFeedbackIdentity = () => {
+      if (!(feedbackForm instanceof HTMLFormElement)) return;
+      const badge = feedbackForm.querySelector("[data-fb-badge]");
+      const emailWrap = feedbackForm.querySelector("[data-fb-email-wrap]");
+      const emailInput = feedbackForm.querySelector("[data-fb-email]") as HTMLInputElement | null;
+      const verify = feedbackForm.querySelector("[data-fb-verify]");
+      if (badge instanceof HTMLElement) {
+        badge.hidden = false;
+        if (accountEmail && accountBuyer) {
+          badge.textContent = `${L.feedbackVerified || "Cliente"} · ${accountEmail}`;
+          badge.classList.add("is-client");
+          badge.classList.remove("is-prospect");
+        } else if (accountEmail) {
+          badge.textContent = `${L.feedbackProspect || "Prospect"} · ${accountEmail}`;
+          badge.classList.add("is-prospect");
+          badge.classList.remove("is-client");
+        } else {
+          badge.textContent = L.feedbackProspect || "Prospect";
+          badge.classList.add("is-prospect");
+          badge.classList.remove("is-client");
+        }
+      }
+      if (emailWrap instanceof HTMLElement) {
+        emailWrap.hidden = Boolean(accountEmail);
+      }
+      if (emailInput) {
+        emailInput.required = !accountEmail;
+        if (accountEmail) emailInput.value = accountEmail;
+      }
+      if (verify instanceof HTMLAnchorElement) {
+        const base = String(payload.accountPath || L.accountPath || "/es/cuenta/");
+        verify.href = base;
+        verify.hidden = Boolean(accountEmail && accountBuyer);
+      }
+    };
+
+    const refreshAccount = async () => {
+      try {
+        const res = await fetch("/api/account/session", { credentials: "same-origin" });
+        const data = await res.json();
+        if (data?.authenticated && data.email) {
+          accountEmail = String(data.email);
+          accountBuyer = Boolean(data.buyer);
+        } else {
+          accountEmail = "";
+          accountBuyer = false;
+        }
+      } catch {
+        accountEmail = "";
+        accountBuyer = false;
+      }
+      paintFeedbackIdentity();
+    };
+
+    const showFeedback = (preChannel?: string) => {
       if (!(feedbackForm instanceof HTMLFormElement)) return;
       feedbackForm.hidden = false;
-      if (preType) {
-        const sel = feedbackForm.querySelector("[data-fb-type]") as HTMLSelectElement | null;
-        if (sel) sel.value = preType;
-      }
+      const ch = preChannel || "bug";
+      const sel = feedbackForm.querySelector("[data-fb-channel]") as HTMLSelectElement | null;
+      if (sel) sel.value = ch;
+      fillSubtypes(ch);
+      paintFeedbackIdentity();
+      void refreshAccount();
       feedbackForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
     };
 
-    feedbackBtn?.addEventListener("click", () => showFeedback("other"));
+    feedbackBtn?.addEventListener("click", () => showFeedback("bug"));
     root.querySelector("[data-fb-cancel]")?.addEventListener("click", () => {
       if (feedbackForm instanceof HTMLFormElement) feedbackForm.hidden = true;
     });
 
     if (feedbackForm instanceof HTMLFormElement) {
+      fillSubtypes("bug");
+      feedbackForm.querySelector("[data-fb-channel]")?.addEventListener("change", (ev) => {
+        const v = (ev.target as HTMLSelectElement).value;
+        fillSubtypes(v);
+      });
+
       feedbackForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const status = feedbackForm.querySelector("[data-fb-status]");
@@ -298,16 +405,30 @@ const payload = {
           (feedbackForm.querySelector("[data-fb-name]") as HTMLInputElement | null)?.value || "",
         ).trim();
         const email = String(
-          (feedbackForm.querySelector("[data-fb-email]") as HTMLInputElement | null)?.value || "",
+          (feedbackForm.querySelector("[data-fb-email]") as HTMLInputElement | null)?.value ||
+            accountEmail ||
+            "",
         ).trim();
         const message = String(
           (feedbackForm.querySelector("[data-fb-message]") as HTMLTextAreaElement | null)?.value ||
             "",
         ).trim();
-        const type = String(
-          (feedbackForm.querySelector("[data-fb-type]") as HTMLSelectElement | null)?.value ||
+        const channel = String(
+          (feedbackForm.querySelector("[data-fb-channel]") as HTMLSelectElement | null)?.value ||
             "other",
         );
+        const subtype = String(
+          (feedbackForm.querySelector("[data-fb-subtype]") as HTMLSelectElement | null)?.value ||
+            "other",
+        );
+        if (!accountEmail && !email) {
+          if (status instanceof HTMLElement) {
+            status.hidden = false;
+            status.textContent = L.feedbackErr || "Email required";
+            status.classList.add("is-err");
+          }
+          return;
+        }
         if (submit instanceof HTMLButtonElement) submit.disabled = true;
         if (status instanceof HTMLElement) {
           status.hidden = false;
@@ -317,12 +438,14 @@ const payload = {
         try {
           const res = await fetch("/api/feedback", {
             method: "POST",
+            credentials: "same-origin",
             headers: { "Content-Type": "application/json", Accept: "application/json" },
             body: JSON.stringify({
               productSlug: activeSlug || undefined,
-              type,
+              channel,
+              subtype,
               name,
-              email,
+              email: accountEmail || email,
               message,
             }),
           });
@@ -331,11 +454,12 @@ const payload = {
             throw new Error(data.message || data.error || `Error ${res.status}`);
           }
           if (status instanceof HTMLElement) {
-            status.textContent = L.feedbackOk || data.message || "OK";
+            const who = data.buyer ? L.feedbackVerified || "CLIENT" : L.feedbackProspect || "PROSPECT";
+            status.textContent = `${L.feedbackOk || data.message || "OK"} (${who})`;
             status.classList.add("is-ok");
           }
-          (feedbackForm.querySelector("[data-fb-message]") as HTMLTextAreaElement | null)?.form?.reset?.();
-          feedbackForm.reset();
+          const msgEl = feedbackForm.querySelector("[data-fb-message]") as HTMLTextAreaElement | null;
+          if (msgEl) msgEl.value = "";
         } catch (err) {
           if (status instanceof HTMLElement) {
             status.textContent =
@@ -348,7 +472,7 @@ const payload = {
       });
     }
 
-    demoReqEl?.addEventListener("click", () => showFeedback("idea"));
+    demoReqEl?.addEventListener("click", () => showFeedback("suggestion"));
 
     checkoutEl?.addEventListener("click", async () => {
       const item = items.find((x) => x.slug === activeSlug);
@@ -1122,5 +1246,25 @@ const payload = {
   }
   .pb__feedback-status.is-ok {
     color: #9ff0bc;
+  }
+  .pb__feedback-badge {
+    margin: 0;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+  }
+  .pb__feedback-badge.is-client {
+    border-color: rgb(100 200 140 / 0.45);
+    color: #9ff0bc;
+  }
+  .pb__feedback-badge.is-prospect {
+    color: var(--color-muted);
+  }
+  .pb__feedback-verify-row {
+    margin: 0;
+  }
+  .pb__feedback-verify-row .pb__btn {
+    font-size: 0.78rem;
   }
 </style>

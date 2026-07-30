@@ -1,6 +1,6 @@
 ---
 /**
- * Área cliente: magic link + pedidos + re-descarga.
+ * Área cliente: magic link + pedidos + nick + recovery.
  */
 import Layout from "../../components/Layout.astro";
 import type { Locale } from "../../i18n/translations";
@@ -26,6 +26,19 @@ const labels = {
   license: t("accountLicense"),
   err: t("accountError"),
   checkoutOk: t("accountCheckoutOk"),
+  nick: t("accountNick"),
+  nickSave: t("accountNickSave"),
+  nickHint: t("accountNickHint"),
+  nickOk: t("accountNickOk"),
+  recovery: t("accountRecovery"),
+  recoveryLead: t("accountRecoveryLead"),
+  recoveryOld: t("accountRecoveryOld"),
+  recoveryNew: t("accountRecoveryNew"),
+  recoveryKey: t("accountRecoveryKey"),
+  recoveryProof: t("accountRecoveryProof"),
+  recoveryMsg: t("accountRecoveryMsg"),
+  recoverySend: t("accountRecoverySend"),
+  recoveryOk: t("accountRecoveryOk"),
 };
 ---
 
@@ -55,10 +68,50 @@ const labels = {
         <p data-user-email></p>
         <button type="button" class="btn btn--ghost" data-logout>{t("accountLogout")}</button>
       </div>
+
+      <div class="nick-block">
+        <label>
+          {t("accountNick")}
+          <input type="text" data-nick maxlength="20" autocomplete="nickname" pattern="[A-Za-z0-9_]{3,20}" />
+        </label>
+        <p class="hint">{t("accountNickHint")}</p>
+        <button type="button" class="btn btn--sm btn--gold" data-nick-save>{t("accountNickSave")}</button>
+        <p class="status" data-nick-status hidden></p>
+      </div>
+
       <h2 class="sub">{t("accountOrders")}</h2>
       <div data-orders-list>
         <p class="muted">{t("accountEmpty")}</p>
       </div>
+    </section>
+
+    <section class="card recovery" data-recovery>
+      <h2 class="sub">{t("accountRecovery")}</h2>
+      <p class="muted">{t("accountRecoveryLead")}</p>
+      <form class="form" data-recovery-form>
+        <label>
+          {t("accountRecoveryNew")}
+          <input type="email" name="newEmail" required data-rec-new autocomplete="email" />
+        </label>
+        <label>
+          {t("accountRecoveryOld")}
+          <input type="email" name="oldEmail" data-rec-old autocomplete="email" />
+        </label>
+        <label>
+          {t("accountRecoveryKey")}
+          <input type="text" name="licenseKey" data-rec-key maxlength="40" autocomplete="off" />
+        </label>
+        <label>
+          {t("accountRecoveryProof")}
+          <input type="text" name="proof" data-rec-proof maxlength="500" />
+        </label>
+        <label>
+          {t("accountRecoveryMsg")}
+          <textarea name="message" data-rec-msg rows="3" maxlength="4000"></textarea>
+        </label>
+        <button type="submit" class="btn btn--gold" data-rec-submit>{t("accountRecoverySend")}</button>
+      </form>
+      <p class="status" data-rec-status hidden></p>
     </section>
   </div>
 </Layout>
@@ -82,6 +135,8 @@ const labels = {
     const loginStatus = root.querySelector("[data-login-status]");
     const ordersList = root.querySelector("[data-orders-list]");
     const userEmail = root.querySelector("[data-user-email]");
+    const nickInput = root.querySelector("[data-nick]") as HTMLInputElement | null;
+    const nickStatus = root.querySelector("[data-nick-status]");
 
     try {
       const u = new URL(window.location.href);
@@ -111,6 +166,7 @@ const labels = {
         if (login instanceof HTMLElement) login.hidden = true;
         if (panel instanceof HTMLElement) panel.hidden = false;
         if (userEmail) userEmail.textContent = data.email;
+        if (nickInput) nickInput.value = data.nick || "";
         const orders = Array.isArray(data.orders) ? data.orders : [];
         if (!(ordersList instanceof HTMLElement)) return;
         if (!orders.length) {
@@ -199,6 +255,71 @@ const labels = {
       location.reload();
     });
 
+    root.querySelector("[data-nick-save]")?.addEventListener("click", async () => {
+      const nick = String(nickInput?.value || "").trim();
+      if (nickStatus instanceof HTMLElement) {
+        nickStatus.hidden = false;
+        nickStatus.textContent = "…";
+        nickStatus.classList.remove("is-ok", "is-err");
+      }
+      try {
+        const res = await fetch("/api/account/profile", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nick }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+        if (nickStatus instanceof HTMLElement) {
+          nickStatus.textContent = L.nickOk || "OK";
+          nickStatus.classList.add("is-ok");
+        }
+      } catch (err) {
+        if (nickStatus instanceof HTMLElement) {
+          nickStatus.textContent = err instanceof Error ? err.message : L.err || "Error";
+          nickStatus.classList.add("is-err");
+        }
+      }
+    });
+
+    root.querySelector("[data-recovery-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const status = root.querySelector("[data-rec-status]");
+      const submit = root.querySelector("[data-rec-submit]");
+      if (submit instanceof HTMLButtonElement) submit.disabled = true;
+      if (status instanceof HTMLElement) {
+        status.hidden = false;
+        status.textContent = "…";
+        status.classList.remove("is-ok", "is-err");
+      }
+      try {
+        const res = await fetch("/api/account/recovery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            newEmail: (root.querySelector("[data-rec-new]") as HTMLInputElement | null)?.value,
+            oldEmail: (root.querySelector("[data-rec-old]") as HTMLInputElement | null)?.value,
+            licenseKey: (root.querySelector("[data-rec-key]") as HTMLInputElement | null)?.value,
+            proof: (root.querySelector("[data-rec-proof]") as HTMLInputElement | null)?.value,
+            message: (root.querySelector("[data-rec-msg]") as HTMLTextAreaElement | null)?.value,
+          }),
+        });
+        const data = await res.json();
+        if (status instanceof HTMLElement) {
+          status.textContent = data.message || L.recoveryOk || "OK";
+          status.classList.add("is-ok");
+        }
+      } catch {
+        if (status instanceof HTMLElement) {
+          status.textContent = L.recoveryOk || "OK";
+          status.classList.add("is-ok");
+        }
+      } finally {
+        if (submit instanceof HTMLButtonElement) submit.disabled = false;
+      }
+    });
+
     void paintSession();
   }
 
@@ -253,6 +374,7 @@ const labels = {
     border-radius: 12px;
     background: var(--color-surface);
     padding: 1.15rem 1.25rem;
+    margin-bottom: 1rem;
   }
   .form {
     display: flex;
@@ -262,53 +384,18 @@ const labels = {
   .form label {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.8rem;
-    color: var(--color-muted);
-  }
-  .form input {
-    font: inherit;
-    padding: 0.55rem 0.7rem;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-elevated, #121218);
-    color: var(--color-fg);
-  }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.55rem 1rem;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    font: inherit;
-    cursor: pointer;
-    color: inherit;
-  }
-  .btn--gold {
-    background: var(--color-accent);
-    color: #0a0a0c;
-    border-color: transparent;
-    font-weight: 600;
-  }
-  .btn--ghost {
-    background: transparent;
-  }
-  .btn--sm {
-    font-size: 0.78rem;
-    padding: 0.35rem 0.65rem;
-  }
-  .status {
-    margin-top: 0.75rem;
+    gap: 0.3rem;
     font-size: 0.85rem;
-    color: var(--color-muted);
   }
-  .status.is-ok {
-    color: #9ff0bc;
-  }
-  .status.is-err {
-    color: #f0a0a0;
+  .form input,
+  .form textarea,
+  .nick-block input {
+    font: inherit;
+    color: var(--color-fg);
+    background: var(--color-bg-elevated, #121218);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
   }
   .panel-head {
     display: flex;
@@ -319,27 +406,54 @@ const labels = {
   }
   .sub {
     font-family: var(--font-display);
-    font-size: 1.15rem;
-    margin: 0 0 0.75rem;
-  }
-  .muted {
-    color: var(--color-muted);
-    font-size: 0.85rem;
+    font-size: 1.1rem;
+    margin: 1rem 0 0.5rem;
   }
   .order {
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 0;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
     border-top: 1px solid var(--color-border);
   }
   .order:first-child {
     border-top: none;
   }
-  .key {
+  .key code {
     font-size: 0.8rem;
+    word-break: break-all;
   }
-  code {
-    font-size: 0.78rem;
+  .muted {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+  .hint {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .nick-block {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .nick-block label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+  }
+  .status {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+  .status.is-ok {
+    color: #9ff0bc;
+  }
+  .status.is-err {
+    color: #f0a0a0;
+  }
+  .recovery {
+    margin-top: 0.5rem;
   }
 </style>

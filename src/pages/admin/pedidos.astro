@@ -13,19 +13,32 @@ import Layout from "../../components/Layout.astro";
         <h1>Pedidos y licencias</h1>
       </div>
       <div class="head__actions">
+        <a class="btn btn--ghost" href="/admin/tickets/">Tickets</a>
         <a class="btn btn--ghost" href="/admin/productos/">Productos</a>
         <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
         <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
       </div>
     </header>
     <p class="lead">
-      Stripe webhook → pedido paid + key. Reenvía descarga o revoca licencias.
+      Stripe webhook → pedido paid + key + customer. Reenvía, revoca, transfer email, rotate key.
       <span data-stripe-flag></span>
     </p>
     <p class="status" data-status hidden></p>
     <div class="toolbar">
       <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
     </div>
+    <section class="card-tools">
+      <h2 class="subhead">Transfer email</h2>
+      <form class="inline-form" data-transfer-form>
+        <input type="email" name="from" placeholder="from@…" required data-tr-from />
+        <input type="email" name="to" placeholder="to@…" required data-tr-to />
+        <button type="submit" class="btn btn--sm btn--gold">Transferir</button>
+      </form>
+    </section>
+    <section>
+      <h2 class="subhead">Clientes</h2>
+      <div class="table-wrap" data-customers><p class="empty">—</p></div>
+    </section>
     <section>
       <h2 class="subhead">Pedidos</h2>
       <div class="table-wrap" data-orders><p class="empty">Cargando…</p></div>
@@ -73,10 +86,17 @@ import Layout from "../../components/Layout.astro";
     revoked: boolean;
     createdAt: string;
   };
+  type Cust = {
+    email: string;
+    nick: string | null;
+    productSlugs: string[];
+    lastPurchaseAt?: string;
+  };
 
   const load = async () => {
     const ordersEl = document.querySelector("[data-orders]");
     const licEl = document.querySelector("[data-licenses]");
+    const custEl = document.querySelector("[data-customers]");
     try {
       const res = await fetch("/admin/orders", { credentials: "same-origin" });
       const data = await res.json();
@@ -89,6 +109,28 @@ import Layout from "../../components/Layout.astro";
       }
       const orders = (data.orders || []) as Order[];
       const licenses = (data.licenses || []) as Lic[];
+      const customers = (data.customers || []) as Cust[];
+
+      if (custEl instanceof HTMLElement) {
+        if (!customers.length) {
+          custEl.innerHTML = `<p class="empty">Sin clientes (aparecen al primer pago).</p>`;
+        } else {
+          custEl.innerHTML = `<table class="tbl">
+            <thead><tr><th>Email</th><th>Nick</th><th>Productos</th><th>Última compra</th></tr></thead>
+            <tbody>
+            ${customers
+              .map(
+                (c) => `<tr>
+                  <td><code>${c.email}</code></td>
+                  <td>${c.nick ? `@${c.nick}` : "—"}</td>
+                  <td>${(c.productSlugs || []).join(", ") || "—"}</td>
+                  <td>${(c.lastPurchaseAt || "").slice(0, 10) || "—"}</td>
+                </tr>`,
+              )
+              .join("")}
+            </tbody></table>`;
+        }
+      }
 
       if (ordersEl instanceof HTMLElement) {
         if (!orders.length) {
@@ -148,33 +190,52 @@ import Layout from "../../components/Layout.astro";
                   <td><code>${l.productSlug}</code></td>
                   <td>${l.activations?.length || 0}/${l.seats}</td>
                   <td>${l.revoked ? "revocada" : "activa"}</td>
-                  <td>${
-                    l.revoked
-                      ? ""
-                      : `<button type="button" class="btn btn--sm btn--danger" data-revoke="${l.key}">Revocar</button>`
-                  }</td>
+                  <td class="actions">
+                    ${
+                      l.revoked
+                        ? ""
+                        : `<button type="button" class="btn btn--sm" data-reset="${l.key}">Reset seats</button>
+                           <button type="button" class="btn btn--sm" data-rotate="${l.key}">Rotate key</button>
+                           <button type="button" class="btn btn--sm btn--danger" data-revoke="${l.key}">Revocar</button>`
+                    }
+                  </td>
                 </tr>`;
               })
               .join("")}
             </tbody></table>`;
+          const postAction = async (action: string, key: string, confirmMsg: string) => {
+            if (!confirm(confirmMsg)) return;
+            try {
+              const r = await fetch("/admin/orders", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, key }),
+              });
+              const j = await r.json();
+              if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+              setStatus(j.message || "OK");
+              await load();
+            } catch (e) {
+              setStatus(e instanceof Error ? e.message : "Error", false);
+            }
+          };
           licEl.querySelectorAll("[data-revoke]").forEach((btn) => {
-            btn.addEventListener("click", async () => {
+            btn.addEventListener("click", () => {
               const key = (btn as HTMLElement).dataset.revoke || "";
-              if (!confirm(`¿Revocar ${key}?`)) return;
-              try {
-                const r = await fetch("/admin/orders", {
-                  method: "POST",
-                  credentials: "same-origin",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ action: "revoke", key }),
-                });
-                const j = await r.json();
-                if (!r.ok || !j.ok) throw new Error(j.message || j.error);
-                setStatus(j.message || "Revocada");
-                await load();
-              } catch (e) {
-                setStatus(e instanceof Error ? e.message : "Error", false);
-              }
+              void postAction("revoke", key, `¿Revocar ${key}?`);
+            });
+          });
+          licEl.querySelectorAll("[data-reset]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const key = (btn as HTMLElement).dataset.reset || "";
+              void postAction("reset_activations", key, `¿Reset activaciones ${key}?`);
+            });
+          });
+          licEl.querySelectorAll("[data-rotate]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const key = (btn as HTMLElement).dataset.rotate || "";
+              void postAction("rotate_key", key, `¿Rotar key ${key}? La antigua deja de valer.`);
             });
           });
         }
@@ -186,6 +247,31 @@ import Layout from "../../components/Layout.astro";
     }
   };
 
+  document.querySelector("[data-transfer-form]")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fromEmail = String(
+      (document.querySelector("[data-tr-from]") as HTMLInputElement | null)?.value || "",
+    ).trim();
+    const toEmail = String(
+      (document.querySelector("[data-tr-to]") as HTMLInputElement | null)?.value || "",
+    ).trim();
+    if (!confirm(`¿Transferir ${fromEmail} → ${toEmail}?`)) return;
+    try {
+      const r = await fetch("/admin/orders", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "transfer_email", fromEmail, toEmail }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+      setStatus(j.message || "OK");
+      await load();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error", false);
+    }
+  });
+
   document.querySelector("[data-refresh]")?.addEventListener("click", () => void load());
   void load();
 </script>
@@ -194,6 +280,32 @@ import Layout from "../../components/Layout.astro";
   .admin {
     padding-block: 2rem 4rem;
     max-width: 72rem;
+  }
+  .card-tools {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+  }
+  .inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .inline-form input {
+    font: inherit;
+    background: var(--color-bg-elevated, #121218);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.4rem 0.55rem;
+    min-width: 12rem;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
   .head {
     display: flex;

@@ -6,6 +6,7 @@
 
 import {
   activateLicense,
+  findCustomer,
   findLicense,
   type CommerceEnv,
 } from "../../lib/commerce";
@@ -86,11 +87,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
     return json({ ok: false, error: result.error }, status);
   }
 
+  const customer = await findCustomer(env.LIBRARY_BUCKET, result.license.email);
+
   return json({
     ok: true,
     productSlug: result.license.productSlug,
     planId: result.license.planId,
     seats: result.license.seats,
     activations: result.license.activations.length,
+    nick: customer?.nick ?? null,
   });
 }

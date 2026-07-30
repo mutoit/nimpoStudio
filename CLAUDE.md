@@ -92,6 +92,8 @@ npm run cf:token     # permisos del token API
 | `docs/estado.md` | Tareas y roadmap |
 | `docs/configuracion.md` | Infra DNS/email |
 | `docs/analytics-publi.md` | SEO y analíticas |
+| `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` | Canon venta software, clientes, tickets, recuperación |
+| `docs/licencias/` | Licencias y precios de **música** (otro flujo) |
 
 ## Commits
 

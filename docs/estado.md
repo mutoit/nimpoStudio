@@ -117,6 +117,17 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] POST `/api/license/activate` (seats + machineId)
 - [x] Admin `/admin/pedidos/` listar / revocar / reenviar
 
+### Fase D — Clientes / tickets / recovery (plan 2026-07-30) — hecha
+Canon: `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`  
+Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
+- [x] WP1 `customers` + upsert en webhook Stripe
+- [x] WP2 tickets store + feedback enums + badge CLIENT/PROSPECT
+- [x] WP3 UI ProductsBrowser + i18n
+- [x] WP4 nick en cuenta + session + activate
+- [x] WP5 admin `/admin/tickets/`
+- [x] WP6 recovery form + transfer email / rotate key / reset seats
+- [x] WP7 docs mapa/estado
+
 ### Pendiente ops (tú)
 - [ ] Secrets Pages: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `DOWNLOAD_SECRET` (o reusa session secret)
 - [ ] Webhook Stripe → `https://nimpo3dstudio.com/api/webhooks/stripe` event `checkout.session.completed`
@@ -159,7 +170,8 @@ No editar `library.json` a mano salvo semilla local o fallback.
 | **`docs/estado.md`** | **Este handoff** |
 | `docs/admin-acceso.md` | Login + publish un clic + R2 |
 | `docs/PUBLICIDAD-ORGANICA-SEO.md` | Plan gratis: SEO, Search Console, keywords |
-| `docs/licencias/` | Precios, plan, plantillas |
+| `docs/licencias/` | Precios, plan, plantillas (música) |
+| `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` | Canon software: venta, clientes, tickets, recovery |
 | `docs/configuracion.md` | DNS, Cloudflare, email |
 | `docs/analytics-publi.md` | SEO / analíticas |
 | `DEPLOY.md` / `SETUP-PAGES.md` | Deploy y Pages |

@@ -9,6 +9,7 @@ import {
   generateLicenseKey,
   newId,
   productFullKey,
+  recordCustomerPurchase,
   siteBase,
   signDownloadToken,
   upsertLicense,
@@ -187,6 +188,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   await upsertOrder(env.LIBRARY_BUCKET, order);
   await upsertLicense(env.LIBRARY_BUCKET, license);
+  await recordCustomerPurchase(env.LIBRARY_BUCKET, email, productSlug, now);
 
   const secret = commerceSecret(env);
   let downloadUrl = "";

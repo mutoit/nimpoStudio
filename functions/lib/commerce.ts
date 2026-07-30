@@ -1,5 +1,5 @@
 /**
- * Commerce SSoT: orders, licenses, download tokens, magic-link sessions.
+ * Commerce SSoT: orders, licenses, customers, tickets, download tokens, magic sessions.
  * Storage: R2 JSON monofile (catalog/commerce/*).
  * Limitación conocida: no atómico bajo concurrencia alta — D1 schema en
  * migrations/0001_commerce.sql para migrar cuando haya volumen real.
@@ -11,6 +11,8 @@ import type { ProductsBucket } from "./products-catalog";
 
 export const ORDERS_KEY = "catalog/commerce/orders.json";
 export const LICENSES_KEY = "catalog/commerce/licenses.json";
+export const CUSTOMERS_KEY = "catalog/commerce/customers.json";
+export const TICKETS_KEY = "catalog/commerce/tickets.json";
 
 export type CommerceOrder = {
   id: string;
@@ -41,6 +43,64 @@ export type CommerceLicense = {
   revoked: boolean;
   createdAt: string;
 };
+
+export type CommerceCustomer = {
+  email: string;
+  nick: string | null;
+  productSlugs: string[];
+  createdAt: string;
+  lastPurchaseAt?: string;
+  lastSeenAt?: string;
+  emailHistory?: string[];
+};
+
+export type TicketChannel = "bug" | "suggestion" | "support" | "other";
+export type TicketStatus = "new" | "triaged" | "waiting" | "done" | "wontfix";
+
+export type CommerceTicket = {
+  id: string;
+  email: string;
+  buyer: boolean;
+  productSlug: string | null;
+  channel: TicketChannel;
+  subtype: string;
+  message: string;
+  nick: string | null;
+  name: string | null;
+  status: TicketStatus;
+  createdAt: string;
+  orderIds?: string[];
+  ip?: string;
+  /** Recovery extras (opaque; admin only). */
+  recovery?: {
+    oldEmail?: string;
+    newEmail?: string;
+    licenseKey?: string;
+    proof?: string;
+  };
+};
+
+export const TICKET_CHANNELS = ["bug", "suggestion", "support", "other"] as const;
+
+export const TICKET_SUBTYPES: Record<TicketChannel, readonly string[]> = {
+  bug: ["crash", "install", "license_activate", "performance", "ui", "data_loss", "other"],
+  suggestion: ["cosmetic", "visual", "feature", "workflow", "docs", "other"],
+  support: [
+    "download",
+    "license",
+    "billing",
+    "how_to",
+    "account_recovery",
+    "email_change",
+    "lost_license",
+    "reset_devices",
+    "missing_order",
+    "other",
+  ],
+  other: ["other"],
+};
+
+export const NICK_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 export type CommerceEnv = AdminEnv & {
   LIBRARY_BUCKET?: ProductsBucket;
@@ -466,6 +526,328 @@ export function productFullKey(
   if (orderFull && orderFull.includes("/full/")) return orderFull;
   if (product.fullKey && product.fullKey.includes("/full/")) return product.fullKey;
   return null;
+}
+
+// —— Customers ——
+
+export async function listCustomers(
+  bucket: ProductsBucket | undefined,
+): Promise<CommerceCustomer[]> {
+  return readJsonArray<CommerceCustomer>(bucket, CUSTOMERS_KEY);
+}
+
+export async function findCustomer(
+  bucket: ProductsBucket | undefined,
+  email: string,
+): Promise<CommerceCustomer | null> {
+  const e = email.toLowerCase().trim();
+  if (!e) return null;
+  const list = await listCustomers(bucket);
+  return list.find((c) => c.email.toLowerCase() === e) || null;
+}
+
+export async function upsertCustomer(
+  bucket: ProductsBucket,
+  customer: CommerceCustomer,
+): Promise<CommerceCustomer[]> {
+  const email = customer.email.toLowerCase().trim();
+  const list = await listCustomers(bucket);
+  const next = list.filter((c) => c.email.toLowerCase() !== email);
+  next.unshift({ ...customer, email });
+  await writeJsonArray(bucket, CUSTOMERS_KEY, next);
+  return next;
+}
+
+/**
+ * After paid order: create or merge customer productSlugs + lastPurchaseAt.
+ */
+export async function recordCustomerPurchase(
+  bucket: ProductsBucket,
+  email: string,
+  productSlug: string,
+  paidAt?: string,
+): Promise<CommerceCustomer> {
+  const e = email.toLowerCase().trim();
+  const slug = String(productSlug || "").trim();
+  const now = paidAt || new Date().toISOString();
+  const existing = await findCustomer(bucket, e);
+  const slugs = new Set(existing?.productSlugs || []);
+  if (slug) slugs.add(slug);
+  const customer: CommerceCustomer = {
+    email: e,
+    nick: existing?.nick ?? null,
+    productSlugs: Array.from(slugs),
+    createdAt: existing?.createdAt || now,
+    lastPurchaseAt: now,
+    lastSeenAt: existing?.lastSeenAt,
+    emailHistory: existing?.emailHistory,
+  };
+  await upsertCustomer(bucket, customer);
+  return customer;
+}
+
+export async function isPaidBuyer(
+  bucket: ProductsBucket | undefined,
+  email: string,
+  productSlug?: string | null,
+): Promise<{ buyer: boolean; orderIds: string[] }> {
+  const orders = await ordersForEmail(bucket, email);
+  const filtered = productSlug
+    ? orders.filter((o) => o.productSlug === productSlug)
+    : orders;
+  return {
+    buyer: filtered.length > 0,
+    orderIds: filtered.map((o) => o.id),
+  };
+}
+
+export function normalizeNick(raw: string): string | null {
+  const n = String(raw || "").trim();
+  if (!NICK_RE.test(n)) return null;
+  return n;
+}
+
+export async function findCustomerByNick(
+  bucket: ProductsBucket | undefined,
+  nick: string,
+): Promise<CommerceCustomer | null> {
+  const n = String(nick || "").trim().toLowerCase();
+  if (!n) return null;
+  const list = await listCustomers(bucket);
+  return list.find((c) => (c.nick || "").toLowerCase() === n) || null;
+}
+
+/**
+ * Set nick for customer (creates shell customer if missing). Unique case-insensitive.
+ */
+export async function setCustomerNick(
+  bucket: ProductsBucket,
+  email: string,
+  nickRaw: string,
+): Promise<
+  | { ok: true; customer: CommerceCustomer }
+  | { ok: false; error: "invalid_nick" | "nick_taken" }
+> {
+  const nick = normalizeNick(nickRaw);
+  if (!nick) return { ok: false, error: "invalid_nick" };
+  const e = email.toLowerCase().trim();
+  const taken = await findCustomerByNick(bucket, nick);
+  if (taken && taken.email !== e) return { ok: false, error: "nick_taken" };
+  const existing = await findCustomer(bucket, e);
+  const now = new Date().toISOString();
+  const customer: CommerceCustomer = {
+    email: e,
+    nick,
+    productSlugs: existing?.productSlugs || [],
+    createdAt: existing?.createdAt || now,
+    lastPurchaseAt: existing?.lastPurchaseAt,
+    lastSeenAt: now,
+    emailHistory: existing?.emailHistory,
+  };
+  await upsertCustomer(bucket, customer);
+  return { ok: true, customer };
+}
+
+export async function touchCustomerSeen(
+  bucket: ProductsBucket,
+  email: string,
+): Promise<void> {
+  const existing = await findCustomer(bucket, email);
+  if (!existing) return;
+  await upsertCustomer(bucket, {
+    ...existing,
+    lastSeenAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Transfer all commerce rows from fromEmail → toEmail.
+ * Merges productSlugs; records fromEmail in emailHistory.
+ */
+export async function transferCustomerEmail(
+  bucket: ProductsBucket,
+  fromEmail: string,
+  toEmail: string,
+): Promise<
+  | { ok: true; to: string; orders: number; licenses: number }
+  | { ok: false; error: string }
+> {
+  const from = fromEmail.toLowerCase().trim();
+  const to = toEmail.toLowerCase().trim();
+  if (!from || !to || from === to) return { ok: false, error: "invalid_emails" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { ok: false, error: "invalid_emails" };
+
+  const orders = await listOrders(bucket);
+  let orderCount = 0;
+  const nextOrders = orders.map((o) => {
+    if (o.email.toLowerCase() !== from) return o;
+    orderCount++;
+    return { ...o, email: to };
+  });
+  if (orderCount > 0) await writeJsonArray(bucket, ORDERS_KEY, nextOrders);
+
+  const licenses = await listLicenses(bucket);
+  let licCount = 0;
+  const nextLic = licenses.map((l) => {
+    if (l.email.toLowerCase() !== from) return l;
+    licCount++;
+    return { ...l, email: to };
+  });
+  if (licCount > 0) await writeJsonArray(bucket, LICENSES_KEY, nextLic);
+
+  const fromCust = await findCustomer(bucket, from);
+  const toCust = await findCustomer(bucket, to);
+  const now = new Date().toISOString();
+  const slugs = new Set([...(fromCust?.productSlugs || []), ...(toCust?.productSlugs || [])]);
+  const history = [
+    ...(toCust?.emailHistory || []),
+    ...(fromCust?.emailHistory || []),
+    from,
+  ].filter((x, i, a) => a.indexOf(x) === i && x !== to);
+
+  const merged: CommerceCustomer = {
+    email: to,
+    nick: toCust?.nick || fromCust?.nick || null,
+    productSlugs: Array.from(slugs),
+    createdAt: toCust?.createdAt || fromCust?.createdAt || now,
+    lastPurchaseAt: [toCust?.lastPurchaseAt, fromCust?.lastPurchaseAt]
+      .filter(Boolean)
+      .sort()
+      .reverse()[0] as string | undefined,
+    lastSeenAt: now,
+    emailHistory: history,
+  };
+  const allCust = (await listCustomers(bucket)).filter(
+    (c) => c.email.toLowerCase() !== from && c.email.toLowerCase() !== to,
+  );
+  allCust.unshift(merged);
+  await writeJsonArray(bucket, CUSTOMERS_KEY, allCust);
+
+  // Tickets: rewrite email for history
+  const tickets = await listTickets(bucket);
+  if (tickets.some((t) => t.email.toLowerCase() === from)) {
+    await writeJsonArray(
+      bucket,
+      TICKETS_KEY,
+      tickets.map((t) => (t.email.toLowerCase() === from ? { ...t, email: to } : t)),
+    );
+  }
+
+  return { ok: true, to, orders: orderCount, licenses: licCount };
+}
+
+export async function rotateLicenseKey(
+  bucket: ProductsBucket,
+  oldKey: string,
+): Promise<
+  | { ok: true; license: CommerceLicense; oldKey: string }
+  | { ok: false; error: string }
+> {
+  const lic = await findLicense(bucket, oldKey);
+  if (!lic) return { ok: false, error: "not_found" };
+  if (lic.revoked) return { ok: false, error: "revoked" };
+  const newKey = generateLicenseKey();
+  // revoke old
+  await upsertLicense(bucket, { ...lic, revoked: true });
+  const next: CommerceLicense = {
+    ...lic,
+    key: newKey,
+    activations: [],
+    revoked: false,
+    createdAt: new Date().toISOString(),
+  };
+  await upsertLicense(bucket, next);
+  // update order licenseKey if matches
+  const orders = await listOrders(bucket);
+  const updated = orders.map((o) =>
+    o.licenseKey && o.licenseKey.toUpperCase() === lic.key.toUpperCase()
+      ? { ...o, licenseKey: newKey }
+      : o,
+  );
+  await writeJsonArray(bucket, ORDERS_KEY, updated);
+  return { ok: true, license: next, oldKey: lic.key };
+}
+
+export async function resetLicenseActivations(
+  bucket: ProductsBucket,
+  key: string,
+): Promise<CommerceLicense | null> {
+  const lic = await findLicense(bucket, key);
+  if (!lic || lic.revoked) return null;
+  const next = { ...lic, activations: [] as CommerceLicense["activations"] };
+  await upsertLicense(bucket, next);
+  return next;
+}
+
+// —— Tickets ——
+
+export function normalizeTicketChannel(raw: string): TicketChannel {
+  const c = String(raw || "").toLowerCase().trim();
+  if (c === "bug" || c === "suggestion" || c === "support" || c === "other") return c;
+  // legacy feedback types
+  if (c === "idea") return "suggestion";
+  if (c === "complaint") return "support";
+  return "other";
+}
+
+export function normalizeTicketSubtype(channel: TicketChannel, raw: string): string {
+  const s = String(raw || "").toLowerCase().trim() || "other";
+  const allowed = TICKET_SUBTYPES[channel];
+  return allowed.includes(s) ? s : "other";
+}
+
+/** Map legacy type=bug|idea|complaint|other → channel/subtype */
+export function legacyFeedbackToChannel(type: string): { channel: TicketChannel; subtype: string } {
+  const t = String(type || "").toLowerCase();
+  if (t === "bug") return { channel: "bug", subtype: "other" };
+  if (t === "idea") return { channel: "suggestion", subtype: "feature" };
+  if (t === "complaint") return { channel: "support", subtype: "other" };
+  return { channel: "other", subtype: "other" };
+}
+
+export async function listTickets(
+  bucket: ProductsBucket | undefined,
+): Promise<CommerceTicket[]> {
+  const list = await readJsonArray<CommerceTicket>(bucket, TICKETS_KEY);
+  return list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+export async function upsertTicket(
+  bucket: ProductsBucket,
+  ticket: CommerceTicket,
+): Promise<CommerceTicket[]> {
+  const list = await listTickets(bucket);
+  const next = list.filter((t) => t.id !== ticket.id);
+  next.unshift(ticket);
+  await writeJsonArray(bucket, TICKETS_KEY, next);
+  return next;
+}
+
+export async function findTicket(
+  bucket: ProductsBucket | undefined,
+  id: string,
+): Promise<CommerceTicket | null> {
+  const list = await listTickets(bucket);
+  return list.find((t) => t.id === id) || null;
+}
+
+export async function setTicketStatus(
+  bucket: ProductsBucket,
+  id: string,
+  status: TicketStatus,
+): Promise<CommerceTicket | null> {
+  const allowed: TicketStatus[] = ["new", "triaged", "waiting", "done", "wontfix"];
+  if (!allowed.includes(status)) return null;
+  const t = await findTicket(bucket, id);
+  if (!t) return null;
+  const next = { ...t, status };
+  await upsertTicket(bucket, next);
+  return next;
+}
+
+export function ticketMailPrefix(t: Pick<CommerceTicket, "channel" | "subtype" | "buyer">): string {
+  const who = t.buyer ? "CLIENT" : "PROSPECT";
+  return `[${t.channel.toUpperCase()}·${t.subtype}][${who}]`;
 }
 
 export { ACCOUNT_COOKIE, ACCOUNT_MAX_AGE };

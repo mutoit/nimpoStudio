@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: done
 source: code-review + direct
 tier: L
 date: 2026-07-28

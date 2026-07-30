@@ -1,18 +1,21 @@
 /**
  * Admin commerce:
- * GET  /admin/orders → orders + licenses
- * POST /admin/orders { action: "revoke", key }
- * POST /admin/orders { action: "fulfill", orderId } → re-send download email
+ * GET  /admin/orders → orders + licenses + customers
+ * POST /admin/orders { action: "revoke" | "fulfill" | "transfer_email" | "rotate_key" | "reset_activations", ... }
  */
 
 import {
   commerceSecret,
   findOrderById,
+  listCustomers,
   listLicenses,
   listOrders,
+  resetLicenseActivations,
   revokeLicense,
+  rotateLicenseKey,
   signDownloadToken,
   siteBase,
+  transferCustomerEmail,
   upsertOrder,
   type CommerceEnv,
 } from "../lib/commerce";
@@ -42,10 +45,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
   if (request.method === "GET") {
     const orders = await listOrders(bucket);
     const licenses = await listLicenses(bucket);
+    const customers = await listCustomers(bucket);
     return json({
       ok: true,
       orders,
       licenses,
+      customers,
       count: orders.length,
       stripeConfigured: Boolean(String(env.STRIPE_SECRET_KEY || "").trim()),
     });
@@ -63,7 +68,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
   );
   if (!rl.ok) return json({ ok: false, error: "rate_limited" }, 429);
 
-  let body: { action?: string; key?: string; orderId?: string };
+  let body: {
+    action?: string;
+    key?: string;
+    orderId?: string;
+    fromEmail?: string;
+    toEmail?: string;
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -122,6 +133,46 @@ export async function onRequest(context: { request: Request; env: Env }) {
       mailed: mail.ok,
       downloadUrl,
       message: mail.ok ? "Email reenviado." : `Mail falló: ${mail.error}`,
+    });
+  }
+
+  if (action === "transfer_email") {
+    const fromEmail = String(body.fromEmail || "").trim().toLowerCase();
+    const toEmail = String(body.toEmail || "").trim().toLowerCase();
+    if (!fromEmail || !toEmail) {
+      return json({ ok: false, error: "missing_emails" }, 400);
+    }
+    const result = await transferCustomerEmail(bucket, fromEmail, toEmail);
+    if (!result.ok) return json({ ok: false, error: result.error }, 400);
+    return json({
+      ok: true,
+      ...result,
+      message: `Transferido ${fromEmail} → ${result.to} (${result.orders} pedidos, ${result.licenses} licencias).`,
+    });
+  }
+
+  if (action === "rotate_key") {
+    const key = String(body.key || "").trim();
+    if (!key) return json({ ok: false, error: "missing_key" }, 400);
+    const result = await rotateLicenseKey(bucket, key);
+    if (!result.ok) return json({ ok: false, error: result.error }, 404);
+    return json({
+      ok: true,
+      license: result.license,
+      oldKey: result.oldKey,
+      message: `Key rotada: ${result.oldKey} → ${result.license.key}`,
+    });
+  }
+
+  if (action === "reset_activations") {
+    const key = String(body.key || "").trim();
+    if (!key) return json({ ok: false, error: "missing_key" }, 400);
+    const lic = await resetLicenseActivations(bucket, key);
+    if (!lic) return json({ ok: false, error: "not_found" }, 404);
+    return json({
+      ok: true,
+      license: lic,
+      message: `Activaciones reseteadas para ${key}.`,
     });
   }
 

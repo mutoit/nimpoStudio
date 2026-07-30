@@ -1,0 +1,297 @@
+---
+/**
+ * Admin tickets (feedback / support).
+ */
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Admin tickets" description="Tickets feedback y soporte" lang="es">
+  <div class="container admin">
+    <header class="head">
+      <div>
+        <p class="eyebrow">Privado · commerce</p>
+        <h1>Tickets</h1>
+      </div>
+      <div class="head__actions">
+        <a class="btn btn--ghost" href="/admin/pedidos/">Pedidos</a>
+        <a class="btn btn--ghost" href="/admin/productos/">Productos</a>
+        <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
+        <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
+      </div>
+    </header>
+    <p class="lead">
+      Feedback y recovery. Prefijo mail: [CHANNEL·subtype][CLIENT|PROSPECT].
+    </p>
+    <p class="status" data-status hidden></p>
+    <div class="toolbar">
+      <label>
+        Canal
+        <select data-f-channel>
+          <option value="">Todos</option>
+          <option value="bug">bug</option>
+          <option value="suggestion">suggestion</option>
+          <option value="support">support</option>
+          <option value="other">other</option>
+        </select>
+      </label>
+      <label>
+        Cliente
+        <select data-f-buyer>
+          <option value="">Todos</option>
+          <option value="1">CLIENT</option>
+          <option value="0">PROSPECT</option>
+        </select>
+      </label>
+      <label>
+        Estado
+        <select data-f-status>
+          <option value="">Todos</option>
+          <option value="new">new</option>
+          <option value="triaged">triaged</option>
+          <option value="waiting">waiting</option>
+          <option value="done">done</option>
+          <option value="wontfix">wontfix</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
+    </div>
+    <div class="table-wrap" data-list><p class="empty">Cargando…</p></div>
+  </div>
+</Layout>
+
+<script>
+  const statusEl = document.querySelector("[data-status]");
+  const setStatus = (msg: string, ok = true) => {
+    if (!(statusEl instanceof HTMLElement)) return;
+    statusEl.hidden = false;
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("is-err", !ok);
+  };
+
+  document.querySelector("[data-logout]")?.addEventListener("click", async () => {
+    await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
+    location.href = "/admin/tickets/";
+  });
+
+  type Ticket = {
+    id: string;
+    email: string;
+    buyer: boolean;
+    productSlug: string | null;
+    channel: string;
+    subtype: string;
+    message: string;
+    nick: string | null;
+    name: string | null;
+    status: string;
+    createdAt: string;
+    recovery?: Record<string, string>;
+  };
+
+  const load = async () => {
+    const list = document.querySelector("[data-list]");
+    const channel = (document.querySelector("[data-f-channel]") as HTMLSelectElement)?.value || "";
+    const buyer = (document.querySelector("[data-f-buyer]") as HTMLSelectElement)?.value || "";
+    const status = (document.querySelector("[data-f-status]") as HTMLSelectElement)?.value || "";
+    const q = new URLSearchParams();
+    if (channel) q.set("channel", channel);
+    if (buyer) q.set("buyer", buyer);
+    if (status) q.set("status", status);
+    try {
+      const res = await fetch(`/admin/tickets?${q}`, { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      const tickets: Ticket[] = data.tickets || [];
+      if (!(list instanceof HTMLElement)) return;
+      if (!tickets.length) {
+        list.innerHTML = `<p class="empty">Sin tickets.</p>`;
+        return;
+      }
+      list.innerHTML = `<table class="tbl">
+        <thead>
+          <tr>
+            <th>Cuándo</th>
+            <th>Who</th>
+            <th>Canal</th>
+            <th>Producto</th>
+            <th>Mensaje</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tickets
+            .map((t) => {
+              const who = t.buyer ? "CLIENT" : "PROSPECT";
+              const rec = t.recovery
+                ? `<br><small class="muted">recovery: ${JSON.stringify(t.recovery)}</small>`
+                : "";
+              return `<tr>
+                <td>${String(t.createdAt || "").slice(0, 16)}</td>
+                <td>
+                  <span class="badge ${t.buyer ? "is-client" : ""}">${who}</span><br>
+                  <code>${t.email}</code>
+                  ${t.nick ? `<br>@${t.nick}` : ""}
+                </td>
+                <td>${t.channel}·${t.subtype}</td>
+                <td>${t.productSlug || "—"}</td>
+                <td class="msg">${escapeHtml(t.message).slice(0, 280)}${rec}</td>
+                <td>
+                  <select data-status-id="${t.id}">
+                    ${["new", "triaged", "waiting", "done", "wontfix"]
+                      .map(
+                        (s) =>
+                          `<option value="${s}" ${s === t.status ? "selected" : ""}>${s}</option>`,
+                      )
+                      .join("")}
+                  </select>
+                </td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>`;
+
+      list.querySelectorAll("[data-status-id]").forEach((sel) => {
+        sel.addEventListener("change", async () => {
+          const id = (sel as HTMLSelectElement).dataset.statusId || "";
+          const st = (sel as HTMLSelectElement).value;
+          try {
+            const r = await fetch("/admin/tickets", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "set_status", id, status: st }),
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+            setStatus(`Ticket ${id} → ${st}`);
+          } catch (e) {
+            setStatus(e instanceof Error ? e.message : "Error", false);
+          }
+        });
+      });
+    } catch (e) {
+      if (list instanceof HTMLElement) {
+        list.innerHTML = `<p class="empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  function escapeHtml(s: string) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  document.querySelector("[data-refresh]")?.addEventListener("click", () => void load());
+  document.querySelector("[data-f-channel]")?.addEventListener("change", () => void load());
+  document.querySelector("[data-f-buyer]")?.addEventListener("change", () => void load());
+  document.querySelector("[data-f-status]")?.addEventListener("change", () => void load());
+  void load();
+</script>
+
+<style>
+  .admin {
+    max-width: 72rem;
+    padding-block: 1.5rem 3rem;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .head h1 {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+  }
+  .head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .lead {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+    margin: 1rem 0;
+  }
+  .toolbar label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+  .toolbar select {
+    font: inherit;
+    background: var(--color-bg-elevated, #121218);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .tbl th,
+  .tbl td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.5rem 0.4rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .msg {
+    max-width: 18rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    color: var(--color-muted);
+  }
+  .badge.is-client {
+    border-color: rgb(100 200 140 / 0.5);
+    color: #9ff0bc;
+  }
+  .empty {
+    color: var(--color-muted);
+  }
+  .empty.is-err {
+    color: #f0a0a0;
+  }
+  .status {
+    font-size: 0.85rem;
+  }
+  .status.is-err {
+    color: #f0a0a0;
+  }
+  .muted {
+    color: var(--color-muted);
+  }
+  code {
+    font-size: 0.78rem;
+  }
+</style>

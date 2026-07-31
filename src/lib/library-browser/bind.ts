@@ -580,6 +580,27 @@ export function bindLibraryBrowser() {
         }
       };
 
+      const syncPayAndSpecialUi = () => {
+        if (!(form instanceof HTMLFormElement)) return;
+        const specialOn =
+          (form.elements.namedItem("needSpecialReview") as HTMLInputElement | null)
+            ?.checked === true;
+        const specialExtra = root.querySelector("[data-lb-special-extra]");
+        if (specialExtra instanceof HTMLElement) specialExtra.hidden = !specialOn;
+
+        const item = active;
+        const licOk = Boolean(item && item.licenseEnabled !== false && isAvailable(item));
+        const payBtn = root.querySelector("[data-lb-checkout]");
+        const canPay =
+          licOk && Boolean(item?.checkoutReady && item?.hasMaster) && !specialOn;
+        if (payBtn instanceof HTMLElement) payBtn.hidden = !canPay;
+
+        const buySoon = root.querySelector("[data-lb-buy-soon]");
+        const showSoon =
+          licOk && Boolean(item?.hasMaster) && !item?.checkoutReady && !specialOn;
+        if (buySoon instanceof HTMLElement) buySoon.hidden = !showSoon;
+      };
+
       const refreshLive = () => {
         if (!(form instanceof HTMLFormElement)) return;
         const fd = new FormData(form);
@@ -587,6 +608,7 @@ export function bindLibraryBrowser() {
         const totalEl = root.querySelector("[data-lb-live-total]");
         const linesEl = root.querySelector("[data-lb-live-lines]");
         const hintEl = root.querySelector("[data-lb-live-hint]");
+        syncPayAndSpecialUi();
         if (!isLicenseUsageCode(usage)) {
           if (totalEl) totalEl.textContent = "—";
           if (linesEl) linesEl.innerHTML = "";
@@ -618,7 +640,7 @@ export function bindLibraryBrowser() {
         });
         if (q.mode === "instant" && q.total != null) {
           if (totalEl) totalEl.textContent = formatEur(q.total);
-          if (hintEl) hintEl.textContent = "Precio de catálogo";
+          if (hintEl) hintEl.textContent = "";
         } else {
           if (totalEl)
             totalEl.textContent =
@@ -1027,24 +1049,7 @@ export function bindLibraryBrowser() {
           if (!ok) noLic.textContent = isAvailable(item) ? L.noLicense || "" : L.unavailable;
         }
 
-        // Checkout música (Stripe) — listo solo con master + price_…
-        const buyBox = root.querySelector("[data-lb-buy]");
-        const buySoon = root.querySelector("[data-lb-buy-soon]");
-        const buyPrice = root.querySelector("[data-lb-buy-price]");
-        const canPay = Boolean(ok && item.checkoutReady && item.hasMaster);
-        if (buyBox instanceof HTMLElement) buyBox.hidden = !canPay;
-        if (buySoon instanceof HTMLElement) {
-          buySoon.hidden = !ok || canPay || !item.hasMaster;
-        }
-        if (buyPrice && canPay) {
-          const eur =
-            item.priceEur != null && Number(item.priceEur) > 0
-              ? `${Math.round(Number(item.priceEur))} €`
-              : "";
-          buyPrice.textContent = eur
-            ? `Licencia master${item.hasStems ? " (+ stems)" : ""} · desde ${eur}`
-            : `Licencia master${item.hasStems ? " + stems" : ""} · pago seguro Stripe`;
-        }
+        // Checkout: botón «Pagar» abajo (total). Sin caja “Licencia master · desde…”
         const buyMsg = root.querySelector("[data-lb-buy-msg]");
         if (buyMsg instanceof HTMLElement) {
           buyMsg.hidden = true;
@@ -1060,6 +1065,10 @@ export function bindLibraryBrowser() {
           if (usageSel) usageSel.value = "brand_video";
           const termSel = form.elements.namedItem("term") as HTMLSelectElement | null;
           if (termSel && !termSel.value) termSel.value = "2y";
+          const specialCb = form.elements.namedItem(
+            "needSpecialReview",
+          ) as HTMLInputElement | null;
+          if (specialCb) specialCb.checked = false;
           (
             root as HTMLElement & { __syncUsage?: () => void }
           ).__syncUsage?.();
@@ -1354,12 +1363,28 @@ export function bindLibraryBrowser() {
           if (!active) return;
           const btn = root.querySelector("[data-lb-checkout]");
           const msg = root.querySelector("[data-lb-buy-msg]");
-          const emailEl = root.querySelector("[data-lb-buy-email]") as HTMLInputElement | null;
-          const email = String(emailEl?.value || "").trim().toLowerCase();
+          const emailFromForm =
+            form instanceof HTMLFormElement
+              ? String(
+                  (form.elements.namedItem("email") as HTMLInputElement | null)?.value || "",
+                )
+                  .trim()
+                  .toLowerCase()
+              : "";
+          if (!emailFromForm || !emailFromForm.includes("@")) {
+            if (msg instanceof HTMLElement) {
+              msg.hidden = false;
+              msg.textContent = "Indica tu email arriba para el recibo.";
+            }
+            (
+              form?.querySelector("[name=email]") as HTMLInputElement | null
+            )?.focus();
+            return;
+          }
           if (btn instanceof HTMLButtonElement) btn.disabled = true;
           if (msg instanceof HTMLElement) {
             msg.hidden = false;
-            msg.textContent = "Abriendo Stripe…";
+            msg.textContent = "Abriendo pago…";
           }
           try {
             const res = await fetch("/api/checkout", {
@@ -1369,7 +1394,7 @@ export function bindLibraryBrowser() {
                 kind: "music",
                 workSlug: active.slug,
                 package: active.hasStems ? "master_stems" : "master",
-                email: email || undefined,
+                email: emailFromForm,
               }),
             });
             const data = (await res.json()) as {
@@ -1404,6 +1429,8 @@ export function bindLibraryBrowser() {
         e.preventDefault();
         if (!(form instanceof HTMLFormElement) || !active) return;
         const fd = new FormData(form);
+        // Solo con “presupuesto especial” (el Pagar va por Stripe aparte)
+        if (fd.get("needSpecialReview") !== "1") return;
         const msg = root.querySelector("[data-lb-msg]");
         const usage = String(fd.get("usage") || "");
         if (!isLicenseUsageCode(usage)) return;

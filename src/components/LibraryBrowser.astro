@@ -248,23 +248,6 @@ const payload = {
           <p class="lb__form-lead">{t("quoteFormLead")}</p>
           <p class="lb__protect lb__protect--lic" role="note">{t("musicLicensePreviewNote")}</p>
 
-          <!-- Pago instantáneo (Stripe) cuando la obra tiene price_… + master -->
-          <div class="lb__buy" data-lb-buy hidden>
-            <p class="lb__buy-price" data-lb-buy-price></p>
-            <label class="lb__buy-email">
-              Email
-              <input type="email" data-lb-buy-email autocomplete="email" placeholder="tu@email.com" />
-            </label>
-            <button type="button" class="lb__btn lb__btn--gold" data-lb-checkout>
-              Pagar con tarjeta
-            </button>
-            <p class="lb__buy-msg" data-lb-buy-msg hidden></p>
-            <p class="lb__buy-or">— o solicita presupuesto personalizado —</p>
-          </div>
-          <p class="lb__buy-soon" data-lb-buy-soon hidden>
-            Pago online al configurar el Price en Stripe. Mientras, usa el formulario de presupuesto.
-          </p>
-
           <form class="lb__form" data-lb-form>
             <input type="hidden" name="workSlug" />
             <input type="hidden" name="workName" />
@@ -483,36 +466,50 @@ const payload = {
               <legend>{t("quoteSpecialLegend")}</legend>
               <p class="lb__help">{t("quoteSpecialHelp")}</p>
               <label class="lb__opt">
-                <input type="checkbox" name="needSpecialReview" value="1" data-lb-flag />
+                <input type="checkbox" name="needSpecialReview" value="1" data-lb-flag data-lb-special-flag />
                 <span class="lb__opt-title">{t("quoteSpecialCheck")}</span>
               </label>
-              <label class="lb__opt-notes">
-                {t("quoteSpecialNotes")}
-                <textarea name="specialNotes" rows="2" placeholder={t("quoteSpecialNotesPh")}
-                ></textarea>
-              </label>
+              <div class="lb__special-extra" data-lb-special-extra hidden>
+                <label class="lb__opt-notes">
+                  {t("quoteSpecialNotes")}
+                  <textarea name="specialNotes" rows="2" placeholder={t("quoteSpecialNotesPh")}
+                  ></textarea>
+                </label>
+                {
+                  turnstileSiteKey ? (
+                    <div
+                      class="cf-turnstile"
+                      data-sitekey={turnstileSiteKey}
+                      data-theme="dark"
+                      data-size="flexible"
+                    />
+                  ) : null
+                }
+                <button type="submit" class="lb__btn lb__btn--solid" data-lb-quote-submit>
+                  {t("quoteSubmit")}
+                </button>
+                <p class="lb__msg" data-lb-msg hidden></p>
+              </div>
             </fieldset>
 
-            <div class="lb__live">
-              <p class="lb__live-label">{t("quoteLiveLabel")}</p>
-              <p class="lb__live-total" data-lb-live-total>—</p>
+            <!-- Total de lo elegido + Pagar (abajo del todo) -->
+            <div class="lb__live" data-lb-live>
+              <div class="lb__live-head">
+                <p class="lb__live-label">{t("quoteLiveLabel")}</p>
+                <p class="lb__live-total" data-lb-live-total>—</p>
+              </div>
               <ul class="lb__live-lines" data-lb-live-lines></ul>
               <p class="lb__live-hint" data-lb-live-hint></p>
+              <div class="lb__live-actions" data-lb-live-actions>
+                <button type="button" class="lb__btn lb__btn--gold" data-lb-checkout hidden>
+                  {t("quotePay")}
+                </button>
+                <p class="lb__buy-msg" data-lb-buy-msg hidden></p>
+                <p class="lb__buy-soon" data-lb-buy-soon hidden>
+                  {t("quotePaySoon")}
+                </p>
+              </div>
             </div>
-
-            {
-              turnstileSiteKey ? (
-                <div
-                  class="cf-turnstile"
-                  data-sitekey={turnstileSiteKey}
-                  data-theme="dark"
-                  data-size="flexible"
-                />
-              ) : null
-            }
-
-            <button type="submit" class="lb__btn lb__btn--solid">{t("quoteSubmit")}</button>
-            <p class="lb__msg" data-lb-msg hidden></p>
           </form>
         </div>
         <p class="lb__text" data-lb-no-lic hidden>{t("libNoLicense")}</p>

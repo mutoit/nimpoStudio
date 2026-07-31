@@ -1,5 +1,7 @@
 /**
- * Sesión de play biblioteca: preview MP3 (preferido) o stems Web Audio.
+ * Sesión de play biblioteca.
+ * Si hay stems → StemTransport (mismo audio/volumen en grid y ficha).
+ * Preview MP3 solo si no hay capas o se pide explícitamente (preferStems=false).
  */
 
 import type { StemTransport } from "../stem-transport";

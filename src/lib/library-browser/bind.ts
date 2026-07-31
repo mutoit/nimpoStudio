@@ -515,8 +515,8 @@ export function bindLibraryBrowser() {
       };
 
       /**
-       * Grid: preview 1 archivo (rápido).
-       * Modal con capas: StemTransport multi-track (checkboxes reales).
+       * Grid y modal: si hay stems → mismo audio (StemTransport).
+       * Preview MP3 solo si no hay capas (obra video-only o sin stems).
        */
       const { playPreviewOrStems, playStems } = createPlaySession({
         previewPlayer,
@@ -903,9 +903,9 @@ export function bindLibraryBrowser() {
                   resetPlayButtons();
                   return;
                 }
-                if (!canPreview && canStems) {
+                if (canStems) {
                   setPlayerStatus({
-                    msg: `Sin mix preview · cargando ${full.stems!.length} capas (más lento)…`,
+                    msg: `Cargando ${full.stems!.length} capas (mismo audio que la ficha)…`,
                     kind: "load",
                     playPct: 10,
                     time: "…",
@@ -927,8 +927,9 @@ export function bindLibraryBrowser() {
                     gridVideo = v;
                   }
                 }
+                // Preferir stems (= ficha). El mix MP3 solo si no hay capas.
                 if (canPreview || canStems) {
-                  await playPreviewOrStems(full, id, false);
+                  await playPreviewOrStems(full, id, canStems);
                 } else if (canVideo && frame && vUrl) {
                   frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
                   const v = frame.querySelector<HTMLVideoElement>("video");
@@ -1194,8 +1195,7 @@ export function bindLibraryBrowser() {
           return;
         }
         void stemsTx.resumeCtx();
-        // Modal: si hay capas → siempre multi-stem (mute por checkbox).
-        // Grid sigue usando preview 1 archivo.
+        // Modal y grid: si hay capas → multi-stem (mismo archivo/volumen).
         void (async () => {
           let full = active!;
           if (

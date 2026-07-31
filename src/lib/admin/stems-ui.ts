@@ -64,15 +64,19 @@ export function createStemsUi(opts: {
       opts.onStatus("Suelta archivos de audio (mp3, wav…)", false);
       return;
     }
-    stemRows = stemRows.filter((r) => r.file);
-    for (const f of list) {
-      stemRows.push({
-        label: f.name.replace(/\.[^.]+$/, ""),
-        file: f,
-      });
-    }
+    // Sustituir set: un drop = las capas de este lote (no acumular con un lote anterior).
+    // Si quieres añadir a un set ya listado, arrastra todo el pack de nuevo o usa “+ fila”.
+    const hadLocal = stemRows.some((r) => r.file);
+    stemRows = list.map((f) => ({
+      label: f.name.replace(/\.[^.]+$/, ""),
+      file: f,
+    }));
     render();
-    opts.onStatus(`${list.length} stem(s) añadido(s). Puedes renombrar o quitar filas.`);
+    opts.onStatus(
+      hadLocal
+        ? `${list.length} stem(s) — lote nuevo (reemplaza los archivos locales anteriores).`
+        : `${list.length} stem(s) añadido(s). Puedes renombrar o quitar filas.`,
+    );
   };
 
   const drop = document.querySelector("[data-stems-drop]");

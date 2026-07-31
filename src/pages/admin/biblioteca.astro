@@ -790,6 +790,12 @@ import "../../styles/admin-biblioteca.css";
       return;
     }
 
+    // Al abrir otra ficha: no arrastrar stems locales de la sesión anterior
+    // (si no, “Escuchar” mezcla archivos viejos del form con la obra nueva).
+    stemsUi.clear();
+    stemRows = stemsUi.getRows();
+    mixPreview.stop();
+
     const form = document.querySelector("[data-admin-form]");
     if (!(form instanceof HTMLFormElement)) return;
     const titleEl = form.querySelector("[data-title]") as HTMLInputElement | null;

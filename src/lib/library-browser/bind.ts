@@ -1492,6 +1492,10 @@ export function bindLibraryBrowser() {
             hasStems: full.hasStems,
             hasVideo: full.hasVideo,
             hasPreview: full.hasPreview,
+            hasMaster: full.hasMaster,
+            checkoutReady: full.checkoutReady,
+            priceEur: full.priceEur,
+            stripePriceId: full.stripePriceId,
             preview: full.preview,
           };
         }

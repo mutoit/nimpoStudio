@@ -95,16 +95,14 @@ function slugCandidates(card: LibraryItem): string[] {
 }
 
 /**
- * List cards (índice) traen preview/hasStems pero no description.
- * Detalle hidratado: campos de ficha (description/video) o preview ya en card.
+ * List cards (índice) traen preview/hasStems/hasMaster pero NO description/notes
+ * ni checkoutReady. Si usáramos hasPreview aquí, openModal no pediría el detail
+ * y el botón de pagar nunca vería stripePriceId.
+ *
+ * Detalle real: description o notes vienen del sanitize de ?slug= (aunque vacíos).
  */
 export function isHydratedDetail(item: LibraryItem): boolean {
-  return (
-    Boolean(item.video) ||
-    typeof item.description === "string" ||
-    typeof item.notes === "string" ||
-    Boolean(item.hasPreview && item.preview)
-  );
+  return typeof item.description === "string" || typeof item.notes === "string";
 }
 
 export type FetchListParams = {

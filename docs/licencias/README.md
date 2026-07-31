@@ -2,8 +2,21 @@
 
 Documentos para **vender ya**, sin “consultar por todo”.
 
+## Modelo web actual (2026-07-31)
+
+**Política técnica completa:** [`docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`](../commerce/POLITICA-MUSICA-BIBLIOTECA.md)
+
+| Canal | Uso |
+|-------|-----|
+| **Pagar online** | Biblioteca → Checkout Stripe si la obra tiene master + `stripePriceId` |
+| **Cotización** | Formulario → `/api/quote` (exclusivas, usos raros, sin Price aún) |
+| **Preview** | 1 mix ligero en web; master/stems HQ solo tras pago (R2 privado) |
+
+Los precios de la **calculadora** de este pack siguen siendo la referencia de catálogo; el Price de Stripe de cada ficha debe alinearse con la tarifa que quieras cobrar online.
+
 | Archivo | Para qué |
 |---------|----------|
+| [**../commerce/POLITICA-MUSICA-BIBLIOTECA.md**](../commerce/POLITICA-MUSICA-BIBLIOTECA.md) | **Política web**: preview / HQ / checkout / descarga |
 | [**TABLA-RAPIDA-PRECIOS.md**](./TABLA-RAPIDA-PRECIOS.md) | **Vista rápida** uso → precio (bolsillo) |
 | [00-PRECIOS-REFERENCIA.md](./00-PRECIOS-REFERENCIA.md) | Lista completa + reglas + evidencia |
 | [**ESTRATEGIA-LANZAMIENTO.md**](./ESTRATEGIA-LANZAMIENTO.md) | Founder price 5–10 clientes, case studies, **testimonios y valoraciones** |
@@ -40,13 +53,22 @@ Si cambias un precio: **license-quote** (src + functions) + **TABLA-RAPIDA** + *
 | `licencias@nimpo3dstudio.com` | From de presupuestos automáticos + reenvío a Gmail |
 | `contacto@nimpo3dstudio.com` | Contacto general |
 
-## Flujo de una venta comercial normal
+## Flujo de una venta
 
-1. Cliente rellena formulario (biblioteca o ficha) → `/api/quote`.  
-2. Confirmas tarifa (o cotizas con `00-PRECIOS-REFERENCIA.md` si es revisión).  
-3. Rellenas `plantilla-comercial.md` (o exclusiva) → PDF.  
-4. Cobras.  
-5. Envías master (y stems si pagó +59).  
+### A) Online (preferido cuando hay Price + master)
+
+1. Cliente en biblioteca → **Pagar con tarjeta** (Stripe).  
+2. Webhook → pedido + mail con descarga 72 h.  
+3. Re-descarga desde `/es/cuenta/` (magic link).  
+4. Opcional: PDF de licencia con plantilla si quieres formalizar.
+
+### B) Cotización / exclusiva / sin Price
+
+1. Cliente rellena formulario → `/api/quote`.  
+2. Confirmas tarifa (`00-PRECIOS-REFERENCIA.md` / tabla rápida).  
+3. Rellenas plantilla → PDF.  
+4. Cobras (transfer / Stripe manual).  
+5. Entregas master/stems (R2 privado o envío).  
 6. Archivas PDF + pago.
 
 ## A/B y métricas (recomendado)

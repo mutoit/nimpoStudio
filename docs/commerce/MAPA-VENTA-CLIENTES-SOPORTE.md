@@ -1,16 +1,15 @@
-# Mapa — Venta de software, clientes, tickets y soporte
+# Mapa — Venta, clientes, tickets y soporte
 
-**Estado del sistema:** código A–D **implementado** · Stripe **cableado en Pages** · falta **producto en admin + banco/verificación Stripe** para cobros reales  
-**Última revisión:** 2026-07-30  
-**Ámbito:** productos **software** (hub productos, Stripe).  
-**No confundir** con licencias de **música** → `docs/licencias/`.
+**Estado del sistema:** software A–D **implementado** · música preview/HQ/checkout **implementado** · Stripe **cableado en Pages** · falta **ops** (Prices en fichas, banco, smoke)  
+**Última revisión:** 2026-07-31  
+**Ámbito:** software **y** música (checkout compartido, datos en `catalog/commerce/*`).
 
 | Doc | Para qué |
 |-----|----------|
-| Este archivo | **SSoT** de qué hay, qué falta, cómo funciona |
+| Este archivo | **SSoT** software + hub Stripe/clientes/tickets |
+| **Política música** | **`docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`** — preview, HQ, pago, descarga |
+| Precios / plantillas música | `docs/licencias/` |
 | Updates app (contrato dev) | `docs/commerce/UPDATES-APP-CONTRATO.md` |
-| Plan ejecución | `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md` (`status: done`) |
-| Hub commerce base | `docs/plans/2026-07-28-product-commerce-hub.md` |
 | Checklist general | `docs/estado.md` |
 | Admin login | `docs/admin-acceso.md` |
 
@@ -184,25 +183,20 @@ Un número solo en la web **sin** `price_…` **no cobra**.
 
 ### Software vs música
 
-| Canal | Dinero |
-|-------|--------|
-| **Software** | Stripe Checkout → key + descarga |
-| **Música** | Cotizador / plantillas (`docs/licencias/`) — **no** este Checkout (salvo unificar más adelante) |
+| Canal | Dinero | Doc de política |
+|-------|--------|-----------------|
+| **Software** | Stripe Checkout → key + full build | Este mapa §1 |
+| **Música** | Checkout online **o** cotización; entrega master/stems HQ | **`POLITICA-MUSICA-BIBLIOTECA.md`** |
 
-### Música: preview único + entrega privada
+### Música (resumen; detalle en política)
 
 | Pieza | Detalle |
 |-------|---------|
-| Preview web | **1 mix** (MP3/mono ligero ± ruido) → play biblioteca |
-| Stems HQ | `library/{slug}/full/stems/…` **intactos** (sin bake) |
-| Master HQ | `library/{slug}/full/…` **intacto** |
-| Público | `/api/media` bloquea `/full/`; API library sin `stems[]` ni keys |
-| Admin | `GET /admin/media?key=` · `GET /admin/master?slug=` · campos `priceEur` + `stripePriceId` |
-| Checkout | `POST /api/checkout` `{ kind:"music", workSlug, package, email? }` |
-| Webhook | `kind=music` → order + license + mail master (+ stems) |
-| Descarga | token `/api/download` (keys `library/{slug}/full/…`) · re-emisión en `/cuenta/` |
-| UI | Biblioteca: «Pagar con tarjeta» si `checkoutReady` (master + price_…) |
-| Ops tuyo | Crear Prices en Stripe y pegar `price_…` en ficha admin |
+| Preview web | **1 mix** ligero → play biblioteca |
+| Stems / master | `library/{slug}/full/…` **intactos**, 403 en `/api/media` |
+| Checkout | `POST /api/checkout` `{ kind:"music", workSlug, … }` |
+| Cotización | `/api/quote` + `docs/licencias/` (exclusivas / sin Price) |
+| Ops | Pegar `price_…` en admin ficha + smoke |
 
 ### Orden práctico (dinero + 1.ª venta)
 

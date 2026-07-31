@@ -128,12 +128,12 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] WP6 recovery form + transfer email / rotate key / reset seats
 - [x] WP7 docs mapa/estado
 
-### Master + preview único (2026-07-31)
+### Música biblioteca + pago (2026-07-31)
+**Política SSoT:** `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
 - [x] Master HQ + stems HQ en `full/` (intactos, privados)
 - [x] Biblioteca: solo 1 preview mix (sin multi-stem player)
 - [x] `GET /admin/media` · `GET /admin/master`
-- [x] Limpieza dual cleanSrc / bake por stem
-- [x] Checkout música + webhook + download token + UI pagar + cuenta
+- [x] Checkout música + webhook + download + UI pagar + cuenta
 - [ ] Ops: pegar `price_…` Stripe en fichas + smoke pago test/live
 
 ### Pendiente ops (tú) — venta software real
@@ -154,8 +154,9 @@ Detalle + dinero/IVA/precios: **`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` �
 ## No hacer aún ⏸️
 
 - Stripe live sin precios y 1 obra lista para entregar
-- Subir **masters** a la URL pública r2.dev (solo previews)
-- Cuentas de usuario antes de primera venta real
+- Subir **masters/stems HQ** a URL pública (solo preview web) — ver política música
+- Bake / re-masterizar stems de entrega
+- Multi-stem player en biblioteca pública
 - DRM / Keygen sin software activable
 - Volver al flujo “copiar JSON a mano” (obsoleto)
 

@@ -55,9 +55,25 @@ export class AdminMixPreview {
   }
 
   private stopInternal() {
+    // Mute inmediato (evita ruido residual si el stop del source falla o hay race)
+    if (this.noiseGain) {
+      try {
+        this.noiseGain.gain.value = 0;
+      } catch {
+        /* */
+      }
+    }
+    if (this.musicGain) {
+      try {
+        this.musicGain.gain.value = 0;
+      } catch {
+        /* */
+      }
+    }
+
     for (const l of this.layers) {
       try {
-        l.source.stop();
+        l.source.stop(0);
       } catch {
         /* */
       }
@@ -73,9 +89,15 @@ export class AdminMixPreview {
       }
     }
     this.layers = [];
+
     if (this.noiseSrc) {
       try {
-        this.noiseSrc.stop();
+        this.noiseSrc.loop = false;
+      } catch {
+        /* */
+      }
+      try {
+        this.noiseSrc.stop(0);
       } catch {
         /* */
       }
@@ -86,6 +108,28 @@ export class AdminMixPreview {
       }
       this.noiseSrc = null;
     }
+
+    // Desconectar buses del destino por si queda algo encolado
+    try {
+      this.noiseGain?.disconnect();
+    } catch {
+      /* */
+    }
+    try {
+      this.musicGain?.disconnect();
+    } catch {
+      /* */
+    }
+    // Reconectar buses para el próximo play (gain 0 hasta setGains)
+    if (this.ctx && this.musicGain && this.noiseGain) {
+      try {
+        this.musicGain.connect(this.ctx.destination);
+        this.noiseGain.connect(this.ctx.destination);
+      } catch {
+        /* already connected */
+      }
+    }
+
     if (this.mediaEl) {
       this.mediaEl.pause();
       try {
@@ -238,6 +282,21 @@ export class AdminMixPreview {
 
   private startNoise(ctx: AudioContext) {
     if (!this.noiseGain) return;
+    // Parar ruido anterior si quedó vivo
+    if (this.noiseSrc) {
+      try {
+        this.noiseSrc.loop = false;
+        this.noiseSrc.stop(0);
+      } catch {
+        /* */
+      }
+      try {
+        this.noiseSrc.disconnect();
+      } catch {
+        /* */
+      }
+      this.noiseSrc = null;
+    }
     const buf = makeNoiseBuffer(ctx, 2);
     const src = ctx.createBufferSource();
     src.buffer = buf;

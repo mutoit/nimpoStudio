@@ -125,8 +125,8 @@ import "../../styles/admin-biblioteca.css";
           <div class="preview preview--img" data-stems-cover-preview hidden></div>
           <div class="stems-box">
             <div class="stems-head">
-              <span>Stems HQ (entrega) *</span>
-              <button type="button" class="btn btn--sm" data-add-stem>+ Fila vacía</button>
+              <span>Stems HQ *</span>
+              <button type="button" class="btn btn--sm" data-add-stem>+ Fila</button>
             </div>
             <div class="media-status" data-status-stems hidden role="status"></div>
             <div
@@ -134,7 +134,7 @@ import "../../styles/admin-biblioteca.css";
               data-stems-drop
               tabindex="0"
               role="button"
-              aria-label="Arrastra stems HQ de audio aquí"
+              aria-label="Arrastra stems HQ"
             >
               <input
                 type="file"
@@ -143,50 +143,43 @@ import "../../styles/admin-biblioteca.css";
                 hidden
                 data-stems-pick
               />
-              <p class="dropzone__title">Arrastra stems originales (HQ)</p>
-              <p class="dropzone__sub">wav / flac / aiff / mp3 · intactos en R2 privado · o clic</p>
+              <p class="dropzone__title">Arrastra stems HQ</p>
+              <p class="dropzone__sub">wav / flac / aiff / mp3 · o clic</p>
             </div>
             <div class="stems-list" data-stems-list></div>
           </div>
 
         </div>
 
-        <!-- Master HQ de entrega: campo propio, sin bake, R2 privado /full/ -->
+        <!-- Master HQ: drop + status real en R2 -->
         <div class="master-box" data-master-box>
           <div class="stems-head">
-            <span>Master HQ (entrega)</span>
+            <span>Master HQ</span>
             <button type="button" class="btn btn--sm" data-master-verify hidden>
               Comprobar R2
             </button>
           </div>
           <div class="media-status" data-status-master hidden role="status"></div>
-          <label class="file-label">
-            WAV / FLAC / AIFF (sin ruido, sin bake)
+          <div
+            class="dropzone"
+            data-master-drop
+            tabindex="0"
+            role="button"
+            aria-label="Arrastra master HQ"
+          >
             <input
               type="file"
               accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.m4a"
+              hidden
               data-master-file
             />
-          </label>
-          <p class="hint">
-            Este archivo es el <strong>master de venta</strong>: se sube intacto a R2 bajo
-            <code>library/…/full/</code> (bloqueado en /api/media). No es el preview ni los stems
-            con ruido. Al guardar solo meta se conserva. Tras publicar: «Comprobar R2».
-          </p>
-          <p class="master-verify-msg" data-master-verify-msg hidden></p>
+            <p class="dropzone__title">Arrastra el master</p>
+            <p class="dropzone__sub" data-master-fname>wav / flac / aiff · o clic</p>
+          </div>
         </div>
 
-        <!-- Preview de trabajo: solo para generar el mix web (no toca stems HQ) -->
         <div class="mix-preview" data-mix-preview>
-          <p class="mix-preview__title">Preview web (mix + ruido)</p>
-          <p class="mix-protect" role="note">
-            Los <strong>stems HQ</strong> se suben intactos (privados). El <strong>Play</strong> y al
-            publicar se genera <strong>una sola copia</strong> (mono/MP3 + ruido) para la biblioteca.
-            Mover el slider y guardar solo rehace ese preview; no reescribe los stems.
-          </p>
-          <p class="hint">
-            🟢 = en servidor. Naranja = en PC pendiente de publicar. Biblioteca pública = solo el mix.
-          </p>
+          <p class="mix-preview__title">Escuchar mezcla (preview web)</p>
           <label class="mix-slider">
             <span>Volumen audio <em data-music-pct>100%</em></span>
             <input
@@ -447,13 +440,16 @@ import "../../styles/admin-biblioteca.css";
     if (btn instanceof HTMLElement) btn.hidden = !show;
   };
 
-  const verifyMasterOnR2 = async (slug: string) => {
-    const msg = document.querySelector("[data-master-verify-msg]");
-    setMediaBanner("[data-status-master]", "loading", "Comprobando master en R2…", true);
-    if (msg instanceof HTMLElement) {
-      msg.hidden = false;
-      msg.textContent = "Consultando R2…";
-    }
+  const setMasterFname = (text: string) => {
+    const el = document.querySelector("[data-master-fname]");
+    if (el) el.textContent = text;
+  };
+
+  /** Status corto: Subido / En PC / Sin master / Fallo */
+  const verifyMasterOnR2 = async (slug: string, opts?: { quiet?: boolean }) => {
+    const quiet = !!opts?.quiet;
+    setMediaBanner("[data-status-master]", "loading", "Comprobando R2…", true);
+    setLight("master", "loading", "…");
     try {
       const res = await fetch(`/admin/master?slug=${encodeURIComponent(slug)}`, {
         credentials: "same-origin",
@@ -463,14 +459,10 @@ import "../../styles/admin-biblioteca.css";
         ok?: boolean;
         exists?: boolean;
         intact?: boolean;
-        key?: string | null;
         name?: string | null;
         bytes?: number | null;
-        contentType?: string | null;
         message?: string;
         error?: string;
-        privatePath?: boolean;
-        mediaBlocked?: boolean;
       };
       if (!res.ok || !data.ok) {
         throw new Error(data.message || data.error || `Error ${res.status}`);
@@ -480,52 +472,102 @@ import "../../styles/admin-biblioteca.css";
         setMediaBanner(
           "[data-status-master]",
           "bad",
-          `<strong>✗ Master no encontrado en R2</strong><br/><span>${data.message || ""}</span>`,
+          `<strong>Fallo</strong> — en catálogo pero no en R2`,
           true,
         );
-        if (msg instanceof HTMLElement) msg.textContent = data.message || "No existe en R2";
+        if (!quiet) showToast("Master: no está en R2", 8000);
         return data;
       }
       const mb = formatMb(Number(data.bytes || 0));
-      setLight("master", data.intact ? "ok" : "err", mb);
+      const name = data.name || "master";
+      setLight("master", data.intact ? "ok" : "err", data.intact ? "Subido" : "Duda");
       setMediaBanner(
         "[data-status-master]",
         data.intact ? "ok" : "bad",
-        `<strong>${data.intact ? "✓" : "⚠"} Master en R2</strong><br/>` +
-          `<span>${data.name || "?"} · ${mb} · ${data.contentType || "?"}</span><br/>` +
-          `<span class="media-status__note">Key: <code>${data.key || ""}</code> · privado /full/ · /api/media bloquea</span>`,
+        data.intact
+          ? `<strong>Subido</strong> — ${name} · ${mb}`
+          : `<strong>Fallo</strong> — objeto raro · ${name} · ${mb}`,
         true,
       );
-      if (msg instanceof HTMLElement) {
-        msg.textContent = data.message || `OK · ${mb}`;
-      }
-      showToast(data.message || `Master OK en R2 · ${mb}`, 12000);
+      setMasterFname(`${name} · ${mb} (R2)`);
+      if (!quiet) showToast(`Master: Subido · ${mb}`, 8000);
       return data;
     } catch (err) {
-      const text = err instanceof Error ? err.message : "Error al verificar";
-      setLight("master", "err", "Verify fail");
+      const text = err instanceof Error ? err.message : "Error";
+      setLight("master", "err", "Fallo");
       setMediaBanner(
         "[data-status-master]",
         "bad",
-        `<strong>✗ No se pudo verificar</strong><br/><span>${text}</span>`,
+        `<strong>Fallo</strong> — ${text}`,
         true,
       );
-      if (msg instanceof HTMLElement) {
-        msg.hidden = false;
-        msg.textContent = text;
-      }
-      setStatus(text, false);
+      if (!quiet) setStatus(`Master: ${text}`, false);
       return null;
     }
   };
 
   document.querySelector("[data-master-verify]")?.addEventListener("click", () => {
     if (!editingSlug) {
-      setStatus("Abre una ficha con master para comprobar R2.", false);
+      setStatus("Abre una ficha para comprobar el master.", false);
       return;
     }
     void verifyMasterOnR2(editingSlug);
   });
+
+  // Dropzone master (igual que stems: arrastrar o clic)
+  const masterDrop = document.querySelector("[data-master-drop]");
+  const masterInput = document.querySelector("[data-master-file]");
+  const onMasterFile = (file: File | null | undefined) => {
+    if (!(masterInput instanceof HTMLInputElement)) return;
+    if (!file) {
+      masterInput.value = "";
+      setMasterFname("wav / flac / aiff · o clic");
+      refreshLocalPendingLights();
+      return;
+    }
+    const ok =
+      /\.(wav|flac|aiff?|mp3|m4a|ogg|aac)$/i.test(file.name) ||
+      (file.type || "").startsWith("audio/");
+    if (!ok) {
+      setStatus("Master: usa audio (wav, flac, aiff…)", false);
+      return;
+    }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    masterInput.files = dt.files;
+    setMasterFname(`${file.name} · ${formatMb(file.size)} · en PC`);
+    setMediaBanner(
+      "[data-status-master]",
+      "loading",
+      `<strong>En PC</strong> — ${file.name} · ${formatMb(file.size)} · falta publicar`,
+      true,
+    );
+    setLight("master", "pending", "En PC");
+    refreshLocalPendingLights();
+  };
+  if (masterDrop instanceof HTMLElement && masterInput instanceof HTMLInputElement) {
+    masterDrop.addEventListener("click", () => masterInput.click());
+    masterDrop.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        masterInput.click();
+      }
+    });
+    masterDrop.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      masterDrop.classList.add("is-drag");
+    });
+    masterDrop.addEventListener("dragleave", () => masterDrop.classList.remove("is-drag"));
+    masterDrop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      masterDrop.classList.remove("is-drag");
+      const f = e.dataTransfer?.files?.[0];
+      onMasterFile(f || null);
+    });
+    masterInput.addEventListener("change", () => {
+      onMasterFile(masterInput.files?.[0] || null);
+    });
+  }
 
   let toastTimer = 0;
   const showToast = (msg: string, ms = 14000) => {
@@ -638,7 +680,7 @@ import "../../styles/admin-biblioteca.css";
 
   document.querySelector("[data-mix-stop]")?.addEventListener("click", () => {
     mixPreview.stop();
-    setMixMsg("Stop.");
+    setMixMsg("Stop · audio y ruido parados.");
   });
 
   document.querySelector("[data-mix-play]")?.addEventListener("click", async () => {
@@ -772,11 +814,7 @@ import "../../styles/admin-biblioteca.css";
       setMediaBanner("[data-status-stems-visual]", true, "", false);
       setMediaBanner("[data-status-master]", true, "", false);
       setMasterVerifyBtn(false);
-      const vmsg = document.querySelector("[data-master-verify-msg]");
-      if (vmsg instanceof HTMLElement) {
-        vmsg.hidden = true;
-        vmsg.textContent = "";
-      }
+      setMasterFname("wav / flac / aiff · o clic");
       setLight("video", "idle", "—");
       setLight("cover", "idle", "—");
       setLight("stems", "idle", "—");
@@ -873,55 +911,61 @@ import "../../styles/admin-biblioteca.css";
       );
     }
 
-    // Stems HQ (privados) + preview web (único play público)
-    if (stemNames.length) {
+    // Stems: solo estado de subida
+    if (localStems) {
+      setMediaBanner(
+        "[data-status-stems]",
+        "loading",
+        `<strong>En PC</strong> — ${localStems} archivo(s) · falta publicar`,
+        true,
+      );
+    } else if (stemNames.length) {
       setMediaBanner(
         "[data-status-stems]",
         "ok",
-        `<strong>✓ ${stemNames.length} stem(s) HQ en R2</strong><br/><span>${stemNames.join(" · ")}</span>` +
-          `<br/><span class="media-status__note">Privados (full/stems). Preview web: ${
-            hasPreview ? "sí" : "falta — publica o 🎧 Previews"
-          }. Visitantes solo oyen el mix.</span>`,
+        `<strong>Subido</strong> — ${stemNames.length} stem(s)${
+          hasPreview ? "" : " · preview web: falta"
+        }`,
         true,
       );
     } else {
       setMediaBanner(
         "[data-status-stems]",
         "bad",
-        `<strong>✗ No hay stems HQ</strong><br/><span>Arrastra los originales (intactos) para esta ficha stems.</span>`,
+        `<strong>Sin stems</strong>`,
         true,
       );
     }
 
-    // Master HQ (entrega) — no se oye aquí; solo estado + verify R2
+    // Master: local → En PC; catálogo → verificar R2 de verdad
     setMasterVerifyBtn(hasMaster && !!item.slug);
     if (localMaster) {
       const f = (document.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0];
       setMediaBanner(
         "[data-status-master]",
         "loading",
-        `<strong>Master en PC listo para subir</strong><br/><span>${f?.name || "?"} · ${formatMb(f?.size || 0)}</span>` +
-          `<br/><span class="media-status__note">Se sube intacto (sin bake) a library/…/full/. Dale a Publicar / Guardar.</span>`,
+        `<strong>En PC</strong> — ${f?.name || "master"} · ${formatMb(f?.size || 0)} · falta publicar`,
         true,
+      );
+      setMasterFname(
+        f ? `${f.name} · ${formatMb(f.size)} · en PC` : "wav / flac · o clic",
       );
     } else if (hasMaster) {
       setMediaBanner(
         "[data-status-master]",
-        "ok",
-        `<strong>✓ Master en catálogo</strong><br/><span>${masterName || "master"} · ${formatMb(masterBytes)}</span>` +
-          (item.masterContentType
-            ? `<br/><span>${String(item.masterContentType)}</span>`
-            : "") +
-          `<br/><span class="media-status__note">Privado R2 · usa «Comprobar R2» para head size/type.</span>`,
+        "loading",
+        `<strong>…</strong> — comprobando R2`,
         true,
       );
+      setMasterFname(
+        `${masterName || "master"}${masterBytes > 0 ? ` · ${formatMb(masterBytes)}` : ""} · catálogo`,
+      );
+      // Head real en R2 (sin toast)
+      if (item.slug) void verifyMasterOnR2(String(item.slug), { quiet: true });
     } else {
-      setMediaBanner(
-        "[data-status-master]",
-        "bad",
-        `<strong>Sin master de entrega</strong><br/><span>Opcional ahora: sube WAV/FLAC HQ para ventas futuras. No se publica en la biblioteca pública.</span>`,
-        true,
-      );
+      setMediaBanner("[data-status-master]", "bad", `<strong>Sin master</strong>`, true);
+      setMasterFname("wav / flac / aiff · o clic");
+      setLight("master", "idle", "—");
     }
   };
 
@@ -1004,8 +1048,8 @@ import "../../styles/admin-biblioteca.css";
     const nStems = Array.isArray(item.stems) ? item.stems.length : 0;
     setStatus(
       nStems
-        ? `Editando «${item.title}». Stems HQ intactos (${nStems}). Slider ruido + guardar = solo rehace el preview web.`
-        : `Editando «${item.title}».`,
+        ? `Editando «${item.title}» · ${nStems} stem(s) en servidor`
+        : `Editando «${item.title}»`,
     );
   };
 

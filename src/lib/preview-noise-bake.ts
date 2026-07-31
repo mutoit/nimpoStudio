@@ -167,6 +167,12 @@ export async function bakePreviewNoise(
 /**
  * Mezcla N stems (ya con ruido) en **un** preview mono @ 22.05 kHz.
  * Preferido: **MP3** (lamejs). Fallback: WAV si encode falla.
+ *
+ * Misma lógica de volumen que el admin al “Escuchar” todas las capas a gain 1:
+ * se suman a nivel pleno y luego se normaliza el pico a ~0.95 (solo evita clip).
+ * Antes se usaba 1/√N por capa → el play del grid en biblioteca sonaba mucho más bajo
+ * que el preview del admin.
+ *
  * P: files decodificables. Q: 1 File (audio/mpeg o audio/wav).
  */
 export async function bakeMixPreview(files: File[]): Promise<File> {
@@ -187,12 +193,12 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     const targetRate = PREVIEW_SAMPLE_RATE;
     const frames = Math.max(1, Math.ceil(duration * targetRate));
     const offline = new OfflineAudioContext(1, frames, targetRate);
-    const gainVal = 1 / Math.sqrt(decoded.length);
+    // Gain 1 por capa (= admin playBuffers). La normalización de pico evita clip.
     for (const buf of decoded) {
       const src = offline.createBufferSource();
       src.buffer = buf;
       const g = offline.createGain();
-      g.gain.value = gainVal;
+      g.gain.value = 1;
       src.connect(g);
       g.connect(offline.destination);
       src.start(0);
@@ -201,7 +207,8 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     const data = mixed.getChannelData(0);
     let peak = 0;
     for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]!));
-    if (peak > 0.01 && peak > 0.95) {
+    if (peak > 0.01) {
+      // Subir o bajar al ~0.95: el mix del grid debe oírse tan alto como el admin
       const scale = 0.95 / peak;
       for (let i = 0; i < data.length; i++) data[i]! *= scale;
     }

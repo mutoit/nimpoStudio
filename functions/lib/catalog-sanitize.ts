@@ -83,6 +83,23 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
   const hasVideo = Boolean(safeMediaUrlField(o.video));
   const hasPreview = Boolean(safeMediaUrlField(o.preview));
 
+  // Master de entrega: NUNCA exponer masterKey (R2 privado bajo /full/).
+  // Solo meta para admin/UI: hasMaster + nombre/tamaño/tipo.
+  const rawMasterKey = String(o.masterKey || "").trim();
+  const hasMaster =
+    Boolean(o.hasMaster) ||
+    (rawMasterKey.startsWith("library/") && rawMasterKey.includes("/full/"));
+  const masterName = hasMaster
+    ? clipText(o.masterName || rawMasterKey.split("/").pop() || "master", 160)
+    : undefined;
+  const masterBytes =
+    hasMaster && Number.isFinite(Number(o.masterBytes)) && Number(o.masterBytes) > 0
+      ? Number(o.masterBytes)
+      : undefined;
+  const masterContentType = hasMaster
+    ? clipText(o.masterContentType || "audio/wav", 80) || undefined
+    : undefined;
+
   return {
     id,
     slug,
@@ -99,6 +116,10 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     hasStems,
     hasVideo,
     hasPreview,
+    hasMaster,
+    masterName,
+    masterBytes,
+    masterContentType,
     tags: clipStringList(o.tags),
     moods: clipStringList(o.moods),
     filterMoods: clipStringList(o.filterMoods),
@@ -173,6 +194,7 @@ export function toLibraryCard(item: Record<string, unknown>): Record<string, unk
     hasPreview: Boolean(preview),
     hasVideo,
     hasStems: stems.length > 0 || String(item.kind || "") === "stems",
+    hasMaster: Boolean(item.hasMaster),
     moods,
     tags,
     availability: item.availability ?? "available",

@@ -47,6 +47,8 @@ export type CatalogIndexEntry = {
   hasPreview: boolean;
   hasStems: boolean;
   hasVideo: boolean;
+  /** Master HQ en R2 (clave privada /full/); no expone masterKey. */
+  hasMaster: boolean;
   moods: string[];
   tags: string[];
   availability: string;
@@ -86,6 +88,10 @@ export function toIndexEntry(raw: unknown): CatalogIndexEntry | null {
   const cover =
     (o.thumb != null && o.thumb !== "" ? String(o.thumb) : null) ||
     (o.cover != null && o.cover !== "" ? String(o.cover) : null);
+  const masterKey = String(o.masterKey || "").trim();
+  const hasMaster =
+    Boolean(o.hasMaster) ||
+    (masterKey.startsWith("library/") && masterKey.includes("/full/"));
   return {
     id: String(o.id || `lib-${slug}`),
     slug,
@@ -102,6 +108,7 @@ export function toIndexEntry(raw: unknown): CatalogIndexEntry | null {
     hasPreview: Boolean(preview),
     hasStems: stems.length > 0 || String(o.kind || "") === "stems",
     hasVideo: Boolean(video),
+    hasMaster,
     moods: Array.isArray(o.moods) ? o.moods.map(String) : [],
     tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
     availability: String(o.availability || "available"),

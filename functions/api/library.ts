@@ -117,6 +117,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       hasPreview: Boolean(o.hasPreview || o.preview),
       hasVideo: Boolean(o.hasVideo),
       hasStems: Boolean(o.hasStems),
+      hasMaster: Boolean(o.hasMaster),
       moods: Array.isArray(o.moods) ? o.moods : [],
       tags: Array.isArray(o.tags) ? o.tags : [],
       availability: o.availability ?? "available",

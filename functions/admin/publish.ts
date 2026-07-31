@@ -27,9 +27,11 @@ import {
   clipStringList,
   clipText,
   contentTypeForExt,
+  isPrivateMasterKey,
   resolveExt,
   safeAspect,
   safeItemId,
+  safeName,
   safeSlug,
 } from "../lib/media-upload";
 
@@ -54,6 +56,35 @@ type Env = AdminEnv & {
 
 /** src = preview público (con ruido bake). cleanSrc = original limpio (admin). */
 type StemItem = { id: string; label: string; src: string; cleanSrc?: string };
+
+type MasterMeta = {
+  masterKey: string | null;
+  masterName: string | null;
+  masterBytes: number | null;
+  masterContentType: string | null;
+  hasMaster: boolean;
+};
+
+function readExistingMaster(existing: Record<string, unknown> | null): MasterMeta {
+  const key = existing ? String(existing.masterKey || "").trim() : "";
+  if (!key || !isPrivateMasterKey(key)) {
+    return {
+      masterKey: null,
+      masterName: null,
+      masterBytes: null,
+      masterContentType: null,
+      hasMaster: false,
+    };
+  }
+  const bytes = Number(existing?.masterBytes);
+  return {
+    masterKey: key,
+    masterName: String(existing?.masterName || key.split("/").pop() || "master").slice(0, 160),
+    masterBytes: Number.isFinite(bytes) && bytes > 0 ? bytes : null,
+    masterContentType: String(existing?.masterContentType || "audio/wav").slice(0, 80),
+    hasMaster: true,
+  };
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -178,6 +209,43 @@ export async function onRequest(context: {
     return url;
   };
 
+  /**
+   * Master HQ: bytes intactos, clave bajo library/{slug}/full/…
+   * No se sirve por /api/media (403). Solo token de descarga futuro / admin head.
+   */
+  const putMaster = async (file: File) => {
+    const sizeErr = checkFileSize(file.size);
+    if (sizeErr) throw new Error(sizeErr);
+
+    totalBytes += file.size;
+    const totalErr = checkTotalSize(totalBytes);
+    if (totalErr) throw new Error(totalErr);
+
+    const ext = resolveExt(file.name, "master");
+    if (!ext) throw new Error(`bad_extension:master:${file.name}`);
+
+    const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const base = safeName(file.name.replace(/\.[^.]+$/, "")) || "master";
+    const fileName = `${base.slice(0, 60)}-${stamp}.${ext}`;
+    const key = `library/${slug}/full/${fileName}`;
+    const buf = await file.arrayBuffer();
+    const contentType = contentTypeForExt(ext);
+    await env.LIBRARY_BUCKET!.put(key, buf, {
+      httpMetadata: {
+        contentType,
+        cacheControl: "private, no-store",
+      },
+    });
+    uploaded.push({ role: "master", key, url: "", name: fileName });
+    return {
+      masterKey: key,
+      masterName: fileName,
+      masterBytes: file.size,
+      masterContentType: contentType,
+      hasMaster: true as const,
+    };
+  };
+
   try {
     let video: string | null =
       existing && typeof existing.video === "string" ? existing.video : null;
@@ -253,6 +321,14 @@ export async function onRequest(context: {
       preview = await putFile("preview", previewFile as File, "audio", `${slug}-preview`);
     }
 
+    // Master HQ (opcional): sin bake, bytes intactos, privado bajo /full/
+    let master = readExistingMaster(existing);
+    const masterFile = form.get("master");
+    const hasNewMaster = masterFile instanceof File && masterFile.size > 0;
+    if (hasNewMaster) {
+      master = await putMaster(masterFile as File);
+    }
+
     // Si hay capas de audio, forzar kind stems (clasificación canónica)
     if (Array.isArray(stems) && stems.length > 0) {
       kind = "stems";
@@ -269,6 +345,12 @@ export async function onRequest(context: {
       preview,
       stems,
       hasStems: Array.isArray(stems) && stems.length > 0,
+      // Master: clave R2 privada (no URL pública). Meta para admin + hasMaster flag.
+      masterKey: master.masterKey,
+      masterName: master.masterName,
+      masterBytes: master.masterBytes,
+      masterContentType: master.masterContentType,
+      hasMaster: master.hasMaster,
       tags,
       moods,
       filterMoods,
@@ -294,16 +376,36 @@ export async function onRequest(context: {
       { persist: true },
     );
 
+    // Respuesta admin: no devolver masterKey en cleartext al browser log si se puede
+    // (admin sí lo necesita para verificar; se incluye bajo master.privateKey).
+    const itemPublic = {
+      ...item,
+      masterKey: undefined,
+    };
+
     return json({
       ok: true,
-      item,
+      item: itemPublic,
+      master: master.hasMaster
+        ? {
+            hasMaster: true,
+            name: master.masterName,
+            bytes: master.masterBytes,
+            contentType: master.masterContentType,
+            key: master.masterKey,
+            uploadedNow: hasNewMaster,
+          }
+        : { hasMaster: false },
       moods: moodsVocab,
-      uploaded,
+      uploaded: uploaded.map((u) =>
+        u.role === "master" ? { ...u, url: undefined } : u,
+      ),
       merged: Boolean(existing),
       keptMedia: {
         video: !hasNewVideo && Boolean(video),
         cover: !hasNewCover && Boolean(cover),
         stems: kind === "stems" && !uploaded.some((u) => u.role.startsWith("stem_")),
+        master: !hasNewMaster && master.hasMaster,
       },
       catalogCount: catalog.length,
       limits: {
@@ -313,8 +415,12 @@ export async function onRequest(context: {
       },
       publicUrl: "https://www.nimpo3dstudio.com/es/biblioteca/",
       message: existing
-        ? "Guardado (se conservó la media que no re-subiste)."
-        : "Publicado. Ya debería verse en la biblioteca (recarga la página).",
+        ? hasNewMaster
+          ? "Guardado. Master HQ subido a R2 (privado /full/, sin bake)."
+          : "Guardado (se conservó la media que no re-subiste)."
+        : hasNewMaster
+          ? "Publicado + master HQ en R2 privado."
+          : "Publicado. Ya debería verse en la biblioteca (recarga la página).",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "upload_failed";
@@ -346,6 +452,7 @@ export async function onRequest(context: {
           allowed: {
             video: ["mp4", "webm", "mov"],
             audio: ["mp3", "wav", "m4a", "ogg", "aac"],
+            master: ["wav", "flac", "aiff", "aif", "mp3", "m4a", "ogg", "aac"],
             image: ["jpg", "jpeg", "png", "webp"],
           },
         },

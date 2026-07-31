@@ -77,6 +77,11 @@ import "../../styles/admin-biblioteca.css";
             <span class="ml__name">Stems</span>
             <span class="ml__txt" data-ml-txt>—</span>
           </div>
+          <div class="ml" data-ml="master" data-state="idle">
+            <span class="ml__dot" aria-hidden="true"></span>
+            <span class="ml__name">Master</span>
+            <span class="ml__txt" data-ml-txt>—</span>
+          </div>
           <div class="ml" data-ml="upload" data-state="idle">
             <span class="ml__dot" aria-hidden="true"></span>
             <span class="ml__name">Subida</span>
@@ -144,6 +149,31 @@ import "../../styles/admin-biblioteca.css";
             <div class="stems-list" data-stems-list></div>
           </div>
 
+        </div>
+
+        <!-- Master HQ de entrega: campo propio, sin bake, R2 privado /full/ -->
+        <div class="master-box" data-master-box>
+          <div class="stems-head">
+            <span>Master HQ (entrega)</span>
+            <button type="button" class="btn btn--sm" data-master-verify hidden>
+              Comprobar R2
+            </button>
+          </div>
+          <div class="media-status" data-status-master hidden role="status"></div>
+          <label class="file-label">
+            WAV / FLAC / AIFF (sin ruido, sin bake)
+            <input
+              type="file"
+              accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.m4a"
+              data-master-file
+            />
+          </label>
+          <p class="hint">
+            Este archivo es el <strong>master de venta</strong>: se sube intacto a R2 bajo
+            <code>library/…/full/</code> (bloqueado en /api/media). No es el preview ni los stems
+            con ruido. Al guardar solo meta se conserva. Tras publicar: «Comprobar R2».
+          </p>
+          <p class="master-verify-msg" data-master-verify-msg hidden></p>
         </div>
 
         <!-- Mezcla audible (vídeo o stems) → se incrusta al publicar stems -->
@@ -406,9 +436,98 @@ import "../../styles/admin-biblioteca.css";
     "[data-cover-file]",
     "[data-stems-video]",
     "[data-stems-cover]",
+    "[data-master-file]",
   ]) {
     document.querySelector(sel)?.addEventListener("change", () => refreshLocalPendingLights());
   }
+
+  const formatMb = (bytes: number) =>
+    Number.isFinite(bytes) && bytes > 0 ? `${(bytes / (1024 * 1024)).toFixed(2)} MB` : "?";
+
+  const setMasterVerifyBtn = (show: boolean) => {
+    const btn = document.querySelector("[data-master-verify]");
+    if (btn instanceof HTMLElement) btn.hidden = !show;
+  };
+
+  const verifyMasterOnR2 = async (slug: string) => {
+    const msg = document.querySelector("[data-master-verify-msg]");
+    setMediaBanner("[data-status-master]", "loading", "Comprobando master en R2…", true);
+    if (msg instanceof HTMLElement) {
+      msg.hidden = false;
+      msg.textContent = "Consultando R2…";
+    }
+    try {
+      const res = await fetch(`/admin/master?slug=${encodeURIComponent(slug)}`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        exists?: boolean;
+        intact?: boolean;
+        key?: string | null;
+        name?: string | null;
+        bytes?: number | null;
+        contentType?: string | null;
+        message?: string;
+        error?: string;
+        privatePath?: boolean;
+        mediaBlocked?: boolean;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || data.error || `Error ${res.status}`);
+      }
+      if (!data.exists) {
+        setLight("master", "err", "No en R2");
+        setMediaBanner(
+          "[data-status-master]",
+          "bad",
+          `<strong>✗ Master no encontrado en R2</strong><br/><span>${data.message || ""}</span>`,
+          true,
+        );
+        if (msg instanceof HTMLElement) msg.textContent = data.message || "No existe en R2";
+        return data;
+      }
+      const mb = formatMb(Number(data.bytes || 0));
+      setLight("master", data.intact ? "ok" : "err", mb);
+      setMediaBanner(
+        "[data-status-master]",
+        data.intact ? "ok" : "bad",
+        `<strong>${data.intact ? "✓" : "⚠"} Master en R2</strong><br/>` +
+          `<span>${data.name || "?"} · ${mb} · ${data.contentType || "?"}</span><br/>` +
+          `<span class="media-status__note">Key: <code>${data.key || ""}</code> · privado /full/ · /api/media bloquea</span>`,
+        true,
+      );
+      if (msg instanceof HTMLElement) {
+        msg.textContent = data.message || `OK · ${mb}`;
+      }
+      showToast(data.message || `Master OK en R2 · ${mb}`, 12000);
+      return data;
+    } catch (err) {
+      const text = err instanceof Error ? err.message : "Error al verificar";
+      setLight("master", "err", "Verify fail");
+      setMediaBanner(
+        "[data-status-master]",
+        "bad",
+        `<strong>✗ No se pudo verificar</strong><br/><span>${text}</span>`,
+        true,
+      );
+      if (msg instanceof HTMLElement) {
+        msg.hidden = false;
+        msg.textContent = text;
+      }
+      setStatus(text, false);
+      return null;
+    }
+  };
+
+  document.querySelector("[data-master-verify]")?.addEventListener("click", () => {
+    if (!editingSlug) {
+      setStatus("Abre una ficha con master para comprobar R2.", false);
+      return;
+    }
+    void verifyMasterOnR2(editingSlug);
+  });
 
   let toastTimer = 0;
   const showToast = (msg: string, ms = 14000) => {
@@ -452,11 +571,17 @@ import "../../styles/admin-biblioteca.css";
       !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
       !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
+    const masterInp = document.querySelector("[data-master-file]") as HTMLInputElement | null;
+    const localMaster = !!masterInp?.files?.[0];
     // Naranja = en el PC, aún no en R2. Verde solo tras publicar con éxito.
     if (localVideo) setLight("video", "pending", "En PC · falta publicar");
     if (localCover) setLight("cover", "pending", "En PC · falta publicar");
     if (localStems) setLight("stems", "pending", `${localStems} en PC · falta publicar`);
-    if (localVideo || localCover || localStems) {
+    if (localMaster) {
+      const f = masterInp!.files![0];
+      setLight("master", "pending", `${formatMb(f.size)} en PC`);
+    }
+    if (localVideo || localCover || localStems || localMaster) {
       setLight("upload", "pending", "→ Dale a Publicar");
     }
   };
@@ -652,9 +777,17 @@ import "../../styles/admin-biblioteca.css";
       setMediaBanner("[data-status-video]", true, "", false);
       setMediaBanner("[data-status-stems]", true, "", false);
       setMediaBanner("[data-status-stems-visual]", true, "", false);
+      setMediaBanner("[data-status-master]", true, "", false);
+      setMasterVerifyBtn(false);
+      const vmsg = document.querySelector("[data-master-verify-msg]");
+      if (vmsg instanceof HTMLElement) {
+        vmsg.hidden = true;
+        vmsg.textContent = "";
+      }
       setLight("video", "idle", "—");
       setLight("cover", "idle", "—");
       setLight("stems", "idle", "—");
+      setLight("master", "idle", "—");
       setLight("upload", "idle", "—");
       return;
     }
@@ -669,6 +802,9 @@ import "../../styles/admin-biblioteca.css";
         String(s.label || (s.src || "").split("/").pop() || "?"),
       )
       .filter(Boolean);
+    const hasMaster = Boolean(item.hasMaster);
+    const masterName = item.masterName ? String(item.masterName) : "";
+    const masterBytes = Number(item.masterBytes || 0);
 
     const localVideo =
       !!(document.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0] ||
@@ -677,6 +813,8 @@ import "../../styles/admin-biblioteca.css";
       !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
       !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
+    const localMaster = !!(document.querySelector("[data-master-file]") as HTMLInputElement)
+      ?.files?.[0];
 
     if (localVideo) setLight("video", "pending", "En PC · falta publicar");
     else if (videoUrl) setLight("video", "ok", videoName.slice(0, 28));
@@ -690,7 +828,17 @@ import "../../styles/admin-biblioteca.css";
     else if (stemNames.length) setLight("stems", "ok", `${stemNames.length} en servidor`);
     else setLight("stems", channel === "stems" ? "err" : "idle", channel === "stems" ? "Faltan" : "—");
 
-    if (localVideo || localCover || localStems) setLight("upload", "pending", "→ Dale a Publicar");
+    if (localMaster) {
+      const f = (document.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0];
+      setLight("master", "pending", f ? `${formatMb(f.size)} en PC` : "En PC");
+    } else if (hasMaster) {
+      setLight("master", "ok", masterBytes > 0 ? formatMb(masterBytes) : "En R2");
+    } else {
+      setLight("master", "idle", "Sin master");
+    }
+
+    if (localVideo || localCover || localStems || localMaster)
+      setLight("upload", "pending", "→ Dale a Publicar");
     else setLight("upload", "ok", "En catálogo");
 
     // Canal vídeo
@@ -753,6 +901,37 @@ import "../../styles/admin-biblioteca.css";
         "[data-status-stems]",
         "bad",
         `<strong>✗ No hay stems en servidor</strong><br/><span>Arrastra al menos un audio o no se podrá publicar esta ficha stems.</span>`,
+        true,
+      );
+    }
+
+    // Master HQ (entrega) — no se oye aquí; solo estado + verify R2
+    setMasterVerifyBtn(hasMaster && !!item.slug);
+    if (localMaster) {
+      const f = (document.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0];
+      setMediaBanner(
+        "[data-status-master]",
+        "loading",
+        `<strong>Master en PC listo para subir</strong><br/><span>${f?.name || "?"} · ${formatMb(f?.size || 0)}</span>` +
+          `<br/><span class="media-status__note">Se sube intacto (sin bake) a library/…/full/. Dale a Publicar / Guardar.</span>`,
+        true,
+      );
+    } else if (hasMaster) {
+      setMediaBanner(
+        "[data-status-master]",
+        "ok",
+        `<strong>✓ Master en catálogo</strong><br/><span>${masterName || "master"} · ${formatMb(masterBytes)}</span>` +
+          (item.masterContentType
+            ? `<br/><span>${String(item.masterContentType)}</span>`
+            : "") +
+          `<br/><span class="media-status__note">Privado R2 · usa «Comprobar R2» para head size/type.</span>`,
+        true,
+      );
+    } else {
+      setMediaBanner(
+        "[data-status-master]",
+        "bad",
+        `<strong>Sin master de entrega</strong><br/><span>Opcional ahora: sube WAV/FLAC HQ para ventas futuras. No se publica en la biblioteca pública.</span>`,
         true,
       );
     }

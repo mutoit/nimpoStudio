@@ -128,6 +128,13 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] WP6 recovery form + transfer email / rotate key / reset seats
 - [x] WP7 docs mapa/estado
 
+### Master música (entrega HQ) — 2026-07-31
+- [x] Campo **Master** en `/admin/biblioteca/` (aparte de stems/preview)
+- [x] Upload intacto → R2 `library/{slug}/full/…` (sin bake, `private, no-store`)
+- [x] Catálogo: `masterKey` + meta; público solo `hasMaster` (sin key)
+- [x] `GET /admin/master?slug=` head R2 (size/type/key) + botón «Comprobar R2»
+- [ ] Checkout instant + token descarga masters (siguiente slice; hoy cotización)
+
 ### Pendiente ops (tú) — venta software real
 Detalle + dinero/IVA/precios: **`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` §0 y § Dinero**
 - [x] Secrets Pages Stripe + webhook + Price ejemplo 29 € (live) + redeploy (`stripeConfigured: true`)

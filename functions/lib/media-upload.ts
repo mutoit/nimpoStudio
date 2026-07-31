@@ -8,7 +8,10 @@ export const MAX_STEMS = 24;
 export const MAX_TEXT = 4000;
 
 const VIDEO_EXT = new Set(["mp4", "webm", "mov"]);
+/** Preview / stems públicos. */
 const AUDIO_EXT = new Set(["mp3", "wav", "m4a", "ogg", "aac"]);
+/** Master de entrega (HQ). Incluye flac; nunca se sirve por /api/media. */
+const MASTER_AUDIO_EXT = new Set(["wav", "flac", "aiff", "aif", "mp3", "m4a", "ogg", "aac"]);
 const IMAGE_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -17,6 +20,9 @@ const MIME_BY_EXT: Record<string, string> = {
   mov: "video/quicktime",
   mp3: "audio/mpeg",
   wav: "audio/wav",
+  flac: "audio/flac",
+  aiff: "audio/aiff",
+  aif: "audio/aiff",
   m4a: "audio/mp4",
   ogg: "audio/ogg",
   aac: "audio/aac",
@@ -27,7 +33,7 @@ const MIME_BY_EXT: Record<string, string> = {
   gif: "image/gif",
 };
 
-export type MediaRole = "video" | "audio" | "image";
+export type MediaRole = "video" | "audio" | "image" | "master";
 
 export function safeName(name: string): string {
   return name
@@ -51,6 +57,7 @@ export function extractExt(fileName: string): string {
 export function allowedExts(role: MediaRole): Set<string> {
   if (role === "video") return VIDEO_EXT;
   if (role === "audio") return AUDIO_EXT;
+  if (role === "master") return MASTER_AUDIO_EXT;
   return IMAGE_EXT;
 }
 
@@ -58,6 +65,12 @@ export function resolveExt(fileName: string, role: MediaRole): string | null {
   const ext = extractExt(fileName);
   if (!ext || !allowedExts(role).has(ext)) return null;
   return ext;
+}
+
+/** R2 key de master: siempre bajo library/{slug}/full/ (403 en /api/media). */
+export function isPrivateMasterKey(key: string): boolean {
+  const k = String(key || "").trim();
+  return k.startsWith("library/") && k.includes("/full/") && !k.includes("..");
 }
 
 /** Content-Type canónico; ignora el del cliente. */

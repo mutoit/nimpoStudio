@@ -103,7 +103,11 @@ export function bindAdminPublish(deps: PublishDeps) {
           ? !!(form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0]
           : !!(form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
       const hasStemFiles = stemRows.some((r) => r.file);
-      const hasAnyNewMedia = hasVideoFile || hasCoverFile || hasStemFiles;
+      const masterFile =
+        (form.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0] || null;
+      const hasMasterFile = !!masterFile;
+      const hasAnyNewMedia =
+        hasVideoFile || hasCoverFile || hasStemFiles || hasMasterFile;
 
       type ServerStem = { id?: string; label?: string; src?: string; cleanSrc?: string };
       const serverStemsForMix = Array.isArray(editingItem?.stems)
@@ -194,9 +198,18 @@ export function bindAdminPublish(deps: PublishDeps) {
       body.set("provisional", "0");
       body.set("licenseEnabled", fd.get("licenseEnabled") === "on" ? "1" : "0");
 
+      // Master HQ: sin bake, bytes tal cual (campo aparte de stems/preview).
+      if (hasMasterFile && masterFile) {
+        deps.setLight("master", "loading", "Master…");
+        body.set("master", masterFile, masterFile.name);
+      }
+
       if (channel === "video") {
         const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
-        if (!v && !editingSlug) throw new Error("Elige un vídeo.");
+        if (!v && !editingSlug && !hasMasterFile) throw new Error("Elige un vídeo.");
+        if (!v && !editingSlug && hasMasterFile) {
+          throw new Error("Para publicar nueva ficha en canal vídeo hace falta el vídeo (el master es opcional de entrega).");
+        }
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) {
@@ -326,10 +339,13 @@ export function bindAdminPublish(deps: PublishDeps) {
       if (hasVideoFile) deps.setLight("video", "loading", "Subiendo…");
       if (hasCoverFile) deps.setLight("cover", "loading", "Subiendo…");
       if (hasStemFiles) deps.setLight("stems", "loading", "Subiendo…");
+      if (hasMasterFile) deps.setLight("master", "loading", "Master R2…");
       deps.setLight("upload", "loading", "Publicando en R2…");
       deps.setStatus(
         editingSlug
-          ? "Subiendo archivos (URL nueva cada vez)…"
+          ? hasMasterFile
+            ? "Subiendo… master HQ intacto a R2 privado (/full/)."
+            : "Subiendo archivos (URL nueva cada vez)…"
           : "Publicando… (subida + catálogo)",
       );
       const res = await fetch("/admin/publish", {
@@ -342,10 +358,11 @@ export function bindAdminPublish(deps: PublishDeps) {
         deps.setLight("upload", "err", "Error");
         if (hasVideoFile) deps.setLight("video", "err", "Falló");
         if (hasStemFiles) deps.setLight("stems", "err", "Falló");
+        if (hasMasterFile) deps.setLight("master", "err", "Falló");
         const err = String(data.error || "");
         if (err === "bad_extension") {
           throw new Error(
-            "Tipo de archivo no permitido. Vídeo: mp4/webm/mov · Audio: mp3/wav/m4a · Imagen: jpg/png/webp",
+            "Tipo no permitido. Vídeo: mp4/webm/mov · Stems: mp3/wav/m4a · Master: wav/flac/aiff/mp3 · Imagen: jpg/png/webp",
           );
         }
         if (err === "file_too_large" || err === "total_too_large") {
@@ -373,12 +390,23 @@ export function bindAdminPublish(deps: PublishDeps) {
         mixDirty || hasStemFiles ? "Mezcla OK" : "Listo",
       );
       if (hasStemFiles || wantsRemixedNoise) deps.setLight("stems", "ok", "En servidor");
+      if (hasMasterFile || data.master?.hasMaster) {
+        deps.setLight(
+          "master",
+          "ok",
+          hasMasterFile
+            ? `Master ${(Number(data.master?.bytes || masterFile?.size || 0) / (1024 * 1024)).toFixed(1)} MB`
+            : "En R2",
+        );
+      }
       deps.setMixDirty(false);
       deps.setStatus(`✅ ${msg}`);
       deps.showToast(
-        hasStemFiles || wantsRemixedNoise
-          ? `✅ ${msg} · audio con la mezcla actual (Ctrl+F5 en biblioteca)`
-          : `✅ ${msg}`,
+        hasMasterFile
+          ? `✅ ${msg} · master HQ en R2 privado (verifica con «Comprobar R2»)`
+          : hasStemFiles || wantsRemixedNoise
+            ? `✅ ${msg} · audio con la mezcla actual (Ctrl+F5 en biblioteca)`
+            : `✅ ${msg}`,
         18000,
       );
       const out = document.querySelector("[data-out]");
@@ -390,6 +418,7 @@ export function bindAdminPublish(deps: PublishDeps) {
             merged: data.merged,
             keptMedia: data.keptMedia,
             catalogCount: data.catalogCount,
+            master: data.master,
             item: data.item,
           },
           null,
@@ -413,6 +442,45 @@ export function bindAdminPublish(deps: PublishDeps) {
             p.innerHTML = "";
           }
         });
+        // Tras subir master: head R2 automático (botón Comprobar R2 también disponible)
+        if (hasMasterFile && data.master?.hasMaster) {
+          try {
+            const vr = await fetch(`/admin/master?slug=${encodeURIComponent(slug)}`, {
+              credentials: "same-origin",
+              cache: "no-store",
+            });
+            const vj = (await vr.json()) as {
+              ok?: boolean;
+              exists?: boolean;
+              intact?: boolean;
+              bytes?: number | null;
+              contentType?: string | null;
+              key?: string | null;
+              message?: string;
+            };
+            if (vr.ok && vj.ok && vj.exists) {
+              deps.setLight(
+                "master",
+                vj.intact ? "ok" : "err",
+                vj.bytes != null
+                  ? `${(Number(vj.bytes) / (1024 * 1024)).toFixed(2)} MB R2`
+                  : "En R2",
+              );
+              deps.showToast(
+                vj.message ||
+                  `Master verificado en R2 · ${vj.contentType || "?"} · ${vj.key || ""}`,
+                14000,
+              );
+              const vmsg = document.querySelector("[data-master-verify-msg]");
+              if (vmsg instanceof HTMLElement) {
+                vmsg.hidden = false;
+                vmsg.textContent = vj.message || "Master OK en R2";
+              }
+            }
+          } catch {
+            /* verify best-effort; el botón Comprobar R2 sigue ahí */
+          }
+        }
       } else {
         deps.setEditMode(null);
         form.reset();

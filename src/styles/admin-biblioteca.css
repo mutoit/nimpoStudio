@@ -652,6 +652,28 @@
     padding: 0.4rem 0.65rem;
     font-size: 0.72rem;
   }
+  .master-box {
+    margin: 0.85rem 0 1rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.35);
+    background: rgb(201 169 98 / 0.06);
+  }
+  .master-box .stems-head {
+    margin-bottom: 0.4rem;
+  }
+  .master-box code {
+    font-size: 0.78em;
+    word-break: break-all;
+  }
+  .master-verify-msg {
+    margin: 0.45rem 0 0;
+    font-size: 0.8rem;
+    color: rgb(180 200 170);
+  }
+  .master-verify-msg[hidden] {
+    display: none !important;
+  }
   .stems-box {
     border: 1px solid var(--color-border);
     border-radius: 10px;

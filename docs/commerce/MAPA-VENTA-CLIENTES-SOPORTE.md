@@ -8,6 +8,7 @@
 | Doc | Para qué |
 |-----|----------|
 | Este archivo | **SSoT** de qué hay, qué falta, cómo funciona |
+| Updates app (contrato dev) | `docs/commerce/UPDATES-APP-CONTRATO.md` |
 | Plan ejecución | `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md` (`status: done`) |
 | Hub commerce base | `docs/plans/2026-07-28-product-commerce-hub.md` |
 | Checklist general | `docs/estado.md` |
@@ -187,6 +188,18 @@ Un número solo en la web **sin** `price_…` **no cobra**.
 |-------|--------|
 | **Software** | Stripe Checkout → key + descarga |
 | **Música** | Cotizador / plantillas (`docs/licencias/`) — **no** este Checkout (salvo unificar más adelante) |
+
+### Master música en R2 (prep entrega)
+
+| Pieza | Detalle |
+|-------|---------|
+| Campo admin | **Master HQ** en `/admin/biblioteca/` (no es stem ni preview) |
+| R2 path | `library/{slug}/full/master-….wav\|flac\|…` |
+| Tratamiento | **Bytes intactos** — sin bake, sin ruido |
+| Público | `/api/media` → **403** si la key contiene `/full/` |
+| Catálogo | `masterKey` solo en R2 catálogo; API pública solo `hasMaster` |
+| Verify | `GET /admin/master?slug=` (head size/type) + botón «Comprobar R2» |
+| Aún no | Stripe instant + token de descarga del master (siguiente) |
 
 ### Orden práctico (dinero + 1.ª venta)
 

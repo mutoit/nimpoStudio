@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup · Biblioteca — paleta logo Nimpo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --teal: #1f9a96;
+      --teal-deep: #0d6b6e;
+      --teal-soft: #5ec4bf;
+      --orange: #e86a3a;
+      --amber: #f0a03a;
+      --navy: #142a52;
+      --navy-deep: #0a1833;
+      --cream: #f3e6d2;
+      --sand: #c9a87a;
+      --ink: #1a1520;
+      --paper: #faf6ef;
+      --card: #fffdf9;
+      --muted: #5c5348;
+      --font-display: "Cinzel", serif;
+      --font-body: "Source Sans 3", system-ui, sans-serif;
+      --radius: 12px;
+      --shadow: 0 16px 40px rgb(10 24 51 / 0.14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background:
+        radial-gradient(900px 480px at 0% 0%, rgb(31 154 150 / 0.1), transparent 55%),
+        radial-gradient(700px 400px at 100% 10%, rgb(232 106 58 / 0.08), transparent 50%),
+        linear-gradient(180deg, var(--cream), var(--paper) 50%, #ebe0d0);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(1180px, 100% - 1.5rem); margin-inline: auto; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: rgb(250 246 239 / 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgb(201 168 122 / 0.35);
+    }
+    .topbar__inner {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; padding: 0.6rem 0;
+    }
+    .brand { display: flex; align-items: center; gap: 0.65rem; }
+    .brand img {
+      width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+      box-shadow: 0 4px 14px rgb(20 42 82 / 0.2);
+    }
+    .brand strong {
+      font-family: var(--font-display); font-size: 0.95rem;
+      letter-spacing: 0.08em; color: var(--navy);
+    }
+    .brand span {
+      display: block; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange);
+    }
+    nav { display: flex; gap: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--navy); }
+    @media (max-width: 720px) { nav { display: none; } }
+    nav a:hover { color: var(--teal-deep); }
+    nav a.is-active { color: var(--teal-deep); border-bottom: 2px solid var(--teal); }
+
+    .note {
+      margin: 1rem 0 0;
+      padding: 0.65rem 0.9rem;
+      border-radius: 10px;
+      background: rgb(31 154 150 / 0.1);
+      border: 1px dashed rgb(13 107 110 / 0.35);
+      font-size: 0.8rem;
+      color: var(--teal-deep);
+    }
+
+    .page-head { padding: 1.5rem 0 1rem; }
+    .page-head h1 {
+      margin: 0 0 0.35rem;
+      font-family: var(--font-display);
+      font-size: clamp(1.75rem, 3.5vw, 2.35rem);
+      color: var(--navy-deep);
+      letter-spacing: 0.03em;
+    }
+    .page-head p { margin: 0; color: var(--muted); max-width: 40rem; }
+
+    /* Filters */
+    .filters {
+      display: flex; flex-wrap: wrap; gap: 0.45rem;
+      padding: 0.85rem 0 1.15rem;
+      border-bottom: 1px solid rgb(201 168 122 / 0.35);
+      margin-bottom: 1.25rem;
+    }
+    .chip {
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.4rem 0.8rem; border-radius: 999px;
+      border: 1.5px solid rgb(20 42 82 / 0.15);
+      background: var(--card);
+      color: var(--navy);
+      cursor: pointer;
+    }
+    .chip:hover { border-color: var(--teal); color: var(--teal-deep); }
+    .chip.is-on {
+      background: linear-gradient(135deg, var(--teal), var(--teal-deep));
+      border-color: transparent;
+      color: #fff;
+    }
+    .chip--mood {
+      background: rgb(232 106 58 / 0.08);
+      border-color: rgb(232 106 58 / 0.35);
+      color: #9a3d18;
+    }
+    .chip--mood.is-on {
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      color: #1a1008;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.85rem;
+      padding-bottom: 3rem;
+    }
+    @media (max-width: 960px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .tile {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid rgb(201 168 122 / 0.4);
+      background: var(--navy-deep);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgb(10 24 51 / 0.1);
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+    .tile:hover, .tile.is-focus {
+      transform: translateY(-3px);
+      border-color: var(--teal);
+      box-shadow: 0 14px 32px rgb(13 107 110 / 0.25);
+    }
+    .tile__bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(145deg, #0f2a3a, #1a6b68 55%, #3d2818);
+    }
+    .tile:nth-child(2) .tile__bg { background: linear-gradient(145deg, #1a2038, #2a5080 50%, #8b4520); }
+    .tile:nth-child(3) .tile__bg { background: linear-gradient(160deg, #0a1828, #0d5c58, #c45a28); }
+    .tile:nth-child(4) .tile__bg { background: linear-gradient(145deg, #241810, #5c3820, #1f7a72); }
+    .tile:nth-child(5) .tile__bg { background: linear-gradient(145deg, #101828, #3a2a50, #e86a3a); }
+    .tile:nth-child(6) .tile__bg { background: linear-gradient(145deg, #0c2a30, #1f5a52, #c9a87a); }
+    .tile:nth-child(7) .tile__bg { background: linear-gradient(145deg, #1a1020, #2a4060, #f0a03a); }
+    .tile:nth-child(8) .tile__bg { background: linear-gradient(145deg, #0a2030, #144a60, #8b3a22); }
+
+    .tile__play {
+      position: absolute; inset: 0;
+      display: grid; place-items: center;
+      background: rgb(10 24 51 / 0.15);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .tile:hover .tile__play { opacity: 1; }
+    .tile__play span {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgb(255 253 249 / 0.95);
+      color: var(--navy);
+      display: grid; place-items: center;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+    }
+    .tile__meta {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 1.75rem 0.65rem 0.6rem;
+      background: linear-gradient(transparent, rgb(10 24 51 / 0.92));
+      color: #f3e6d2;
+    }
+    .tile__meta strong {
+      display: block; font-size: 0.88rem; font-weight: 700;
+    }
+    .tile__meta small {
+      font-size: 0.7rem; opacity: 0.8; font-weight: 600;
+    }
+    .tile__badge {
+      position: absolute; top: 0.5rem; left: 0.5rem;
+      font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.45rem; border-radius: 6px;
+      background: rgb(255 253 249 / 0.92);
+      color: var(--navy);
+    }
+    .tile__badge--stems { background: var(--teal); color: #fff; }
+    .tile__badge--excl {
+      left: auto; right: 0.5rem;
+      background: var(--orange); color: #1a1008;
+    }
+
+    /* Modal */
+    .backdrop {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgb(10 24 51 / 0.55);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .modal {
+      width: min(920px, 100%);
+      max-height: min(90dvh, 720px);
+      overflow: auto;
+      background: var(--card);
+      border-radius: 16px;
+      border: 1px solid rgb(201 168 122 / 0.45);
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+    }
+    @media (max-width: 780px) {
+      .modal { grid-template-columns: 1fr; max-height: 92dvh; }
+    }
+    .modal__preview {
+      background: linear-gradient(160deg, #0a1833, #0d5c58 50%, #8b3a22);
+      min-height: 280px;
+      position: relative;
+      padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    .modal__close {
+      position: absolute; top: 0.65rem; right: 0.65rem;
+      width: 36px; height: 36px; border-radius: 50%;
+      border: none; background: rgb(255 253 249 / 0.9);
+      font-weight: 700; cursor: pointer; color: var(--navy);
+      z-index: 2;
+    }
+    .modal__stage {
+      flex: 1; border-radius: 12px;
+      background: rgb(0 0 0 / 0.25);
+      border: 1px solid rgb(255 255 255 / 0.12);
+      display: grid; place-items: center;
+      color: rgb(243 230 210 / 0.7);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .stems {
+      display: flex; flex-direction: column; gap: 0.35rem;
+    }
+    .stem {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.75rem; font-weight: 600; color: var(--cream);
+    }
+    .stem button {
+      width: 1.6rem; height: 1.6rem; border-radius: 6px;
+      border: 1px solid rgb(94 196 191 / 0.5);
+      background: rgb(31 154 150 / 0.35);
+      color: #fff; font-size: 0.65rem; cursor: pointer;
+    }
+    .stem button.is-off { opacity: 0.4; background: transparent; }
+    .stem__bar {
+      flex: 1; height: 6px; border-radius: 99px;
+      background: rgb(255 255 255 / 0.12);
+      overflow: hidden;
+    }
+    .stem__bar i {
+      display: block; height: 100%; width: 60%;
+      background: linear-gradient(90deg, var(--teal-soft), var(--amber));
+      border-radius: 99px;
+    }
+    .stem-hint {
+      font-size: 0.68rem; color: rgb(243 230 210 / 0.65);
+    }
+
+    .modal__form {
+      padding: 1.15rem 1.2rem 1.25rem;
+      overflow: auto;
+    }
+    .modal__form h2 {
+      margin: 0 0 0.2rem;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      color: var(--navy);
+    }
+    .modal__form .sub {
+      margin: 0 0 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    label.field {
+      display: flex; flex-direction: column; gap: 0.3rem;
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.7rem;
+    }
+    select, input, textarea {
+      font: inherit; font-weight: 500;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1.5px solid rgb(20 42 82 / 0.15);
+      background: #fff;
+      color: var(--ink);
+    }
+    select:focus, input:focus, textarea:focus {
+      outline: 2px solid rgb(31 154 150 / 0.35);
+      border-color: var(--teal);
+    }
+    .opt-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .opt-row:hover { background: rgb(31 154 150 / 0.06); }
+    .opt-row .eur {
+      font-weight: 800;
+      color: var(--teal-deep);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .extras {
+      border: 1px solid rgb(201 168 122 / 0.4);
+      border-radius: 10px;
+      padding: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .extras label {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .extras label:hover { background: rgb(232 106 58 / 0.06); }
+    .extras .eur { color: var(--orange); font-weight: 800; font-size: 0.78rem; }
+    .total {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 0.75rem 0.85rem;
+      border-radius: 10px;
+      background: linear-gradient(120deg, rgb(13 107 110 / 0.12), rgb(232 106 58 / 0.1));
+      margin-bottom: 0.85rem;
+    }
+    .total span { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+    .total strong {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      color: var(--navy-deep);
+    }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.65rem 1.1rem; border-radius: 999px;
+      border: none; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .btn--primary {
+      background: linear-gradient(135deg, var(--teal), var(--teal-deep));
+      color: #fff;
+      box-shadow: 0 6px 18px rgb(13 107 110 / 0.3);
+    }
+    .btn--accent {
+      background: linear-gradient(135deg, var(--orange), var(--amber));
+      color: #1a1008;
+    }
+    .btn--ghost {
+      background: transparent;
+      border: 1.5px solid rgb(20 42 82 / 0.2);
+      color: var(--navy);
+    }
+
+    footer {
+      border-top: 1px solid rgb(201 168 122 / 0.35);
+      padding: 1.25rem 0 1.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .footer__inner {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+    }
+    .footer__inner img {
+      width: 26px; height: 26px; border-radius: 50%; vertical-align: middle; margin-right: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <a class="brand" href="web-paleta-logo.html">
+        <img src="logo-nimpo.png" alt="Nimpo" width="48" height="48" />
+        <div>
+          <strong>NIMPO</strong>
+          <span>3D Studio</span>
+        </div>
+      </a>
+      <nav>
+        <a href="web-paleta-logo.html">Software</a>
+        <a class="is-active" href="#">Biblioteca</a>
+        <a href="#">Sobre</a>
+        <a href="#">Contacto</a>
+      </nav>
+      <a class="btn btn--primary" href="#" style="padding:0.5rem 0.95rem;font-size:0.85rem">Cuenta</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="note">
+      <strong>Mockup biblioteca</strong> — misma paleta del logo (teal · naranja · navy · crema).
+      Grid de obras + modal detalle (preview, stems, cotizador). No es producción.
+    </p>
+
+    <div class="page-head">
+      <h1>Biblioteca</h1>
+      <p>Miniaturas fijas, filtros por tipo y mood. Abre una ficha para preview, mixer de stems y licencia por uso.</p>
+    </div>
+
+    <div class="filters" role="toolbar" aria-label="Filtros">
+      <button type="button" class="chip is-on">Todos</button>
+      <button type="button" class="chip">1:1</button>
+      <button type="button" class="chip">9:16</button>
+      <button type="button" class="chip">Con stems</button>
+      <button type="button" class="chip chip--mood">Inmersivo</button>
+      <button type="button" class="chip chip--mood">Cinematic</button>
+      <button type="button" class="chip chip--mood">Esperanza</button>
+      <button type="button" class="chip chip--mood">Lento</button>
+    </div>
+
+    <div class="grid" id="grid">
+      <article class="tile is-focus" data-open tabindex="0" aria-label="Despertar">
+        <div class="tile__bg"></div>
+        <span class="tile__badge tile__badge--stems">Stems</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta">
+          <strong>Despertar</strong>
+          <small>Ambient · 9:16</small>
+        </div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <span class="tile__badge">1:1</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Nocturna</strong><small>Visual</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <span class="tile__badge tile__badge--stems">Stems</span>
+        <span class="tile__badge tile__badge--excl">Excl. sold</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Pulso</strong><small>Reel</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Umbral</strong><small>Stems demo</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <span class="tile__badge tile__badge--stems">Stems</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Marea</strong><small>Cinematic</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Farol</strong><small>Lento</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <span class="tile__badge">9:16</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Vértice</strong><small>Brand</small></div>
+      </article>
+      <article class="tile" tabindex="0">
+        <div class="tile__bg"></div>
+        <span class="tile__badge tile__badge--stems">Stems</span>
+        <div class="tile__play"><span>▶</span></div>
+        <div class="tile__meta"><strong>Resina</strong><small>Game</small></div>
+      </article>
+    </div>
+  </main>
+
+  <div class="backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <div class="modal">
+      <div class="modal__preview">
+        <button type="button" class="modal__close" id="close" aria-label="Cerrar">×</button>
+        <div class="modal__stage">Preview vídeo / audio</div>
+        <div class="stems" aria-label="Mixer stems">
+          <div class="stem">
+            <button type="button" title="Mute">●</button>
+            <span style="min-width:5.5rem">Aftermath</span>
+            <div class="stem__bar"><i style="width:72%"></i></div>
+          </div>
+          <div class="stem">
+            <button type="button" title="Mute">●</button>
+            <span style="min-width:5.5rem">Arrival</span>
+            <div class="stem__bar"><i style="width:45%"></i></div>
+          </div>
+          <div class="stem">
+            <button type="button" class="is-off" title="Mute">○</button>
+            <span style="min-width:5.5rem">Longs</span>
+            <div class="stem__bar"><i style="width:20%"></i></div>
+          </div>
+          <div class="stem">
+            <button type="button" title="Mute">●</button>
+            <span style="min-width:5.5rem">Swell pad</span>
+            <div class="stem__bar"><i style="width:58%"></i></div>
+          </div>
+          <p class="stem-hint">Clic = mute · Ctrl+clic = solo esa capa</p>
+        </div>
+      </div>
+      <div class="modal__form">
+        <h2 id="m-title">Despertar</h2>
+        <p class="sub">MIDI original · stems · licencia por uso · desde 79 € micro</p>
+
+        <label class="field">
+          Tipo de uso
+          <select>
+            <option>Micro / un solo uso — 79 €</option>
+            <option selected>Comercial 2 años — 169 €</option>
+            <option>Comercial 1 año — 129 €</option>
+            <option>Ads pack — 299 €</option>
+            <option>Exclusiva (desde) — 1.200 €</option>
+          </select>
+        </label>
+        <label class="field">
+          Plazo
+          <select>
+            <option>1 año</option>
+            <option selected>2 años</option>
+            <option>Proyecto nombrado</option>
+          </select>
+        </label>
+
+        <div class="extras">
+          <label><span><input type="checkbox" checked /> Stems</span><span class="eur">+59 €</span></label>
+          <label><span><input type="checkbox" /> Edit corto</span><span class="eur">+49 €</span></label>
+          <label><span><input type="checkbox" /> +1 año plazo</span><span class="eur">+…</span></label>
+        </div>
+
+        <div class="total">
+          <span>Estimación</span>
+          <strong>228 €</strong>
+        </div>
+
+        <label class="field">
+          Email
+          <input type="email" placeholder="tu@email.com" />
+        </label>
+        <label class="field">
+          Proyecto / notas
+          <textarea rows="2" placeholder="Corto festival, no exclusiva…"></textarea>
+        </label>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn--accent">Pedir presupuesto</button>
+          <button type="button" class="btn btn--ghost" id="close2">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap footer__inner">
+      <span>
+        <img src="logo-nimpo.png" alt="" />
+        Nimpo 3D Studio · mockup biblioteca
+      </span>
+      <a href="web-paleta-logo.html">← Mockup home</a>
+    </div>
+  </footer>
+
+  <script>
+    const modal = document.getElementById("modal");
+    const close = () => { modal.hidden = true; document.body.style.overflow = ""; };
+    document.getElementById("close").onclick = close;
+    document.getElementById("close2").onclick = close;
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    document.querySelectorAll("[data-open], .tile").forEach((el) => {
+      el.addEventListener("click", () => {
+        modal.hidden = false;
+        document.body.style.overflow = "hidden";
+      });
+    });
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        if (chip.classList.contains("chip--mood")) {
+          chip.classList.toggle("is-on");
+          return;
+        }
+        document.querySelectorAll(".chip:not(.chip--mood)").forEach((c) => c.classList.remove("is-on"));
+        chip.classList.add("is-on");
+      });
+    });
+    document.querySelectorAll(".stem button").forEach((b) => {
+      b.addEventListener("click", () => {
+        b.classList.toggle("is-off");
+        b.textContent = b.classList.contains("is-off") ? "○" : "●";
+      });
+    });
+  </script>
+</body>
+</html>

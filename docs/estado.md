@@ -128,22 +128,22 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] WP6 recovery form + transfer email / rotate key / reset seats
 - [x] WP7 docs mapa/estado
 
-### Música biblioteca + pago (2026-07-31)
-**Política SSoT:** `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
-- [x] Master HQ + stems HQ en `full/` (intactos, privados)
-- [x] Biblioteca: solo 1 preview mix (sin multi-stem player)
-- [x] `GET /admin/media` · `GET /admin/master`
-- [x] Checkout música + webhook + download + UI pagar + cuenta
-- [ ] Ops: pegar `price_…` Stripe en fichas + smoke pago test/live
+### 🔥 PRIORIDAD — Tus tareas de ventas
+**Lista única (música + software):** **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
 
-### Pendiente ops (tú) — venta software real
-Detalle + dinero/IVA/precios: **`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` §0 y § Dinero**
-- [x] Secrets Pages Stripe + webhook + Price ejemplo 29 € (live) + redeploy (`stripeConfigured: true`)
-- [ ] Banco + verificación Stripe (payouts)
-- [ ] Producto admin: `stripePriceId` + full + published (catálogo R2 aún vacío)
-- [ ] Smoke compra → cuenta → ticket
-- [ ] (Rec.) Cloudflare Access `/admin*`
-- [ ] Legal / IVA (ver mapa § dinero)
+1. Stripe: banco + keys alineadas  
+2. Música: `price_…` en ficha (ej. Casa de campo) + smoke  
+3. Software: producto published + full + smoke  
+
+### Música biblioteca + pago (código listo)
+**Política:** `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
+- [x] Master/stems HQ privados · preview único · checkout · cuenta
+- [ ] → ops en **TAREAS-VENTAS-PRIORIDAD.md** § música
+
+### Software commerce (código listo)
+**Mapa:** `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`
+- [x] Secrets Stripe + webhook + Price ejemplo 29 € (`stripeConfigured: true`)
+- [ ] → ops en **TAREAS-VENTAS-PRIORIDAD.md** § software
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

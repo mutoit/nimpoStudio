@@ -132,10 +132,15 @@ No mezclar con checkout de **software** (`productSlug` de `/admin/productos/`). 
 
 ## 6. Ops (checklist)
 
+**Lista prioritaria (tú), música + software:**  
+→ **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
+
+Solo música (extracto):
+
 - [ ] Stripe: Price(s) de música (`price_…`)  
-- [ ] Admin: pegar en cada obra lista para vender + `priceEur`  
-- [ ] Obra con **master** (y stems si el pack los incluye) en `full/`  
-- [ ] Smoke test (idealmente **test mode** primero): pagar → mail → cuenta → descarga  
+- [ ] Admin: pegar en cada obra + `priceEur`  
+- [ ] Master (y stems) en `full/`  
+- [ ] Smoke test (test mode primero): pagar → mail → cuenta → descarga  
 - [ ] Banco / verificación Stripe si live  
 
 ---

@@ -7,6 +7,7 @@
 | Doc | Para qué |
 |-----|----------|
 | Este archivo | **SSoT** software + hub Stripe/clientes/tickets |
+| **Tareas ventas (tú)** | **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`** — **prioridad #1 ops** |
 | **Política música** | **`docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`** — preview, HQ, pago, descarga |
 | Precios / plantillas música | `docs/licencias/` |
 | Updates app (contrato dev) | `docs/commerce/UPDATES-APP-CONTRATO.md` |
@@ -88,25 +89,18 @@ Enlace:
 `https://dash.cloudflare.com/<account>/pages/view/nimpo-studio/settings`  
 Tras cambiar un secret: **nuevo deploy** (retry o push) si el runtime no lo ve.
 
-### Falta de tu parte (ops) — bloquea **primera venta real** 📝
+### Falta de tu parte (ops) — **PRIORIDAD** 📝
 
-- [x] Secrets Pages Stripe (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`)
-- [x] Webhook Stripe + evento `checkout.session.completed`
-- [x] Product + Price en Stripe (ejemplo 29 €; cambia el Price si quieres otro importe)
-- [ ] **Confirmar** que `STRIPE_SECRET_KEY` es la key **real** (no placeholder) y alineada con test vs live
-- [ ] **Stripe:** verificación de negocio + **cuenta bancaria** (payouts) — sin esto el dinero no te llega
-- [ ] **Producto en la web** (admin `/admin/productos/`):
-  - [ ] Plan con **`stripePriceId`** = `price_1TyzK89hkzoHpGr7QKVv2SgV` (o otro `price_…` que crees)
-  - [ ] **Full build** subido (`full/` en R2)
-  - [ ] Demo si aplica
-  - [ ] Status **`published`** (catálogo R2 hoy vacío → checkout devuelve `product_not_found`)
-- [ ] **Smoke end-to-end:**
-  - [ ] Compra → mail con key
-  - [ ] `/admin/pedidos/` + customer
-  - [ ] Magic link `/es/cuenta/` → re-descarga
-- [ ] (Rec.) Cloudflare Access en `/admin*`
-- [ ] **Legal:** privacidad/términos + criterio IVA/facturas (ver § dinero)
-- [ ] `DOWNLOAD_SECRET` opcional (si no, reusa session secret ≥16)
+**Lista canónica (música + software + Stripe):**  
+→ **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
+
+Resumen software (detalle allí):
+
+- [x] Secrets Pages Stripe + webhook + Price ejemplo 29 €
+- [ ] Banco + verificación Stripe (payouts)
+- [ ] Producto admin: `stripePriceId` + full + **published**
+- [ ] Smoke compra → cuenta → re-descarga
+- [ ] (Rec.) Access `/admin*` · IVA/legal (ver § dinero)
 
 ### Hecho en proceso (tú, cuando haya tickets/ventas) 🧑
 

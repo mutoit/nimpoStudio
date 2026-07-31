@@ -142,9 +142,8 @@ export function sanitizeCatalogItem(
     o.priceEur != null && Number.isFinite(Number(o.priceEur)) && Number(o.priceEur) > 0
       ? Number(o.priceEur)
       : null;
-  const checkoutReady = Boolean(
-    hasMaster && stripePriceId && o.licenseEnabled !== false,
-  );
+  // Pagar online: master HQ + licencia on. Prices son del baremo global (no por obra).
+  const checkoutReady = Boolean(hasMaster && o.licenseEnabled !== false);
 
   const base: Record<string, unknown> = {
     id,

@@ -179,33 +179,40 @@ function termLabel(term: LicenseTermCode): string {
 export function commercialPriceForTerm(term: LicenseTermCode = "2y"): {
   amount: number;
   label: string;
+  /** Código de línea = Stripe product map */
+  code: string;
 } {
   switch (term) {
     case "single":
       return {
         amount: LICENSE_PRICES.singleUse,
         label: "Licencia micro / un solo uso",
+        code: "commercial_single",
       };
     case "1y":
       return {
         amount: LICENSE_PRICES.term1y,
         label: "Licencia comercial · 1 año",
+        code: "commercial_1y",
       };
     case "project":
       return {
         amount: LICENSE_PRICES.termProject,
         label: "Licencia comercial · vida del proyecto",
+        code: "commercial_project",
       };
     case "custom":
       return {
         amount: LICENSE_PRICES.commercialBase,
         label: "Licencia comercial · plazo a medida (lista 2 años)",
+        code: "commercial_2y",
       };
     case "2y":
     default:
       return {
         amount: LICENSE_PRICES.commercialBase,
         label: "Licencia comercial · 2 años",
+        code: "commercial_2y",
       };
   }
 }
@@ -258,28 +265,33 @@ export function fixedPriceForUsage(usage: LicenseUsageCode): {
 export function exclusivePriceForTerm(term: LicenseTermCode = "2y"): {
   amount: number;
   label: string;
+  code: string;
 } {
   switch (term) {
     case "single":
       return {
         amount: LICENSE_PRICES.exclusiveSingle,
         label: "Exclusiva · un solo uso / vuelo",
+        code: "exclusive_single",
       };
     case "1y":
       return {
         amount: LICENSE_PRICES.exclusive1y,
         label: "Exclusiva · 1 año",
+        code: "exclusive_1y",
       };
     case "project":
       return {
         amount: LICENSE_PRICES.exclusiveProject,
         label: "Exclusiva · vida del proyecto",
+        code: "exclusive_project",
       };
     case "2y":
     default:
       return {
         amount: LICENSE_PRICES.exclusiveFrom,
         label: "Exclusiva · 2 años (alcance pactado)",
+        code: "exclusive_2y",
       };
   }
 }
@@ -305,11 +317,16 @@ function addExtras(
     });
   }
   if (input.termPlus1y) {
-    const amt = isExclusiveDeal
+    const exclusiveExt = isExclusiveDeal;
+    const amt = exclusiveExt
       ? LICENSE_PRICES.termPlus1yExclusive
       : LICENSE_PRICES.termPlus1yCommercial;
     t += amt;
-    lineItems.push({ code: "term_plus_1y", label: "Extensión +1 año", amount: amt });
+    lineItems.push({
+      code: exclusiveExt ? "term_plus_1y_exclusive" : "term_plus_1y_commercial",
+      label: "Extensión +1 año",
+      amount: amt,
+    });
   }
   if (input.removeFromCatalog && isExclusiveDeal) {
     t += LICENSE_PRICES.removeFromCatalog;
@@ -449,7 +466,7 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
     const amount = strong ? LICENSE_PRICES.exclusiveStrongFrom : ex.amount;
     let total = amount;
     lineItems.push({
-      code: strong ? "exclusive_strong" : "exclusive",
+      code: strong ? "exclusive_strong" : ex.code,
       label: strong
         ? "Exclusiva fuerte multi-medio (suelo)"
         : ex.label,
@@ -536,7 +553,7 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
   if (meta.base === "ads" || input.usage === "ads_paid") {
     total = commercial.amount + LICENSE_PRICES.adsUplift;
     lineItems.push({
-      code: "commercial",
+      code: commercial.code,
       label: commercial.label,
       amount: commercial.amount,
     });
@@ -551,7 +568,7 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
   } else {
     total = commercial.amount;
     lineItems.push({
-      code: "commercial",
+      code: commercial.code,
       label: commercial.label,
       amount: commercial.amount,
     });

@@ -1,7 +1,8 @@
 /**
  * POST /api/checkout
  * Software: { productSlug, planId?, email? }
- * Música:   { kind: "music", workSlug, package?: "master"|"master_stems", email? }
+ * Música:   { kind: "music", workSlug, email, usage, term?, extras… }
+ *   → Stripe line items desde baremo (licencias + extras), no price por obra.
  * Q: { ok, url } Stripe Checkout Session
  */
 
@@ -15,6 +16,16 @@ import {
 } from "../lib/commerce";
 import { findProduct } from "../lib/products-catalog";
 import { findCatalogItem } from "../lib/library-catalog";
+import {
+  calculateLicenseQuote,
+  isLicenseUsageCode,
+  type LicenseTermCode,
+  type LicenseUsageCode,
+} from "../lib/license-quote";
+import {
+  isMusicCatalogCheckoutReady,
+  stripePricesForQuoteLines,
+} from "../lib/stripe-license-map";
 
 type Env = CommerceEnv & { RATE_LIMIT_KV?: RateLimitKv };
 
@@ -52,6 +63,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       stripeConfigured: Boolean(String(env.STRIPE_SECRET_KEY || "").trim()),
       musicCheckout: true,
+      musicCatalogPrices: isMusicCatalogCheckoutReady(),
+      model: "license_catalog",
     });
   }
 
@@ -92,6 +105,20 @@ export async function onRequest(context: { request: Request; env: Env }) {
     email?: string;
     successUrl?: string;
     cancelUrl?: string;
+    /** Selección cotizador (música) — el servidor recalcula importes */
+    usage?: string;
+    term?: string;
+    stems?: boolean;
+    editShort?: boolean;
+    exclusive?: boolean;
+    exclusiveStrong?: boolean;
+    buyout?: boolean;
+    buyoutHigh?: boolean;
+    needSpecialReview?: boolean;
+    termPlus1y?: boolean;
+    removeFromCatalog?: boolean;
+    territoryExpand?: boolean;
+    moreComposition?: boolean;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -107,12 +134,95 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const email = String(body.email || "").trim().toLowerCase();
   const base = siteBase(env, request);
 
-  // —— Música: master (+ stems) ——
+  // —— Música: licencia + extras (catálogo Stripe), obra solo metadata/entrega ——
   if (kind === "music") {
     const workSlug = String(body.workSlug || body.productSlug || "")
       .trim()
       .toLowerCase();
     if (!workSlug) return json({ ok: false, error: "missing_work" }, 400);
+
+    if (!isMusicCatalogCheckoutReady()) {
+      return json(
+        {
+          ok: false,
+          error: "stripe_catalog_missing",
+          message: "Falta mapa de precios de licencia en el servidor.",
+        },
+        503,
+      );
+    }
+
+    if (body.needSpecialReview === true) {
+      return json(
+        {
+          ok: false,
+          error: "special_quote",
+          message:
+            "Presupuesto especial: envía el formulario (Obtener presupuesto). El estudio te cobrará por Invoice/Link Stripe.",
+        },
+        400,
+      );
+    }
+
+    const usageRaw = String(body.usage || "").trim();
+    if (!isLicenseUsageCode(usageRaw)) {
+      return json({ ok: false, error: "missing_usage" }, 400);
+    }
+    const usage = usageRaw as LicenseUsageCode;
+    const termRaw = String(body.term || "2y").trim() as LicenseTermCode;
+    const term: LicenseTermCode =
+      termRaw === "single" ||
+      termRaw === "1y" ||
+      termRaw === "project" ||
+      termRaw === "custom" ||
+      termRaw === "2y"
+        ? termRaw
+        : "2y";
+
+    // Compat: package master_stems ⇒ stems on si no viene flag
+    const pkg = String(body.package || "").toLowerCase();
+    const stemsFromPkg = pkg === "master_stems" || pkg === "stems" || pkg === "full";
+    const stems = body.stems === true || (body.stems !== false && stemsFromPkg);
+
+    const quote = calculateLicenseQuote({
+      usage,
+      term,
+      stems,
+      editShort: body.editShort === true,
+      exclusive: body.exclusive === true,
+      exclusiveStrong: body.exclusiveStrong === true,
+      buyout: body.buyout === true,
+      buyoutHigh: body.buyoutHigh === true,
+      needSpecialReview: false,
+      termPlus1y: body.termPlus1y === true,
+      removeFromCatalog: body.removeFromCatalog === true,
+      territoryExpand: body.territoryExpand === true,
+      moreComposition: body.moreComposition === true,
+    });
+
+    if (quote.mode !== "instant" || quote.total == null || !quote.lineItems.length) {
+      return json(
+        {
+          ok: false,
+          error: "not_instant",
+          message: "Esta selección no tiene precio cerrado. Usa presupuesto especial.",
+        },
+        400,
+      );
+    }
+
+    const priced = stripePricesForQuoteLines(quote.lineItems);
+    if (!priced.ok) {
+      return json(
+        {
+          ok: false,
+          error: "stripe_price_map",
+          message: `Faltan Prices Stripe para: ${priced.missing.join(", ")}`,
+          missing: priced.missing,
+        },
+        500,
+      );
+    }
 
     const item = await findCatalogItem(env.LIBRARY_BUCKET, workSlug);
     if (!item || String(item.availability || "") === "off_catalog") {
@@ -134,28 +244,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    const pkg = String(body.package || "master_stems").toLowerCase();
-    const wantStems = pkg === "master_stems" || pkg === "stems" || pkg === "full";
+    const wantStems = quote.lineItems.some((l) => l.code === "stems");
     const stemKeys = musicStemKeysFromItem(item);
     const includeStems = wantStems && stemKeys.length > 0;
 
-    // Price: master stripePriceId; opcional stemsStripePriceId si package stems y existe
-    const masterPrice = String(item.stripePriceId || "").trim();
-    const stemsPrice = String(item.stemsStripePriceId || "").trim();
-    if (!masterPrice || !priceIdOk(masterPrice)) {
-      return json(
-        {
-          ok: false,
-          error: "no_stripe_price",
-          message:
-            "Configura stripePriceId (price_…) en la ficha de la obra (admin biblioteca). Puedes crearlo en Stripe y pegarlo aquí.",
-          workSlug,
-        },
-        400,
-      );
-    }
-
     const title = String(item.title || workSlug);
+    const planName = quote.lineItems
+      .map((l) => l.label)
+      .slice(0, 3)
+      .join(" + ");
+    const lineCodes = quote.lineItems.map((l) => l.code).join(",");
+
     const successUrl =
       String(body.successUrl || "").trim() ||
       `${base}/es/cuenta/?checkout=success&kind=music&work=${encodeURIComponent(workSlug)}&session_id={CHECKOUT_SESSION_ID}`;
@@ -167,24 +266,20 @@ export async function onRequest(context: { request: Request; env: Env }) {
     params.set("mode", "payment");
     params.set("success_url", successUrl);
     params.set("cancel_url", cancelUrl);
-    params.set("line_items[0][price]", masterPrice);
-    params.set("line_items[0][quantity]", "1");
-    let line = 1;
-    if (includeStems && stemsPrice && priceIdOk(stemsPrice) && stemsPrice !== masterPrice) {
-      params.set(`line_items[${line}][price]`, stemsPrice);
-      params.set(`line_items[${line}][quantity]`, "1");
-      line++;
-    }
-    // Si no hay price de stems aparte, el price del master se asume pack (master+stems si includeStems)
+    priced.priceIds.forEach((priceId, i) => {
+      params.set(`line_items[${i}][price]`, priceId);
+      params.set(`line_items[${i}][quantity]`, "1");
+    });
     params.set("metadata[kind]", "music");
     params.set("metadata[productSlug]", workSlug);
     params.set("metadata[workSlug]", workSlug);
     params.set("metadata[productName]", title);
-    params.set("metadata[planId]", includeStems ? "master_stems" : "master");
-    params.set(
-      "metadata[planName]",
-      includeStems ? "Master + stems" : "Master",
-    );
+    params.set("metadata[planId]", usage);
+    params.set("metadata[planName]", planName.slice(0, 450));
+    params.set("metadata[usage]", usage);
+    params.set("metadata[term]", term);
+    params.set("metadata[lineCodes]", lineCodes.slice(0, 450));
+    params.set("metadata[quoteTotal]", String(quote.total));
     params.set("metadata[fullKey]", masterKey);
     params.set("metadata[includeStems]", includeStems ? "1" : "0");
     if (email) params.set("customer_email", email);
@@ -223,6 +318,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
         url: data.url,
         sessionId: data.id,
         includeStems,
+        total: quote.total,
+        lines: quote.lineItems.length,
       });
     } catch (e) {
       console.error("[checkout/music]", e);

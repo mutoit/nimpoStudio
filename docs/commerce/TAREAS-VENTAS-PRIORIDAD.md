@@ -34,19 +34,19 @@ Probe rápido: `GET https://www.nimpo3dstudio.com/api/checkout` → debe devolve
 ## Prioridad 1 — Música (biblioteca)
 
 Política: `POLITICA-MUSICA-BIBLIOTECA.md`.  
-Obra ya con master/stems HQ (ej. **Casa de campo**): falta solo cobro.
+**Modelo:** Productos Stripe = **licencias + extras** (baremo). Obra = metadata/entrega.  
+Mapa: `functions/lib/stripe-license-prices.json` (live, 2026-08).
 
 | # | Tarea | Hecho |
 |---|--------|-------|
-| 1.1 | En Stripe: crear **Product + Price** one-time (EUR) para la licencia (p.ej. master o pack master+stems) | [ ] |
-| 1.2 | Copiar el id `price_…` | [ ] |
-| 1.3 | Admin `/admin/biblioteca/` → editar obra → **Precio €** + **Stripe Price master** → Guardar | [ ] |
-| 1.4 | (Opc.) Segundo Price de stems en «Stripe Price stems» si quieres cobro separado | [ ] |
-| 1.5 | Comprobar en ficha: master **Subido** en R2; botón **Pagar** visible en biblioteca | [ ] |
-| 1.6 | **Smoke test** (ideal primero en **test mode**): Pagar → mail → `/es/cuenta/` → descarga master (+ stems) | [ ] |
-| 1.7 | Repetir 1.1–1.5 para cada obra que quieras vender online | [ ] |
+| 1.1 | Catálogo Stripe licencias + extras (Products/Prices) | [x] |
+| 1.2 | Mapa código → `price_…` en repo + checkout multi-línea | [x] |
+| 1.3 | Producto «Presupuesto especial» (Invoice a mano, sin Checkout auto) | [x] |
+| 1.4 | Obra con **master HQ** en R2 → botón **Pagar** (sin price por ficha) | [ ] smoke |
+| 1.5 | **Smoke:** uso + extras → Pagar → mail → `/es/cuenta/` → descarga | [ ] |
+| 1.6 | Especial: quote form → tú Invoice/Link Stripe con importe pactado | [ ] proceso |
 
-Sin `price_…` en la ficha: solo cotización (formulario); no Checkout.
+Sin master en R2: no Checkout de descarga; cotización especial sigue.
 
 ---
 

@@ -52,16 +52,18 @@ Textos cortos de **estado real**, no tutoriales:
 - Stems / master: **Subido** · **En PC** · **Sin …** · **Fallo**  
 - Master: head R2 (`GET /admin/master?slug=`) al editar o «Comprobar R2»
 
-### Precios Stripe en ficha
+### Precios Stripe (catálogo de **licencias**, no por obra)
 
-| Campo catálogo | Uso |
-|----------------|-----|
-| `priceEur` | Precio mostrado en UI (opcional) |
-| `stripePriceId` | `price_…` de Stripe para la licencia (master; pack si no hay price de stems aparte) |
-| `stemsStripePriceId` | Opcional: segundo line item si quieres cobro separado de stems |
+| Pieza | Uso |
+|-------|-----|
+| `functions/lib/stripe-license-prices.json` | Mapa `código cotizador` → `price_…` (live) |
+| Products Stripe | Una licencia o extra = un Product + Price one-time EUR |
+| `special_quote` | Producto sin Price fijo → cobro **Invoice / Payment Link** a mano |
+| Ficha obra `stripePriceId` | **Legacy** (ya no hace falta para Pagar) |
 | `licenseEnabled` | Si false, no cotización ni checkout |
 
-`checkoutReady` (API) = hay **master en R2** + `stripePriceId` válido + licencia habilitada.
+`checkoutReady` (API) = hay **master en R2** + licencia habilitada.  
+Checkout = line items del baremo (uso + extras) + metadata `workSlug`.
 
 ---
 
@@ -83,23 +85,23 @@ No hay mixer de capas en público. El texto de stems es **beneficio de licencia*
 ### Flujo
 
 ```
-Biblioteca → Pagar
-  → POST /api/checkout { kind: "music", workSlug, package, email? }
-  → Stripe Checkout (mode: payment)
-  → webhook checkout.session.completed
-  → order kind=music + license key + customer
-  → mail comprador (links 72 h) + mail estudio [Venta música]
-  → /es/cuenta/ re-descarga (magic link)
+Biblioteca → uso + extras → Total → Pagar
+  → POST /api/checkout { kind: "music", workSlug, email, usage, term, extras… }
+  → servidor: calculateLicenseQuote + stripe-license-prices.json
+  → Stripe Checkout (N line items: licencia + extras)
+  → webhook → order + key + customer + mail
+  → /es/cuenta/ re-descarga
+
+Presupuesto especial → form quote (no Checkout)
+  → estudio → Invoice/Link sobre Product «Presupuesto especial»
 ```
 
-### Packages
+### Entrega HQ
 
-| `package` | Entrega |
-|-----------|---------|
-| `master` | Solo master HQ |
-| `master_stems` (default si hay stems) | Master + stems HQ del catálogo |
-
-Si existe `stemsStripePriceId` distinto del master, el Checkout puede llevar **2 line items**; si no, un solo Price se interpreta como pack.
+| Extra stems pagado | Entrega |
+|--------------------|----------|
+| Sí | Master + stems HQ (si hay en R2) |
+| No | Solo master HQ |
 
 ### Descarga
 
@@ -112,8 +114,8 @@ Si existe `stemsStripePriceId` distinto del master, el Checkout puede llevar **2
 
 | Canal | Cuándo |
 |-------|--------|
-| **Checkout** | Tarifa estándar, obra con master + Price |
-| **Quote** (`/api/quote`) | Exclusivas, usos raros, sin Price aún, negociación |
+| **Checkout** | Baremo cerrado (todas las licencias/extras con €) + obra con master |
+| **Quote** | Solo flag «presupuesto especial» → Invoice a mano |
 
 No mezclar con checkout de **software** (`productSlug` de `/admin/productos/`). Metadata Stripe: `kind=music` vs `kind=software`.
 

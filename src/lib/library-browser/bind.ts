@@ -591,13 +591,16 @@ export function bindLibraryBrowser() {
         const item = active;
         const licOk = Boolean(item && item.licenseEnabled !== false && isAvailable(item));
         const payBtn = root.querySelector("[data-lb-checkout]");
+        // checkoutReady = master HQ + licencia (prices globales en Stripe, no por obra)
         const canPay =
-          licOk && Boolean(item?.checkoutReady && item?.hasMaster) && !specialOn;
+          licOk &&
+          Boolean(item?.hasMaster) &&
+          (item?.checkoutReady !== false) &&
+          !specialOn;
         if (payBtn instanceof HTMLElement) payBtn.hidden = !canPay;
 
         const buySoon = root.querySelector("[data-lb-buy-soon]");
-        const showSoon =
-          licOk && Boolean(item?.hasMaster) && !item?.checkoutReady && !specialOn;
+        const showSoon = licOk && !item?.hasMaster && !specialOn;
         if (buySoon instanceof HTMLElement) buySoon.hidden = !showSoon;
       };
 
@@ -1360,25 +1363,35 @@ export function bindLibraryBrowser() {
 
       root.querySelector("[data-lb-checkout]")?.addEventListener("click", () => {
         void (async () => {
-          if (!active) return;
+          if (!active || !(form instanceof HTMLFormElement)) return;
           const btn = root.querySelector("[data-lb-checkout]");
           const msg = root.querySelector("[data-lb-buy-msg]");
-          const emailFromForm =
-            form instanceof HTMLFormElement
-              ? String(
-                  (form.elements.namedItem("email") as HTMLInputElement | null)?.value || "",
-                )
-                  .trim()
-                  .toLowerCase()
-              : "";
+          const fd = new FormData(form);
+          const emailFromForm = String(fd.get("email") || "")
+            .trim()
+            .toLowerCase();
           if (!emailFromForm || !emailFromForm.includes("@")) {
             if (msg instanceof HTMLElement) {
               msg.hidden = false;
               msg.textContent = "Indica tu email arriba para el recibo.";
             }
-            (
-              form?.querySelector("[name=email]") as HTMLInputElement | null
-            )?.focus();
+            (form.querySelector("[name=email]") as HTMLInputElement | null)?.focus();
+            return;
+          }
+          const usage = String(fd.get("usage") || "");
+          if (!isLicenseUsageCode(usage)) {
+            if (msg instanceof HTMLElement) {
+              msg.hidden = false;
+              msg.textContent = "Elige un tipo de uso.";
+            }
+            return;
+          }
+          if (fd.get("needSpecialReview") === "1") {
+            if (msg instanceof HTMLElement) {
+              msg.hidden = false;
+              msg.textContent =
+                "Presupuesto especial: usa «Obtener presupuesto», no el pago online.";
+            }
             return;
           }
           if (btn instanceof HTMLButtonElement) btn.disabled = true;
@@ -1393,8 +1406,19 @@ export function bindLibraryBrowser() {
               body: JSON.stringify({
                 kind: "music",
                 workSlug: active.slug,
-                package: active.hasStems ? "master_stems" : "master",
                 email: emailFromForm,
+                usage,
+                term: String(fd.get("term") || "2y"),
+                stems: fd.get("stems") === "1",
+                editShort: fd.get("editShort") === "1",
+                exclusive: fd.get("exclusive") === "1",
+                exclusiveStrong: fd.get("exclusiveStrong") === "1",
+                buyout: fd.get("buyout") === "1",
+                buyoutHigh: fd.get("buyoutHigh") === "1",
+                termPlus1y: fd.get("termPlus1y") === "1",
+                removeFromCatalog: fd.get("removeFromCatalog") === "1",
+                territoryExpand: fd.get("territoryExpand") === "1",
+                moreComposition: fd.get("moreComposition") === "1",
               }),
             });
             const data = (await res.json()) as {
@@ -1407,8 +1431,8 @@ export function bindLibraryBrowser() {
               throw new Error(
                 data.message ||
                   data.error ||
-                  (data.error === "no_stripe_price"
-                    ? "Falta price_… en la ficha (admin)."
+                  (data.error === "special_quote"
+                    ? "Usa presupuesto especial."
                     : `Error ${res.status}`),
               );
             }

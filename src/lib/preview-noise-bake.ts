@@ -5,9 +5,11 @@
  * P: noise01 en [0,1], file decodificable
  * Q: File .wav con música + ruido mezclado (siempre mono preview; limpio va aparte)
  *
- * Volumen: mono/resample suelen bajar el pico respecto al WAV original. Tras mezclar
- * se aplica make-up al pico del mono equivalente del original × music01 (tope 0.99).
- * layerCount solo reparte el **ruido** (√N), no atenúa la música.
+ * Volumen (importante):
+ * - OfflineAudioContext stereo→mono usa ~0.5*(L+R). Stems solo en L (o descorrelacionados)
+ *   salían ~6 dB bajos y el make-up antiguo **fijaba** ese nivel (target = pico mono).
+ * - Ahora: downmix mono a mano + make-up al **pico de canal** del original × music01.
+ * - layerCount solo reparte el **ruido** (√N), no atenúa la música.
  */
 
 /** Sample rate de preview público: suficiente para oír la mezcla, ~4× más ligero que stereo 48k. */
@@ -17,17 +19,15 @@ function writeString(view: DataView, offset: number, str: string) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
 }
 
-/** Pico mono equivalente 0.5*(L+R) del buffer fuente (antes del offline). */
-function monoEquivalentPeak(buffer: AudioBuffer): number {
-  const n = buffer.length;
-  const ch0 = buffer.getChannelData(0);
-  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+/** Pico máximo en cualquier canal (no el mid mono). */
+function channelPeak(buffer: AudioBuffer): number {
   let peak = 0;
-  for (let i = 0; i < n; i++) {
-    let s = ch0[i] ?? 0;
-    if (ch1) s = 0.5 * (s + (ch1[i] ?? 0));
-    const a = Math.abs(s);
-    if (a > peak) peak = a;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const data = buffer.getChannelData(c);
+    for (let i = 0; i < data.length; i++) {
+      const a = Math.abs(data[i] ?? 0);
+      if (a > peak) peak = a;
+    }
   }
   return peak;
 }
@@ -52,8 +52,6 @@ function applyPeakMakeup(buffer: AudioBuffer, targetPeak: number): void {
   if (outPeak < 1e-8) return;
   const cap = 0.99;
   const want = Math.max(0, Math.min(cap, targetPeak));
-  // Si el bake quedó más bajo que el original (típico mono/resample) → subir.
-  // Si el ruido empuja por encima de want, solo evitar clip > cap.
   let scale = 1;
   if (outPeak < want * 0.98) {
     scale = want / outPeak;
@@ -64,8 +62,45 @@ function applyPeakMakeup(buffer: AudioBuffer, targetPeak: number): void {
   for (let i = 0; i < data.length; i++) data[i]! *= scale;
 }
 
+/**
+ * Stereo/multi → mono en el sample rate del buffer.
+ * Mid 0.5*(L+R) y luego restaura pico al del canal más alto (stems solo-L, etc.).
+ */
+function toMonoPeakPreserve(ctx: BaseAudioContext, buffer: AudioBuffer): AudioBuffer {
+  const n = buffer.length;
+  const nCh = buffer.numberOfChannels;
+  const mono = ctx.createBuffer(1, n, buffer.sampleRate);
+  const out = mono.getChannelData(0);
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < nCh; c++) channels.push(buffer.getChannelData(c));
+
+  let peakCh = 0;
+  let peakMid = 0;
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    let maxAbs = 0;
+    for (let c = 0; c < nCh; c++) {
+      const v = channels[c]![i] ?? 0;
+      sum += v;
+      const a = Math.abs(v);
+      if (a > maxAbs) maxAbs = a;
+    }
+    const mid = nCh > 1 ? sum / nCh : sum;
+    out[i] = mid;
+    if (maxAbs > peakCh) peakCh = maxAbs;
+    const am = Math.abs(mid);
+    if (am > peakMid) peakMid = am;
+  }
+
+  // Restaurar nivel si el mid se quedó corto (p.ej. mono solo en L → mid = 0.5·L)
+  if (peakMid > 1e-8 && peakCh > peakMid * 1.02) {
+    const scale = Math.min(0.99 / peakMid, peakCh / peakMid);
+    for (let i = 0; i < n; i++) out[i]! *= scale;
+  }
+  return mono;
+}
+
 function encodeWavMono(buffer: AudioBuffer): Blob {
-  // Buffer de preview ya es mono (OfflineAudioContext 1 ch).
   const sampleRate = buffer.sampleRate;
   const numFrames = buffer.length;
   const ch0 = buffer.getChannelData(0);
@@ -122,15 +157,17 @@ export async function bakePreviewNoise(
   try {
     const raw = await file.arrayBuffer();
     const decoded = await ctx.decodeAudioData(raw.slice(0));
-    const sourcePeak = monoEquivalentPeak(decoded);
+    // Pico de canal del original (no mid): objetivo de loudness del stem público
+    const sourcePeak = channelPeak(decoded);
+    // Mono a mano (preserva pico) antes del offline → evita downmix silencioso del OAC
+    const monoSrc = toMonoPeakPreserve(ctx, decoded);
 
-    // Preview público siempre mono @ 22.05 kHz (aunque noise≈0): peso bajo en R2 + Web Audio.
     const targetRate = PREVIEW_SAMPLE_RATE;
     const frames = Math.max(1, Math.ceil(decoded.duration * targetRate));
     const offline = new OfflineAudioContext(1, frames, targetRate);
 
     const src = offline.createBufferSource();
-    src.buffer = decoded; // el contexto re-samplea si el buffer es 48k stereo
+    src.buffer = monoSrc;
     const musicGain = offline.createGain();
     musicGain.gain.value = mLevel;
     src.connect(musicGain);
@@ -152,7 +189,7 @@ export async function bakePreviewNoise(
 
     src.start(0);
     const mixed = await offline.startRendering();
-    // Make-up: mono/resample bajan el pico; igualar al mono del original × music01
+    // Make-up al pico de canal del original (no al mid 0.5·(L+R))
     const targetPeak = Math.min(0.99, Math.max(sourcePeak * mLevel, 1e-6));
     applyPeakMakeup(mixed, targetPeak);
 
@@ -170,8 +207,6 @@ export async function bakePreviewNoise(
  *
  * Misma lógica de volumen que el admin al “Escuchar” todas las capas a gain 1:
  * se suman a nivel pleno y luego se normaliza el pico a ~0.95 (solo evita clip).
- * Antes se usaba 1/√N por capa → el play del grid en biblioteca sonaba mucho más bajo
- * que el preview del admin.
  *
  * P: files decodificables. Q: 1 File (audio/mpeg o audio/wav).
  */
@@ -195,8 +230,9 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     const offline = new OfflineAudioContext(1, frames, targetRate);
     // Gain 1 por capa (= admin playBuffers). La normalización de pico evita clip.
     for (const buf of decoded) {
+      const mono = toMonoPeakPreserve(offline, buf);
       const src = offline.createBufferSource();
-      src.buffer = buf;
+      src.buffer = mono;
       const g = offline.createGain();
       g.gain.value = 1;
       src.connect(g);
@@ -208,7 +244,6 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     let peak = 0;
     for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]!));
     if (peak > 0.01) {
-      // Subir o bajar al ~0.95: el mix del grid debe oírse tan alto como el admin
       const scale = 0.95 / peak;
       for (let i = 0; i < data.length; i++) data[i]! *= scale;
     }

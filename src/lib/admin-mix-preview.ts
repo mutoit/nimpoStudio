@@ -101,15 +101,40 @@ export class AdminMixPreview {
     this.stopInternal();
   }
 
+  /**
+   * Normaliza la suma de capas al ~0.9 pico (mismo criterio que StemTransport público).
+   * Sin esto, stems ya bajos del bake o solo-L suenan “flojos” frente al DAW.
+   */
+  private makeupForBuffers(buffers: AudioBuffer[]): number {
+    if (!buffers.length) return 1;
+    const len = Math.min(...buffers.map((b) => b.length));
+    const stride = Math.max(32, Math.floor(len / 250_000));
+    let peak = 0;
+    for (let i = 0; i < len; i += stride) {
+      let s = 0;
+      for (const buf of buffers) {
+        const nCh = buf.numberOfChannels;
+        let sample = 0;
+        for (let c = 0; c < nCh; c++) sample += buf.getChannelData(c)[i] ?? 0;
+        s += nCh > 1 ? sample / nCh : sample;
+      }
+      const a = Math.abs(s);
+      if (a > peak) peak = a;
+    }
+    if (peak < 1e-6) return 1;
+    return Math.min(3.5, Math.max(0.25, 0.9 / peak));
+  }
+
   private async playBuffers(buffers: AudioBuffer[]) {
     const ctx = this.ensure();
     if (ctx.state === "suspended") await ctx.resume();
+    const makeup = this.makeupForBuffers(buffers);
     for (const buffer of buffers) {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.loop = true;
       const g = ctx.createGain();
-      g.gain.value = 1;
+      g.gain.value = makeup;
       src.connect(g);
       g.connect(this.musicGain!);
       src.start(0);

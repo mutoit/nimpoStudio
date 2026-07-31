@@ -82,6 +82,21 @@ async function mapPool<T, R>(
   return results;
 }
 
+/** Pico mono de un buffer (stride para no bloquear en stems largos). */
+function bufferMonoPeak(buffer: AudioBuffer, stride = 32): number {
+  const n = buffer.length;
+  const nCh = buffer.numberOfChannels;
+  let peak = 0;
+  for (let i = 0; i < n; i += stride) {
+    let s = 0;
+    for (let c = 0; c < nCh; c++) s += buffer.getChannelData(c)[i] ?? 0;
+    s = nCh > 1 ? s / nCh : s;
+    const a = Math.abs(s);
+    if (a > peak) peak = a;
+  }
+  return peak;
+}
+
 export class StemTransport {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -96,6 +111,8 @@ export class StemTransport {
   duration = 0;
   /** Último error legible (UI). */
   lastError: string | null = null;
+  /** Gain de master tras normalizar mezcla activa (~0 dBFS pico). */
+  private mixMakeup = 1;
 
   get isPlaying() {
     return this.playing;
@@ -122,9 +139,57 @@ export class StemTransport {
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
+      this.master.gain.value = 1;
       this.master.connect(this.ctx.destination);
     }
     return this.ctx;
+  }
+
+  /**
+   * Estima el pico de la suma de capas ON (stride) y sube/baja master para ~0.9 pico.
+   * Evita mezcla “floja” cuando cada stem llegó bajo del bake, sin 1/√N por capa.
+   * Tope de boost 3.5× (~11 dB) para no explotar capas casi vacías en solo.
+   */
+  private applyMixLoudness() {
+    if (!this.master || !this.layers.length) return;
+    const active = this.layers.filter((l) => l.on);
+    if (!active.length) {
+      this.mixMakeup = 1;
+      this.master.gain.value = 0;
+      return;
+    }
+
+    const len = Math.min(...active.map((l) => l.buffer.length));
+    const stride = Math.max(32, Math.floor(len / 250_000)); // ~≤250k samples
+    let peak = 0;
+    for (let i = 0; i < len; i += stride) {
+      let s = 0;
+      for (const l of active) {
+        const buf = l.buffer;
+        const nCh = buf.numberOfChannels;
+        let sample = 0;
+        for (let c = 0; c < nCh; c++) sample += buf.getChannelData(c)[i] ?? 0;
+        s += nCh > 1 ? sample / nCh : sample;
+      }
+      const a = Math.abs(s);
+      if (a > peak) peak = a;
+    }
+
+    // Fallback: suma de picos por capa (sobreestima → menos boost, nunca clip)
+    if (peak < 0.01) {
+      peak = active.reduce((m, l) => m + bufferMonoPeak(l.buffer), 0);
+    }
+
+    const target = 0.9;
+    const maxBoost = 3.5;
+    let g = 1;
+    if (peak > 1e-6) {
+      g = target / peak;
+      if (g > maxBoost) g = maxBoost;
+      if (g < 0.25) g = 0.25; // si cliparía mucho, solo baja a ¼ (compresión suave)
+    }
+    this.mixMakeup = g;
+    this.master.gain.value = g;
   }
 
   async resumeCtx() {
@@ -245,6 +310,7 @@ export class StemTransport {
     this.layers = loaded;
     this.duration = loaded.reduce((m, l) => Math.max(m, l.buffer.duration), 0);
     this.loadKey = key;
+    this.applyMixLoudness();
   }
 
   private stopSources() {
@@ -273,6 +339,7 @@ export class StemTransport {
     const o = this.duration > 0 ? off % this.duration : off;
 
     this.stopSources();
+    this.applyMixLoudness();
     for (const l of this.layers) {
       const src = ctx.createBufferSource();
       src.buffer = l.buffer;
@@ -324,6 +391,7 @@ export class StemTransport {
         l.gain.gain.value = on ? 1 : 0;
       }
     }
+    this.applyMixLoudness();
   }
 
   applyMix(enabledSrcs: Set<string> | null) {
@@ -338,6 +406,7 @@ export class StemTransport {
       l.on = on;
       l.gain.gain.value = on ? 1 : 0;
     }
+    this.applyMixLoudness();
   }
 
   dispose() {

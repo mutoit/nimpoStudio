@@ -16,7 +16,17 @@ const contactHref = localizePath("/contacto", lang);
 <Layout title={t("aboutTitle")} description={`${site.name}`} lang={lang}>
   <div class="container page">
     <p class="eyebrow">{t("aboutEyebrow")}</p>
-    <h1 class="title">{site.name}</h1>
+    <header class="about-head">
+      <img
+        class="about-head__logo"
+        src="/images/logo-nimpo.png"
+        alt=""
+        width="96"
+        height="96"
+        decoding="async"
+      />
+      <h1 class="title">{site.name}</h1>
+    </header>
     <div class="prose">
       <p>{t("aboutP1")}</p>
       <p>{t("aboutP2")}</p>
@@ -44,12 +54,32 @@ const contactHref = localizePath("/contacto", lang);
     color: var(--color-warm);
   }
 
+  .about-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem 1.15rem;
+    margin-top: 0.65rem;
+  }
+
+  .about-head__logo {
+    flex-shrink: 0;
+    width: clamp(4.25rem, 12vw, 5.75rem);
+    height: clamp(4.25rem, 12vw, 5.75rem);
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow:
+      0 0 0 1px rgb(201 169 98 / 0.35),
+      0 12px 28px rgb(0 0 0 / 0.45);
+    background: #1a120c;
+  }
+
   .title {
-    margin: 0.5rem 0 0;
+    margin: 0;
     font-family: var(--font-display);
     font-size: clamp(2rem, 4vw, 2.75rem);
     font-weight: 600;
     letter-spacing: -0.02em;
+    line-height: 1.15;
   }
 
   .prose {
@@ -71,5 +101,12 @@ const contactHref = localizePath("/contacto", lang);
   .prose a {
     color: var(--color-accent);
     font-weight: 500;
+  }
+
+  @media (max-width: 420px) {
+    .about-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>

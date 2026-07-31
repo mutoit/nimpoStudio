@@ -4,6 +4,10 @@
  *
  * P: noise01 en [0,1], file decodificable
  * Q: File .wav con música + ruido mezclado (siempre mono preview; limpio va aparte)
+ *
+ * Volumen: mono/resample suelen bajar el pico respecto al WAV original. Tras mezclar
+ * se aplica make-up al pico del mono equivalente del original × music01 (tope 0.99).
+ * layerCount solo reparte el **ruido** (√N), no atenúa la música.
  */
 
 /** Sample rate de preview público: suficiente para oír la mezcla, ~4× más ligero que stereo 48k. */
@@ -13,12 +17,58 @@ function writeString(view: DataView, offset: number, str: string) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
 }
 
+/** Pico mono equivalente 0.5*(L+R) del buffer fuente (antes del offline). */
+function monoEquivalentPeak(buffer: AudioBuffer): number {
+  const n = buffer.length;
+  const ch0 = buffer.getChannelData(0);
+  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+  let peak = 0;
+  for (let i = 0; i < n; i++) {
+    let s = ch0[i] ?? 0;
+    if (ch1) s = 0.5 * (s + (ch1[i] ?? 0));
+    const a = Math.abs(s);
+    if (a > peak) peak = a;
+  }
+  return peak;
+}
+
+function peakMono(buffer: AudioBuffer): number {
+  const data = buffer.getChannelData(0);
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) {
+    const a = Math.abs(data[i] ?? 0);
+    if (a > peak) peak = a;
+  }
+  return peak;
+}
+
+/**
+ * Escala el canal 0 in-place para acercar el pico a targetPeak (sin pasar de 0.99).
+ * Si out ya es más alto (p.ej. ruido suma), solo baja si supera 0.99.
+ */
+function applyPeakMakeup(buffer: AudioBuffer, targetPeak: number): void {
+  const data = buffer.getChannelData(0);
+  const outPeak = peakMono(buffer);
+  if (outPeak < 1e-8) return;
+  const cap = 0.99;
+  const want = Math.max(0, Math.min(cap, targetPeak));
+  // Si el bake quedó más bajo que el original (típico mono/resample) → subir.
+  // Si el ruido empuja por encima de want, solo evitar clip > cap.
+  let scale = 1;
+  if (outPeak < want * 0.98) {
+    scale = want / outPeak;
+  } else if (outPeak > cap) {
+    scale = cap / outPeak;
+  }
+  if (Math.abs(scale - 1) < 0.001) return;
+  for (let i = 0; i < data.length; i++) data[i]! *= scale;
+}
+
 function encodeWavMono(buffer: AudioBuffer): Blob {
-  // Forzar mono (mezcla L/R si hace falta)
+  // Buffer de preview ya es mono (OfflineAudioContext 1 ch).
   const sampleRate = buffer.sampleRate;
   const numFrames = buffer.length;
   const ch0 = buffer.getChannelData(0);
-  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
   const dataSize = numFrames * 2;
   const ab = new ArrayBuffer(44 + dataSize);
   const view = new DataView(ab);
@@ -40,7 +90,6 @@ function encodeWavMono(buffer: AudioBuffer): Blob {
   let offset = 44;
   for (let i = 0; i < numFrames; i++) {
     let s = ch0[i] ?? 0;
-    if (ch1) s = (s + (ch1[i] ?? 0)) * 0.5;
     s = Math.max(-1, Math.min(1, s));
     view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
     offset += 2;
@@ -54,6 +103,7 @@ function encodeWavMono(buffer: AudioBuffer): Blob {
  * @param layerCount nº de stems que se publican juntos. El ruido se reparte en √N
  *   para que, al sonar todas las capas, el ruido total ≈ el del preview admin
  *   (1 bus de ruido). Sin esto, 7 stems suenan a “ruido al máximo”.
+ *   No baja el volumen de la música por capa.
  */
 export async function bakePreviewNoise(
   file: File,
@@ -72,6 +122,7 @@ export async function bakePreviewNoise(
   try {
     const raw = await file.arrayBuffer();
     const decoded = await ctx.decodeAudioData(raw.slice(0));
+    const sourcePeak = monoEquivalentPeak(decoded);
 
     // Preview público siempre mono @ 22.05 kHz (aunque noise≈0): peso bajo en R2 + Web Audio.
     const targetRate = PREVIEW_SAMPLE_RATE;
@@ -92,7 +143,7 @@ export async function bakePreviewNoise(
       const noiseSrc = offline.createBufferSource();
       noiseSrc.buffer = noiseBuf;
       const noiseGain = offline.createGain();
-      // Admin preview: 1× (noise01 × 0.22). Público: N stems → ÷ √N
+      // Admin preview: 1× (noise01 × 0.22). Público: N stems → ÷ √N (solo ruido)
       noiseGain.gain.value = (nLevel * 0.22) / Math.sqrt(layers);
       noiseSrc.connect(noiseGain);
       noiseGain.connect(offline.destination);
@@ -101,6 +152,10 @@ export async function bakePreviewNoise(
 
     src.start(0);
     const mixed = await offline.startRendering();
+    // Make-up: mono/resample bajan el pico; igualar al mono del original × music01
+    const targetPeak = Math.min(0.99, Math.max(sourcePeak * mLevel, 1e-6));
+    applyPeakMakeup(mixed, targetPeak);
+
     const blob = encodeWavMono(mixed);
     const base = file.name.replace(/\.[^.]+$/, "") || "preview";
     return new File([blob], `${base}-preview.wav`, { type: "audio/wav" });

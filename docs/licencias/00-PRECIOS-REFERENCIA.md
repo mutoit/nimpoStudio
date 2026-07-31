@@ -35,14 +35,14 @@
 | + stems | Capas | **+59 €** | Sí |
 | + edit corto | Recorte ~1 h | **+49 €** | Sí |
 | + ads | Campaña pago multi-canal ~6 m | **+130 €** (2y → **299 €**) | Sí (`ads_paid`) |
-| Indie pro (suelo) | Feature indie, serie 2–6 eps, game launch pack | **desde 390 €** | Revisión |
-| Broadcast / SVOD (suelo) | TV regional, Netflix/Prime 1 título | **desde 890 €** | Revisión |
+| Feature / serie multi / tour | 1 título o tour declarado | **590 €** | Lista |
+| Broadcast / TV / SVOD | 1 título, no exclusiva | **1.200 €** | Lista |
 | Exclusiva media/territorio | 1 medio o país, 1–2 años | **desde 1.200 €** | Instant exclusiva |
 | Exclusiva un solo uso / 1 año | Suelos | **890 / 1.100 €** | Instant |
 | + retirar catálogo | Sobre exclusiva | **+250 €** | Sí |
 | Exclusiva fuerte / multi | Multi-medio, mundial 2+ años | **3.000–6.000 €+** | Revisión / manual |
 | Buyout | Fuera catálogo indefinido | **desde 2.990 €** | Instant buyout |
-| SaaS / live-ops (suelo) | Uso ilimitado en producto / año | **desde 590 €/año** | Revisión |
+| SaaS / live-ops | Uso ilimitado en producto / año | **790 €/año** | Lista |
 | Custom ½ día | + composición | **+199 €** (+ sync) | Sí (add-on) |
 
 **Unidad de venta:** 1 obra = 1 tema. EP: suma temas o pack (§6).
@@ -80,7 +80,7 @@
 |----------------|--------|--------|
 | Escucha privada / aprendizaje | Aprobar | **0 €** |
 | Demo interna cerrada | Aprobar + crédito si se enseña | **0 €** |
-| Portfolio sin marca ni monetizar | Valorar | **0–49 €** + crédito |
+| Portfolio sin marca ni monetizar | Lista | **49 €** (marca/dinero → comercial) |
 | YouTube / reel “contenido” / sponsors | **No personal** → comercial | **≥ 79 €** |
 | Cualquier marca o cliente | Comercial | **≥ 79–169 €** |
 
@@ -120,10 +120,10 @@
 |------|------------|
 | Student / corto festival 1 obra | 79–169 según plazo |
 | Brand film 1 pieza sin ads | 169 |
-| Largometraje indie / productora | **desde 390** (revisión; pack 390–690) |
+| Largometraje indie / productora | **590 €** |
 | Serie 1 ep | 79–169 |
 | Serie 2–6 eps | pack / revisión **≥ 390** |
-| TV regional / SVOD 1 título | **desde 890–1.800** |
+| TV regional / SVOD 1 título | **1.200 €** |
 | TV nacional / multi-cadena | **1.200–2.500+** o exclusiva |
 
 ### 5.2 Ads y branded
@@ -141,8 +141,8 @@
 |------|------------|
 | Indie game 1 título 1 track | 169 |
 | Varias pistas mismo juego | 169 + 135×… (−20 %) |
-| Live-ops / UA continuo | **desde 590/año** |
-| SaaS / uso ilimitado en producto | **desde 590–1.200/año** |
+| Live-ops / UA continuo | **790 €/año** |
+| SaaS / uso ilimitado en producto | **790 €/año** |
 | AAA / publisher | alta / exclusiva **≥ 1.200–10.000+** |
 
 ### 5.4 Exclusiva y buyout

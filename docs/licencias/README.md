@@ -29,7 +29,8 @@ Los precios de la **calculadora** de este pack siguen siendo la referencia de ca
 
 | Tier | Lista web / calculadora |
 |------|-------------------------|
-| Personal | Bajo petición (**0–49 €** o denegación). Marca/monetizar → comercial |
+| Personal | **49 €**. Marca/monetizar → comercial |
+
 | Micro / single | **79 €** |
 | Comercial 1 año / proyecto / 2 años | **129 / 159 / 169 €** |
 | Ads pack (2 años) | **299 €** (169 + 130) |

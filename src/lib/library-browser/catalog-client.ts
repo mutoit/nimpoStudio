@@ -32,6 +32,10 @@ export type LibraryItem = {
   hasPreview?: boolean;
   hasMaster?: boolean;
   stemCount?: number;
+  priceEur?: number | null;
+  stripePriceId?: string | null;
+  stemsStripePriceId?: string | null;
+  checkoutReady?: boolean;
 };
 
 export function mapLiveItem(raw: LibraryItem): LibraryItem {
@@ -61,6 +65,15 @@ export function mapLiveItem(raw: LibraryItem): LibraryItem {
       raw.stemCount != null && Number.isFinite(Number(raw.stemCount))
         ? Number(raw.stemCount)
         : undefined,
+    priceEur:
+      raw.priceEur != null && Number.isFinite(Number(raw.priceEur))
+        ? Number(raw.priceEur)
+        : null,
+    stripePriceId: raw.stripePriceId ? String(raw.stripePriceId) : null,
+    stemsStripePriceId: raw.stemsStripePriceId
+      ? String(raw.stemsStripePriceId)
+      : null,
+    checkoutReady: Boolean(raw.checkoutReady),
     updatedAt:
       typeof raw.updatedAt === "string" ? String(raw.updatedAt) : undefined,
   };

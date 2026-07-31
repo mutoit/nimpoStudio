@@ -7,6 +7,8 @@ import {
   commerceSecret,
   findOrderBySession,
   generateLicenseKey,
+  isAllowedDownloadKey,
+  musicStemKeysFromItem,
   newId,
   productFullKey,
   recordCustomerPurchase,
@@ -19,6 +21,7 @@ import {
   type CommerceOrder,
 } from "../../lib/commerce";
 import { findProduct } from "../../lib/products-catalog";
+import { findCatalogItem } from "../../lib/library-catalog";
 import { sendStudioMail } from "../../lib/send-mail";
 
 type Env = CommerceEnv;
@@ -124,7 +127,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
   }
 
   const meta = (session.metadata || {}) as Record<string, string>;
-  const productSlug = String(meta.productSlug || session.client_reference_id || "").trim();
+  const kindRaw = String(meta.kind || "").toLowerCase();
+  const ref = String(session.client_reference_id || "");
+  const isMusic =
+    kindRaw === "music" || ref.startsWith("music:") || Boolean(meta.workSlug);
+
+  let productSlug = String(
+    meta.productSlug || meta.workSlug || (ref.startsWith("music:") ? ref.slice(6) : ref) || "",
+  ).trim();
   const email = String(
     session.customer_details &&
       typeof session.customer_details === "object" &&
@@ -140,25 +150,45 @@ export async function onRequest(context: { request: Request; env: Env }) {
     return json({ ok: false, error: "missing_fields" }, 400);
   }
 
-  const product = await findProduct(env.LIBRARY_BUCKET, productSlug);
-  const planId = String(meta.planId || "standard");
-  const planName = String(meta.planName || "Standard");
-  const fullKey =
-    productFullKey(
-      { slug: productSlug, fullKey: product?.fullKey || meta.fullKey },
-      meta.fullKey,
-    ) || null;
-
+  const planId = String(meta.planId || (isMusic ? "master" : "standard"));
+  const planName = String(meta.planName || (isMusic ? "Master" : "Standard"));
   const amountTotal = session.amount_total != null ? Number(session.amount_total) / 100 : null;
   const licenseKey = generateLicenseKey();
   const orderId = newId("ord");
   const now = new Date().toISOString();
 
+  let productName = String(meta.productName || productSlug);
+  let fullKey: string | null = null;
+  let includeStems = false;
+  let stemKeys: string[] = [];
+  let orderKind: "software" | "music" = "software";
+
+  if (isMusic) {
+    orderKind = "music";
+    const item = await findCatalogItem(env.LIBRARY_BUCKET, productSlug);
+    productName = String(item?.title || meta.productName || productSlug);
+    const mk = String(item?.masterKey || meta.fullKey || "").trim();
+    fullKey = isAllowedDownloadKey(mk) ? mk : null;
+    includeStems =
+      meta.includeStems === "1" ||
+      planId === "master_stems" ||
+      planId === "full";
+    stemKeys = includeStems ? musicStemKeysFromItem(item) : [];
+  } else {
+    const product = await findProduct(env.LIBRARY_BUCKET, productSlug);
+    productName = product?.name || meta.productName || productSlug;
+    fullKey =
+      productFullKey(
+        { slug: productSlug, fullKey: product?.fullKey || meta.fullKey },
+        meta.fullKey,
+      ) || null;
+  }
+
   const order: CommerceOrder = {
     id: orderId,
     email,
     productSlug,
-    productName: product?.name || meta.productName || productSlug,
+    productName,
     planId,
     planName,
     amountEur: amountTotal,
@@ -172,6 +202,9 @@ export async function onRequest(context: { request: Request; env: Env }) {
     fullKey,
     createdAt: existing?.createdAt || now,
     paidAt: now,
+    kind: orderKind,
+    includeStems: orderKind === "music" ? includeStems : undefined,
+    stemKeys: orderKind === "music" && stemKeys.length ? stemKeys : undefined,
   };
 
   const license: CommerceLicense = {
@@ -191,56 +224,117 @@ export async function onRequest(context: { request: Request; env: Env }) {
   await recordCustomerPurchase(env.LIBRARY_BUCKET, email, productSlug, now);
 
   const secret = commerceSecret(env);
+  const base = siteBase(env, request);
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 72;
   let downloadUrl = "";
+  const stemLinks: string[] = [];
+
   if (secret && fullKey) {
-    const token = await signDownloadToken(secret, {
-      slug: productSlug,
-      key: licenseKey,
-      fileKey: fullKey,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 72, // 72h
-    });
-    downloadUrl = `${siteBase(env, request)}/api/download?token=${encodeURIComponent(token)}`;
+    try {
+      const token = await signDownloadToken(secret, {
+        slug: productSlug,
+        key: licenseKey,
+        fileKey: fullKey,
+        exp,
+      });
+      downloadUrl = `${base}/api/download?token=${encodeURIComponent(token)}`;
+    } catch (e) {
+      console.warn("[stripe-webhook] sign master fail", e);
+    }
+  }
+  if (secret && orderKind === "music" && stemKeys.length) {
+    for (const sk of stemKeys.slice(0, 24)) {
+      try {
+        const token = await signDownloadToken(secret, {
+          slug: productSlug,
+          key: licenseKey,
+          fileKey: sk,
+          exp,
+        });
+        const name = sk.split("/").pop() || "stem.wav";
+        stemLinks.push(`${name}: ${base}/api/download?token=${encodeURIComponent(token)}`);
+      } catch {
+        /* skip bad key */
+      }
+    }
   }
 
-  const accountUrl = `${siteBase(env, request)}/es/cuenta/`;
-  const text = [
-    `Gracias por tu compra — Nimpo 3D Studio`,
-    "",
-    `Producto: ${order.productName}`,
-    `Plan: ${planName}`,
-    amountTotal != null ? `Importe: ${amountTotal} ${order.currency.toUpperCase()}` : null,
-    "",
-    `Tu licencia: ${licenseKey}`,
-    "",
-    downloadUrl
-      ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
-      : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.",
-    "",
-    `Cuenta (magic link): ${accountUrl}`,
-    "Introduce este email para ver pedidos y re-descargar.",
-    "",
-    "— Nimpo 3D Studio",
-    "contacto@nimpo3dstudio.com",
-  ]
-    .filter((x) => x != null)
-    .join("\n");
+  const accountUrl = `${base}/es/cuenta/`;
+  const text =
+    orderKind === "music"
+      ? [
+          `Gracias por tu licencia musical — Nimpo 3D Studio`,
+          "",
+          `Obra: ${order.productName}`,
+          `Pack: ${planName}`,
+          amountTotal != null
+            ? `Importe: ${amountTotal} ${order.currency.toUpperCase()}`
+            : null,
+          "",
+          `Referencia: ${licenseKey}`,
+          "",
+          downloadUrl
+            ? `Master (72 h, o re-descarga en tu cuenta):\n${downloadUrl}`
+            : "Master: disponible en tu cuenta cuando el archivo esté en R2.",
+          stemLinks.length
+            ? `\nStems HQ:\n${stemLinks.map((l) => `  · ${l}`).join("\n")}`
+            : includeStems
+              ? "\nStems: incluidos en el pedido — re-descarga desde tu cuenta."
+              : null,
+          "",
+          `Cuenta: ${accountUrl}`,
+          "Usa este email (magic link) para re-descargar.",
+          "",
+          "— Nimpo 3D Studio",
+          "contacto@nimpo3dstudio.com",
+        ]
+          .filter((x) => x != null)
+          .join("\n")
+      : [
+          `Gracias por tu compra — Nimpo 3D Studio`,
+          "",
+          `Producto: ${order.productName}`,
+          `Plan: ${planName}`,
+          amountTotal != null
+            ? `Importe: ${amountTotal} ${order.currency.toUpperCase()}`
+            : null,
+          "",
+          `Tu licencia: ${licenseKey}`,
+          "",
+          downloadUrl
+            ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
+            : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.",
+          "",
+          `Cuenta (magic link): ${accountUrl}`,
+          "Introduce este email para ver pedidos y re-descargar.",
+          "",
+          "— Nimpo 3D Studio",
+          "contacto@nimpo3dstudio.com",
+        ]
+          .filter((x) => x != null)
+          .join("\n");
 
   const mail = await sendStudioMail(env, {
     to: [email],
-    subject: `Licencia ${order.productName} — ${licenseKey}`,
+    subject:
+      orderKind === "music"
+        ? `Licencia musical ${order.productName} — ${licenseKey}`
+        : `Licencia ${order.productName} — ${licenseKey}`,
     text,
   });
 
-  // Copia al estudio
   await sendStudioMail(env, {
     to: [String(env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com").trim()],
-    subject: `[Venta] ${order.productName} — ${email}`,
+    subject: `[Venta${orderKind === "music" ? " música" : ""}] ${order.productName} — ${email}`,
     text: [
       `Pedido ${orderId}`,
+      `Kind: ${orderKind}`,
       `Email: ${email}`,
-      `Producto: ${order.productName} (${productSlug})`,
+      `Producto/obra: ${order.productName} (${productSlug})`,
       `Plan: ${planName}`,
       `Key: ${licenseKey}`,
+      `Master: ${fullKey || "—"}`,
+      `Stems: ${stemKeys.length}`,
       `Stripe session: ${sessionId}`,
       `Mail cliente: ${mail.ok ? "ok" : mail.error}`,
     ].join("\n"),
@@ -248,8 +342,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   console.log(
     "[stripe-webhook] paid",
-    JSON.stringify({ orderId, productSlug, email, licenseKey, mailed: mail.ok }),
+    JSON.stringify({
+      orderId,
+      kind: orderKind,
+      productSlug,
+      email,
+      licenseKey,
+      mailed: mail.ok,
+      stems: stemKeys.length,
+    }),
   );
 
-  return json({ ok: true, orderId, licenseKey, mailed: mail.ok });
+  return json({
+    ok: true,
+    orderId,
+    licenseKey,
+    kind: orderKind,
+    mailed: mail.ok,
+  });
 }

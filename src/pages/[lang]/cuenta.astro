@@ -178,14 +178,19 @@ const labels = {
             const name = String(o.productName || o.productSlug || "");
             const key = String(o.licenseKey || "");
             const slug = String(o.productSlug || "");
+            const kind = String(o.kind || "software");
             const hasFull = Boolean(o.hasFullBuild);
+            const stemN = Number(o.stemCount || 0);
+            const kindLabel = kind === "music" ? "Música" : "Software";
             const dl = hasFull
-              ? `<button type="button" class="btn btn--sm btn--gold" data-dl-key="${key}" data-dl-slug="${slug}">${L.download || "Download"}</button>`
+              ? `<button type="button" class="btn btn--sm btn--gold" data-dl-key="${key}" data-dl-slug="${slug}" data-dl-kind="${kind}">${L.download || "Download"}</button>`
               : `<span class="muted">—</span>`;
             return `<article class="order">
               <div>
                 <strong>${name}</strong>
-                <p class="muted">${String(o.planName || "")} · ${String(o.paidAt || "").slice(0, 10)}</p>
+                <p class="muted">${kindLabel} · ${String(o.planName || "")} · ${String(o.paidAt || "").slice(0, 10)}${
+                  stemN ? ` · ${stemN} stems` : ""
+                }</p>
                 <p class="key">${L.license || "License"}: <code>${key}</code></p>
               </div>
               <div>${dl}</div>
@@ -197,15 +202,37 @@ const labels = {
           btn.addEventListener("click", async () => {
             const licenseKey = (btn as HTMLElement).dataset.dlKey || "";
             const productSlug = (btn as HTMLElement).dataset.dlSlug || "";
+            const kind = (btn as HTMLElement).dataset.dlKind || "software";
             try {
               const r = await fetch("/api/download", {
                 method: "POST",
                 credentials: "same-origin",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ licenseKey, productSlug }),
+                body: JSON.stringify({
+                  licenseKey,
+                  productSlug,
+                  workSlug: kind === "music" ? productSlug : undefined,
+                }),
               });
               const j = await r.json();
-              if (!r.ok || !j.ok || !j.url) throw new Error(j.error || "download_failed");
+              if (!r.ok || !j.ok) throw new Error(j.error || "download_failed");
+              // Música: varios archivos (master + stems)
+              if (Array.isArray(j.files) && j.files.length) {
+                for (const f of j.files) {
+                  if (f?.url) {
+                    const a = document.createElement("a");
+                    a.href = f.url;
+                    a.download = f.name || "";
+                    a.rel = "noopener";
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    await new Promise((res) => setTimeout(res, 400));
+                  }
+                }
+                return;
+              }
+              if (!j.url) throw new Error(j.error || "download_failed");
               window.location.href = j.url;
             } catch (e) {
               alert(e instanceof Error ? e.message : L.err || "Error");

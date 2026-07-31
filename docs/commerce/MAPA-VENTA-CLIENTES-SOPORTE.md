@@ -197,8 +197,12 @@ Un número solo en la web **sin** `price_…` **no cobra**.
 | Stems HQ | `library/{slug}/full/stems/…` **intactos** (sin bake) |
 | Master HQ | `library/{slug}/full/…` **intacto** |
 | Público | `/api/media` bloquea `/full/`; API library sin `stems[]` ni keys |
-| Admin | `GET /admin/media?key=` · `GET /admin/master?slug=` |
-| Aún no | Stripe instant + token descarga stems/master |
+| Admin | `GET /admin/media?key=` · `GET /admin/master?slug=` · campos `priceEur` + `stripePriceId` |
+| Checkout | `POST /api/checkout` `{ kind:"music", workSlug, package, email? }` |
+| Webhook | `kind=music` → order + license + mail master (+ stems) |
+| Descarga | token `/api/download` (keys `library/{slug}/full/…`) · re-emisión en `/cuenta/` |
+| UI | Biblioteca: «Pagar con tarjeta» si `checkoutReady` (master + price_…) |
+| Ops tuyo | Crear Prices en Stripe y pegar `price_…` en ficha admin |
 
 ### Orden práctico (dinero + 1.ª venta)
 

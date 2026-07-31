@@ -30,6 +30,12 @@ export type CommerceOrder = {
   fullKey?: string | null;
   createdAt: string;
   paidAt?: string;
+  /** software (default) | music (master/stems biblioteca) */
+  kind?: "software" | "music";
+  /** Music: stems HQ incluidos en el pedido */
+  includeStems?: boolean;
+  /** Music: keys R2 de stems (full/stems) */
+  stemKeys?: string[];
 };
 
 export type CommerceLicense = {
@@ -216,14 +222,30 @@ export type DownloadTokenPayload = {
   v: 1;
   slug: string;
   key: string; // license key
-  fileKey: string; // R2 key under library/products/.../full/
+  /** R2: software library/products/…/full/ o música library/{slug}/full/… */
+  fileKey: string;
   exp: number;
 };
+
+/** Claves privadas de entrega (software o música). */
+export function isAllowedDownloadKey(fileKey: string): boolean {
+  const k = String(fileKey || "").trim();
+  if (!k.startsWith("library/") || k.includes("..")) return false;
+  if (!k.includes("/full/")) return false;
+  // Software builds o masters/stems de biblioteca
+  return (
+    k.startsWith("library/products/") ||
+    /^library\/[a-z0-9][a-z0-9._-]*\/full\//i.test(k)
+  );
+}
 
 export async function signDownloadToken(
   secret: string,
   payload: Omit<DownloadTokenPayload, "v">,
 ): Promise<string> {
+  if (!isAllowedDownloadKey(payload.fileKey)) {
+    throw new Error("invalid_download_key");
+  }
   const body: DownloadTokenPayload = { v: 1, ...payload };
   const p = b64urlJson(body);
   const sig = await hmacSign(secret, p);
@@ -246,9 +268,7 @@ export async function verifyDownloadToken(
   const body = fromB64urlJson<DownloadTokenPayload>(p);
   if (!body || body.v !== 1) return null;
   if (!body.exp || body.exp < Math.floor(Date.now() / 1000)) return null;
-  if (!body.fileKey.startsWith("library/products/") || !body.fileKey.includes("/full/")) {
-    return null;
-  }
+  if (!isAllowedDownloadKey(body.fileKey)) return null;
   return body;
 }
 
@@ -519,6 +539,18 @@ export async function activateLicense(
 }
 
 /** Resolve full R2 key for product (from order or product meta). */
+/** R2 keys de stems HQ desde ítem catálogo música. */
+export function musicStemKeysFromItem(item: Record<string, unknown> | null): string[] {
+  if (!item || !Array.isArray(item.stems)) return [];
+  const keys: string[] = [];
+  for (const s of item.stems) {
+    if (!s || typeof s !== "object") continue;
+    const k = String((s as { key?: string }).key || "").trim();
+    if (isAllowedDownloadKey(k)) keys.push(k);
+  }
+  return keys;
+}
+
 export function productFullKey(
   product: { slug: string; fullKey?: string | null },
   orderFull?: string | null,

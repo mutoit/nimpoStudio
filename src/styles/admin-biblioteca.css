@@ -652,6 +652,27 @@
     padding: 0.4rem 0.65rem;
     font-size: 0.72rem;
   }
+  .price-fields {
+    margin: 0.75rem 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid rgb(120 140 180 / 0.25);
+    background: rgb(20 24 36 / 0.5);
+  }
+  .price-fields legend {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0 0.25rem;
+  }
+  .price-fields label {
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.85rem;
+  }
+  .price-fields input {
+    width: 100%;
+    margin-top: 0.2rem;
+  }
   .master-box {
     margin: 0.85rem 0 1rem;
     padding: 0.75rem 0.85rem;

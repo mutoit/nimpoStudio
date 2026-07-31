@@ -1027,6 +1027,30 @@ export function bindLibraryBrowser() {
           if (!ok) noLic.textContent = isAvailable(item) ? L.noLicense || "" : L.unavailable;
         }
 
+        // Checkout música (Stripe) — listo solo con master + price_…
+        const buyBox = root.querySelector("[data-lb-buy]");
+        const buySoon = root.querySelector("[data-lb-buy-soon]");
+        const buyPrice = root.querySelector("[data-lb-buy-price]");
+        const canPay = Boolean(ok && item.checkoutReady && item.hasMaster);
+        if (buyBox instanceof HTMLElement) buyBox.hidden = !canPay;
+        if (buySoon instanceof HTMLElement) {
+          buySoon.hidden = !ok || canPay || !item.hasMaster;
+        }
+        if (buyPrice && canPay) {
+          const eur =
+            item.priceEur != null && Number(item.priceEur) > 0
+              ? `${Math.round(Number(item.priceEur))} €`
+              : "";
+          buyPrice.textContent = eur
+            ? `Licencia master${item.hasStems ? " (+ stems)" : ""} · desde ${eur}`
+            : `Licencia master${item.hasStems ? " + stems" : ""} · pago seguro Stripe`;
+        }
+        const buyMsg = root.querySelector("[data-lb-buy-msg]");
+        if (buyMsg instanceof HTMLElement) {
+          buyMsg.hidden = true;
+          buyMsg.textContent = "";
+        }
+
         if (form instanceof HTMLFormElement) {
           (form.elements.namedItem("workSlug") as HTMLInputElement).value = item.slug;
           (form.elements.namedItem("workName") as HTMLInputElement).value = item.title;
@@ -1324,6 +1348,57 @@ export function bindLibraryBrowser() {
 
       form?.addEventListener("change", refreshLive);
       form?.addEventListener("input", refreshLive);
+
+      root.querySelector("[data-lb-checkout]")?.addEventListener("click", () => {
+        void (async () => {
+          if (!active) return;
+          const btn = root.querySelector("[data-lb-checkout]");
+          const msg = root.querySelector("[data-lb-buy-msg]");
+          const emailEl = root.querySelector("[data-lb-buy-email]") as HTMLInputElement | null;
+          const email = String(emailEl?.value || "").trim().toLowerCase();
+          if (btn instanceof HTMLButtonElement) btn.disabled = true;
+          if (msg instanceof HTMLElement) {
+            msg.hidden = false;
+            msg.textContent = "Abriendo Stripe…";
+          }
+          try {
+            const res = await fetch("/api/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                kind: "music",
+                workSlug: active.slug,
+                package: active.hasStems ? "master_stems" : "master",
+                email: email || undefined,
+              }),
+            });
+            const data = (await res.json()) as {
+              ok?: boolean;
+              url?: string;
+              error?: string;
+              message?: string;
+            };
+            if (!res.ok || !data.ok || !data.url) {
+              throw new Error(
+                data.message ||
+                  data.error ||
+                  (data.error === "no_stripe_price"
+                    ? "Falta price_… en la ficha (admin)."
+                    : `Error ${res.status}`),
+              );
+            }
+            window.location.href = data.url;
+          } catch (err) {
+            if (msg instanceof HTMLElement) {
+              msg.hidden = false;
+              msg.textContent =
+                err instanceof Error ? err.message : "No se pudo abrir el pago";
+            }
+          } finally {
+            if (btn instanceof HTMLButtonElement) btn.disabled = false;
+          }
+        })();
+      });
 
       form?.addEventListener("submit", async (e) => {
         e.preventDefault();

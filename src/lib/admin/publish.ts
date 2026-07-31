@@ -149,6 +149,9 @@ export function bindAdminPublish(deps: PublishDeps) {
             year: Number(fd.get("year") || 2026),
             provisional: false,
             licenseEnabled: fd.get("licenseEnabled") === "on",
+            priceEur: fd.get("priceEur") ? Number(fd.get("priceEur")) : null,
+            stripePriceId: String(fd.get("stripePriceId") || "").trim() || null,
+            stemsStripePriceId: String(fd.get("stemsStripePriceId") || "").trim() || null,
           }),
         });
         let data: {
@@ -195,6 +198,9 @@ export function bindAdminPublish(deps: PublishDeps) {
       body.set("year", String(fd.get("year") || "2026"));
       body.set("provisional", "0");
       body.set("licenseEnabled", fd.get("licenseEnabled") === "on" ? "1" : "0");
+      body.set("priceEur", String(fd.get("priceEur") || ""));
+      body.set("stripePriceId", String(fd.get("stripePriceId") || "").trim());
+      body.set("stemsStripePriceId", String(fd.get("stemsStripePriceId") || "").trim());
 
       if (hasMasterFile && masterFile) {
         deps.setLight("master", "loading", "Master…");

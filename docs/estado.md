@@ -133,7 +133,8 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] Biblioteca: solo 1 preview mix (sin multi-stem player)
 - [x] `GET /admin/media` · `GET /admin/master`
 - [x] Limpieza dual cleanSrc / bake por stem
-- [ ] Checkout + token descarga masters/stems (siguiente; hoy cotización)
+- [x] Checkout música + webhook + download token + UI pagar + cuenta
+- [ ] Ops: pegar `price_…` Stripe en fichas + smoke pago test/live
 
 ### Pendiente ops (tú) — venta software real
 Detalle + dinero/IVA/precios: **`docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md` §0 y § Dinero**

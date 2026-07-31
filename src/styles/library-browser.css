@@ -847,6 +847,63 @@
     line-height: 1.55;
     color: rgb(160 160 170);
   }
+  .lb__buy {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgb(201 169 98 / 0.4);
+    background: rgb(201 169 98 / 0.08);
+  }
+  .lb__buy-price {
+    margin: 0 0 0.55rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .lb__buy-email {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-size: 0.8rem;
+  }
+  .lb__buy-email input {
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+  .lb__buy-msg {
+    margin: 0.45rem 0 0;
+    font-size: 0.8rem;
+    color: rgb(240 180 120);
+  }
+  .lb__buy-or {
+    margin: 0.65rem 0 0;
+    font-size: 0.75rem;
+    color: rgb(140 140 150);
+    text-align: center;
+  }
+  .lb__buy-soon {
+    margin: 0 0 0.85rem;
+    font-size: 0.8rem;
+    color: rgb(150 155 170);
+  }
+  .lb__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .lb__btn--gold {
+    background: linear-gradient(180deg, rgb(220 190 110), rgb(180 145 70));
+    color: rgb(20 16 10);
+  }
+  .lb__btn--gold:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
   .lb__form {
     display: flex;
     flex-direction: column;

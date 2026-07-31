@@ -65,17 +65,21 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const enriched = [];
   for (const o of orders) {
     const product = await findProduct(env.LIBRARY_BUCKET, o.productSlug);
+    const isMusic = o.kind === "music";
     enriched.push({
       id: o.id,
+      kind: o.kind || "software",
       productSlug: o.productSlug,
       productName: o.productName,
       planName: o.planName,
       amountEur: o.amountEur,
       paidAt: o.paidAt || o.createdAt,
       licenseKey: o.licenseKey,
+      includeStems: Boolean(o.includeStems),
+      stemCount: Array.isArray(o.stemKeys) ? o.stemKeys.length : 0,
       hasFullBuild: Boolean(
         (o.fullKey && o.fullKey.includes("/full/")) ||
-          (product?.fullKey && product.fullKey.includes("/full/")),
+          (!isMusic && product?.fullKey && product.fullKey.includes("/full/")),
       ),
     });
   }

@@ -410,6 +410,25 @@ export async function onRequest(context: {
       year: Number(form.get("year") || new Date().getFullYear()) || new Date().getFullYear(),
       provisional: false,
       licenseEnabled: String(form.get("licenseEnabled") || "1") !== "0",
+      // Checkout música (Stripe): rellenar cuando tengas price_… en Dashboard
+      priceEur: (() => {
+        const raw = form.get("priceEur");
+        if (raw == null || String(raw).trim() === "") {
+          return existing?.priceEur != null ? Number(existing.priceEur) : null;
+        }
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      })(),
+      stripePriceId: (() => {
+        const raw = String(form.get("stripePriceId") || "").trim();
+        if (raw) return /^price_[a-zA-Z0-9]+$/.test(raw) ? raw : "";
+        return String(existing?.stripePriceId || "").trim() || null;
+      })(),
+      stemsStripePriceId: (() => {
+        const raw = String(form.get("stemsStripePriceId") || "").trim();
+        if (raw) return /^price_[a-zA-Z0-9]+$/.test(raw) ? raw : "";
+        return String(existing?.stemsStripePriceId || "").trim() || null;
+      })(),
       availability: (existing?.availability as string) || "available",
       /** ready | processing — escala: upload async futuro */
       mediaStatus: "ready" as const,

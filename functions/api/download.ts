@@ -1,18 +1,26 @@
 /**
- * GET /api/download?token=…  — binario full con token firmado.
- * POST /api/download { licenseKey, productSlug } — re-emite token (email debe coincidir con license; o account session).
+ * GET /api/download?token=…  — binario (software full o master/stem música).
+ * POST /api/download
+ *   Software: { licenseKey, productSlug }
+ *   Música:   { licenseKey, productSlug|workSlug, file?: "master"|"stems" }
+ *   Re-emite token(s) si la sesión de cuenta coincide con la licencia.
  */
 
 import {
   commerceSecret,
   findLicense,
+  findOrderById,
+  getAccountTokenFromRequest,
+  isAllowedDownloadKey,
+  musicStemKeysFromItem,
+  ordersForEmail,
   signDownloadToken,
   verifyAccountSession,
   verifyDownloadToken,
-  getAccountTokenFromRequest,
   type CommerceEnv,
 } from "../lib/commerce";
 import { findProduct } from "../lib/products-catalog";
+import { findCatalogItem } from "../lib/library-catalog";
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
 
 type Env = CommerceEnv & { RATE_LIMIT_KV?: RateLimitKv };
@@ -41,16 +49,21 @@ export async function onRequest(context: { request: Request; env: Env }) {
   );
   if (!rl.ok) return json({ ok: false, error: "rate_limited" }, 429);
 
-  // Re-issue token
+  // Re-issue token(s)
   if (request.method === "POST") {
-    let body: { licenseKey?: string; productSlug?: string };
+    let body: {
+      licenseKey?: string;
+      productSlug?: string;
+      workSlug?: string;
+      file?: string;
+    };
     try {
       body = (await request.json()) as typeof body;
     } catch {
       return json({ ok: false, error: "invalid_json" }, 400);
     }
     const licenseKey = String(body.licenseKey || "").trim();
-    const productSlug = String(body.productSlug || "").trim();
+    const productSlug = String(body.productSlug || body.workSlug || "").trim();
     if (!licenseKey || !productSlug) {
       return json({ ok: false, error: "missing_fields" }, 400);
     }
@@ -65,19 +78,83 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (!acct || acct.email !== lic.email.toLowerCase()) {
       return json({ ok: false, error: "unauthorized" }, 401);
     }
+
+    const orders = await ordersForEmail(env.LIBRARY_BUCKET, lic.email);
+    const order =
+      orders.find((o) => o.licenseKey === licenseKey) ||
+      (lic.orderId ? await findOrderById(env.LIBRARY_BUCKET, lic.orderId) : null);
+
+    const isMusic = order?.kind === "music" || Boolean(body.workSlug);
+    const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
+
+    if (isMusic) {
+      const item = await findCatalogItem(env.LIBRARY_BUCKET, productSlug);
+      const masterKey =
+        (order?.fullKey && isAllowedDownloadKey(order.fullKey) && order.fullKey) ||
+        (item?.masterKey && isAllowedDownloadKey(String(item.masterKey))
+          ? String(item.masterKey)
+          : null);
+      const stemKeys =
+        (order?.stemKeys && order.stemKeys.length
+          ? order.stemKeys.filter(isAllowedDownloadKey)
+          : null) ||
+        (order?.includeStems ? musicStemKeysFromItem(item) : []);
+
+      const want = String(body.file || "all").toLowerCase();
+      const files: { name: string; url: string; role: string }[] = [];
+
+      if ((want === "master" || want === "all") && masterKey) {
+        const token = await signDownloadToken(secret, {
+          slug: productSlug,
+          key: licenseKey,
+          fileKey: masterKey,
+          exp,
+        });
+        files.push({
+          name: masterKey.split("/").pop() || "master.wav",
+          url: `/api/download?token=${encodeURIComponent(token)}`,
+          role: "master",
+        });
+      }
+      if ((want === "stems" || want === "all") && stemKeys.length) {
+        for (const sk of stemKeys) {
+          const token = await signDownloadToken(secret, {
+            slug: productSlug,
+            key: licenseKey,
+            fileKey: sk,
+            exp,
+          });
+          files.push({
+            name: sk.split("/").pop() || "stem.wav",
+            url: `/api/download?token=${encodeURIComponent(token)}`,
+            role: "stem",
+          });
+        }
+      }
+      if (!files.length) {
+        return json({ ok: false, error: "no_files" }, 404);
+      }
+      return json({ ok: true, kind: "music", files, expHours: 24 });
+    }
+
+    // Software
     const product = await findProduct(env.LIBRARY_BUCKET, productSlug);
-    const fileKey = product?.fullKey || null;
-    if (!fileKey || !fileKey.includes("/full/")) {
+    const fileKey =
+      (order?.fullKey && isAllowedDownloadKey(order.fullKey) && order.fullKey) ||
+      product?.fullKey ||
+      null;
+    if (!fileKey || !isAllowedDownloadKey(fileKey)) {
       return json({ ok: false, error: "no_full_build" }, 404);
     }
     const token = await signDownloadToken(secret, {
       slug: productSlug,
       key: licenseKey,
       fileKey,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
+      exp,
     });
     return json({
       ok: true,
+      kind: "software",
       url: `/api/download?token=${encodeURIComponent(token)}`,
       expHours: 24,
     });
@@ -98,11 +175,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
   }
 
   const key = payload.fileKey;
+  if (!isAllowedDownloadKey(key)) {
+    return json({ ok: false, error: "forbidden_key" }, 403);
+  }
+
   const obj = await env.LIBRARY_BUCKET.get(key);
   if (!obj) return json({ ok: false, error: "file_not_found" }, 404);
 
-  // ProductsBucket get returns text/json helpers; for binary we need body.
-  // R2 binding in Pages has arrayBuffer/body — extend via cast.
   const r2obj = obj as {
     body?: ReadableStream | null;
     arrayBuffer?: () => Promise<ArrayBuffer>;

@@ -248,6 +248,23 @@ const payload = {
           <p class="lb__form-lead">{t("quoteFormLead")}</p>
           <p class="lb__protect lb__protect--lic" role="note">{t("musicLicensePreviewNote")}</p>
 
+          <!-- Pago instantáneo (Stripe) cuando la obra tiene price_… + master -->
+          <div class="lb__buy" data-lb-buy hidden>
+            <p class="lb__buy-price" data-lb-buy-price></p>
+            <label class="lb__buy-email">
+              Email
+              <input type="email" data-lb-buy-email autocomplete="email" placeholder="tu@email.com" />
+            </label>
+            <button type="button" class="lb__btn lb__btn--gold" data-lb-checkout>
+              Pagar con tarjeta
+            </button>
+            <p class="lb__buy-msg" data-lb-buy-msg hidden></p>
+            <p class="lb__buy-or">— o solicita presupuesto personalizado —</p>
+          </div>
+          <p class="lb__buy-soon" data-lb-buy-soon hidden>
+            Pago online al configurar el Price en Stripe. Mientras, usa el formulario de presupuesto.
+          </p>
+
           <form class="lb__form" data-lb-form>
             <input type="hidden" name="workSlug" />
             <input type="hidden" name="workName" />

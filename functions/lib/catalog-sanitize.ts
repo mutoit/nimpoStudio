@@ -129,6 +129,23 @@ export function sanitizeCatalogItem(
     ? String(o.availability)
     : "available";
 
+  // Checkout música (Stripe Price ids — el secreto no viaja; price_ es id público de Stripe)
+  const stripePriceIdRaw = String(o.stripePriceId || "").trim();
+  const stripePriceId = /^price_[a-zA-Z0-9]+$/.test(stripePriceIdRaw)
+    ? stripePriceIdRaw
+    : "";
+  const stemsStripePriceIdRaw = String(o.stemsStripePriceId || "").trim();
+  const stemsStripePriceId = /^price_[a-zA-Z0-9]+$/.test(stemsStripePriceIdRaw)
+    ? stemsStripePriceIdRaw
+    : "";
+  const priceEur =
+    o.priceEur != null && Number.isFinite(Number(o.priceEur)) && Number(o.priceEur) > 0
+      ? Number(o.priceEur)
+      : null;
+  const checkoutReady = Boolean(
+    hasMaster && stripePriceId && o.licenseEnabled !== false,
+  );
+
   const base: Record<string, unknown> = {
     id,
     slug,
@@ -148,6 +165,10 @@ export function sanitizeCatalogItem(
     masterBytes,
     masterContentType,
     stemCount: deliveryStems.length || legacyStemCount || undefined,
+    priceEur,
+    stripePriceId: stripePriceId || null,
+    stemsStripePriceId: stemsStripePriceId || null,
+    checkoutReady,
     tags: clipStringList(o.tags),
     moods: clipStringList(o.moods),
     filterMoods: clipStringList(o.filterMoods),

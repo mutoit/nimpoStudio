@@ -171,6 +171,30 @@ export async function onRequest(context: { request: Request; env: Env }) {
         body.year != null
           ? Number(body.year) || new Date().getFullYear()
           : existing.year,
+      priceEur:
+        body.priceEur !== undefined
+          ? body.priceEur === null || body.priceEur === ""
+            ? null
+            : Number(body.priceEur) || null
+          : existing.priceEur,
+      stripePriceId:
+        body.stripePriceId !== undefined
+          ? (() => {
+              const raw = String(body.stripePriceId || "").trim();
+              if (!raw) return null;
+              return /^price_[a-zA-Z0-9]+$/.test(raw) ? raw : existing.stripePriceId;
+            })()
+          : existing.stripePriceId,
+      stemsStripePriceId:
+        body.stemsStripePriceId !== undefined
+          ? (() => {
+              const raw = String(body.stemsStripePriceId || "").trim();
+              if (!raw) return null;
+              return /^price_[a-zA-Z0-9]+$/.test(raw)
+                ? raw
+                : existing.stemsStripePriceId;
+            })()
+          : existing.stemsStripePriceId,
       updatedAt: new Date().toISOString(),
     };
 

@@ -240,9 +240,39 @@ import "../../styles/admin-biblioteca.css";
         <label class="check">
           <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada
         </label>
-        <label class="check">
-
-        </label>
+        <fieldset class="price-fields">
+          <legend>Pago Stripe (música)</legend>
+          <label>
+            Precio mostrado (€)
+            <input name="priceEur" type="number" min="0" step="1" placeholder="p.ej. 99" data-price-eur />
+          </label>
+          <label>
+            Stripe Price master <code>price_…</code>
+            <input
+              name="stripePriceId"
+              type="text"
+              maxlength="80"
+              placeholder="price_…"
+              data-stripe-price
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            Stripe Price stems (opcional)
+            <input
+              name="stemsStripePriceId"
+              type="text"
+              maxlength="80"
+              placeholder="price_… o vacío = pack en el de master"
+              data-stems-stripe-price
+              autocomplete="off"
+            />
+          </label>
+          <p class="hint">
+            Cuando tengas el Price en Stripe, pégalo aquí. Sin <code>price_…</code> el botón Comprar
+            no se activa (cotización sigue disponible).
+          </p>
+        </fieldset>
         <label>
           Año
           <input name="year" type="number" value="2026" />
@@ -1022,6 +1052,14 @@ import "../../styles/admin-biblioteca.css";
     if (year) year.value = String(item.year || new Date().getFullYear());
     const lic = form.querySelector("[name=licenseEnabled]") as HTMLInputElement | null;
     if (lic) lic.checked = item.licenseEnabled !== false;
+    const priceEur = form.querySelector("[name=priceEur]") as HTMLInputElement | null;
+    if (priceEur)
+      priceEur.value =
+        item.priceEur != null && Number(item.priceEur) > 0 ? String(item.priceEur) : "";
+    const sp = form.querySelector("[name=stripePriceId]") as HTMLInputElement | null;
+    if (sp) sp.value = item.stripePriceId ? String(item.stripePriceId) : "";
+    const ssp = form.querySelector("[name=stemsStripePriceId]") as HTMLInputElement | null;
+    if (ssp) ssp.value = item.stemsStripePriceId ? String(item.stemsStripePriceId) : "";
 
 
     const kind = item.kind === "stems" || (Array.isArray(item.stems) && item.stems.length)

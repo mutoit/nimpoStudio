@@ -332,17 +332,17 @@ const payload = {
                       <p class="lb__usage-group-title">{g.label}</p>
                       {USAGE_CATALOG.filter((u) => u.group === g.id).map((u) => {
                         const full = usageLabelMap[u.code] || u.code;
-                        const title = full.split("—")[0].split(" - ")[0].trim();
-                        const priceMatch = full.match(
-                          /(?:desde|from|dès)\s*[\d.,\s]+\s*€[^)]*|micro\s*[\d.,]+\s*€|según plazo|by term|selon durée/i,
-                        );
-                        const price = priceMatch
-                          ? priceMatch[0].trim()
-                          : lang === "en"
-                            ? "by term"
-                            : lang === "fr"
-                              ? "selon durée"
-                              : "según plazo";
+                        // Título antes del em dash; precio = lo que va después (o en el label)
+                        const parts = full.split(/\s*[—–-]\s*/);
+                        const title = (parts[0] || full).trim();
+                        let price = (parts.slice(1).join(" — ") || "").trim();
+                        if (!price) {
+                          // Fallback: cifra suelta al final del string
+                          const m = full.match(
+                            /(?:desde|from|dès|base\s+plazo\s*\+\s*|term\s+base\s*\+\s*)?[\d.,\s]+(?:–[\d.,\s]+)?\s*€(?:\s*\/\s*(?:año|yr|an))?/i,
+                          );
+                          price = m ? m[0].trim() : "—";
+                        }
                         const hint =
                           u.code === "ads_paid" ? t("usageAdsPaidHint") : full;
                         return (

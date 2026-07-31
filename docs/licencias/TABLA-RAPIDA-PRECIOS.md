@@ -11,6 +11,7 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 
 | | Precio |
 |--|--------|
+| **Personal / privado** (sin negocio) | **49 €** |
 | **Micro / un solo uso** (sting, 1 post, 1 vuelo, 1 ep podcast) | **79 €** |
 | Comercial · 1 año | **129 €** |
 | Comercial · vida del proyecto | **159 €** |
@@ -21,17 +22,20 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 | +1 año extra comercial / exclusiva | **+55 €** / **+220 €** |
 | Ampliar territorio/medios | **+149 €** |
 | Más composición / custom ½ día | **+199 €** |
-| Exclusiva media/territorio (desde, 2 años) | **1.200 €** |
-| Exclusiva un solo uso / 1 año (suelos) | **890 €** / **1.100 €** |
-| Exclusiva fuerte multi-medio | **desde 3.000 €** (rango 3–6k+) |
+| Feature film indie | **590 €** |
+| Serie multi-ep | **590 €** |
+| Tour multi-fecha | **590 €** |
+| Live-ops / SaaS | **790 €/año** |
+| Broadcast / TV / SVOD (no exclusiva) | **1.200 €** |
+| Exclusiva media/territorio (2 años) | **1.200 €** |
+| Exclusiva un solo uso / 1 año | **890 €** / **1.100 €** |
+| Exclusiva fuerte multi-medio | **3.000 €** (suelo) |
 | + retirar / no disponible catálogo | **+250 €** |
-| Buyout catálogo (suelo) | **2.990 €** |
-| Buyout alto / a medida | **desde 5.500 €** |
-| Personal | petición (**0–49 €** o → comercial) |
-| Tema extra mismo proyecto | **~80 %** (−20 %; rango −15–25 %) |
-| Indie pro / feature / serie multi (suelo revisión) | **desde 390 €** |
-| SaaS / live-ops anual (suelo revisión) | **desde 590 €/año** |
-| Broadcast / SVOD (suelo revisión) | **desde 890 €** |
+| Buyout catálogo | **2.990 €** |
+| Buyout alto / a medida | **5.500 €** |
+| Plazo custom | = tarifa **2 años** correspondiente |
+| **Presupuesto especial** | **sin precio fijo** (solo revisión) |
+| Tema extra mismo proyecto | **~80 %** (−20 %) |
 
 > La **duración del audio** (20 s / 1 min / 3 min) **no** cambia el precio: se cobra el derecho de uso, no el minutaje. Para pistas cortas (stings, hooks) → **micro 79 €**.
 
@@ -52,10 +56,11 @@ Imprime o ten al lado del móvil. Detalle: `00-PRECIOS-REFERENCIA.md` · plan: `
 | App 1 splash/uso fijo | **79–169** |
 | Museo / evento 1 vez | **169** |
 | Ads Meta/YouTube campaña | **base + 130** (2y → **299**) |
-| Serie varios eps / feature indie | pack **390–690** o revisión |
-| TV regional / SVOD 1 título | **desde 890–1.800** |
-| Live-ops / SaaS ilimitado | **590–1.200+/año** |
-| Tour multi-ciudad | **390–1.500** |
+| Serie varios eps | **590 €** |
+| Feature indie | **590 €** |
+| TV / SVOD 1 título (no exclusiva) | **1.200 €** |
+| Live-ops / SaaS ilimitado | **790 €/año** |
+| Tour multi-ciudad | **590 €** |
 | “Nadie más la use” (media/territorio) | **≥ 1.200** |
 | Exclusiva fuerte multi-medio | **3.000–6.000+** |
 | Forever + saca del catálogo | **≥ 2.990** |

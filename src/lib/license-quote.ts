@@ -73,9 +73,9 @@ export type LicenseQuoteResult = {
 };
 
 /**
- * Anclas EUR sin IVA (2026) — punto fijo de rangos de mercado adoptados.
- * Single/micro 79–99 · comercial 149–169 · ads 249–329 · exclusiva media 1.200–2.500 ·
- * buyout 2.990–5.500 · personal 0–49.
+ * Anclas EUR sin IVA (2026) — lista cerrada (todos con precio salvo presupuesto especial).
+ * Single 79 · comercial 129–169 · ads +130 · feature/serie/tour 590 · live/SaaS 790/año ·
+ * broadcast 1.200 · exclusiva 890–3.000 · buyout 2.990–5.500 · personal 49.
  */
 export const LICENSE_PRICES = prices as {
   singleUse: number;
@@ -96,8 +96,15 @@ export const LICENSE_PRICES = prices as {
   moreComposition: number;
   buyoutFrom: number;
   buyoutHighFrom: number;
+  personalFixed: number;
   personalMax: number;
   extraTrackFactor: number;
+  filmFeature: number;
+  seriesMulti: number;
+  tourEvent: number;
+  gameLiveopsAnnual: number;
+  appSaasAnnual: number;
+  broadcast: number;
   indieProFrom: number;
   broadcastFrom: number;
   saasAnnualFrom: number;
@@ -108,28 +115,36 @@ export type UsageOptionMeta = {
   code: LicenseUsageCode;
   group: "personal" | "audiovisual" | "ads" | "interactive" | "live" | "special";
   canInstant: boolean;
-  base: "commercial" | "ads" | "personal" | "exclusive" | "buyout" | "review";
+  base:
+    | "commercial"
+    | "ads"
+    | "personal"
+    | "exclusive"
+    | "buyout"
+    | "fixed"
+    | "review";
 };
 
 export const USAGE_CATALOG: UsageOptionMeta[] = [
-  { code: "personal_private", group: "personal", canInstant: false, base: "personal" },
+  { code: "personal_private", group: "personal", canInstant: true, base: "personal" },
   { code: "film_short", group: "audiovisual", canInstant: true, base: "commercial" },
-  { code: "film_feature", group: "audiovisual", canInstant: false, base: "review" },
+  { code: "film_feature", group: "audiovisual", canInstant: true, base: "fixed" },
   { code: "series_one", group: "audiovisual", canInstant: true, base: "commercial" },
-  { code: "series_multi", group: "audiovisual", canInstant: false, base: "review" },
+  { code: "series_multi", group: "audiovisual", canInstant: true, base: "fixed" },
   { code: "brand_video", group: "audiovisual", canInstant: true, base: "commercial" },
   { code: "social_brand", group: "audiovisual", canInstant: true, base: "commercial" },
   { code: "podcast_one", group: "audiovisual", canInstant: true, base: "commercial" },
   { code: "ads_paid", group: "ads", canInstant: true, base: "ads" },
   { code: "game_indie", group: "interactive", canInstant: true, base: "commercial" },
-  { code: "game_liveops", group: "interactive", canInstant: false, base: "review" },
+  { code: "game_liveops", group: "interactive", canInstant: true, base: "fixed" },
   { code: "app_one", group: "interactive", canInstant: true, base: "commercial" },
-  { code: "app_saas", group: "interactive", canInstant: false, base: "review" },
+  { code: "app_saas", group: "interactive", canInstant: true, base: "fixed" },
   { code: "install_one", group: "live", canInstant: true, base: "commercial" },
-  { code: "tour_event", group: "live", canInstant: false, base: "review" },
+  { code: "tour_event", group: "live", canInstant: true, base: "fixed" },
   { code: "exclusive_scope", group: "special", canInstant: true, base: "exclusive" },
   { code: "buyout", group: "special", canInstant: true, base: "buyout" },
-  { code: "other", group: "special", canInstant: false, base: "review" },
+  /** Lista: broadcast 1.200 €. Solo “presupuesto especial” queda sin total. */
+  { code: "other", group: "special", canInstant: true, base: "fixed" },
 ];
 
 const USAGE_BY_CODE = Object.fromEntries(
@@ -160,7 +175,7 @@ function termLabel(term: LicenseTermCode): string {
   }
 }
 
-/** Precio comercial base según plazo (no ads, no exclusiva). */
+/** Precio comercial base según plazo (no ads, no exclusiva). custom → tarifa 2 años. */
 export function commercialPriceForTerm(term: LicenseTermCode = "2y"): {
   amount: number;
   label: string;
@@ -181,12 +196,61 @@ export function commercialPriceForTerm(term: LicenseTermCode = "2y"): {
         amount: LICENSE_PRICES.termProject,
         label: "Licencia comercial · vida del proyecto",
       };
+    case "custom":
+      return {
+        amount: LICENSE_PRICES.commercialBase,
+        label: "Licencia comercial · plazo a medida (lista 2 años)",
+      };
     case "2y":
     default:
       return {
         amount: LICENSE_PRICES.commercialBase,
         label: "Licencia comercial · 2 años",
       };
+  }
+}
+
+/** Tarifas fijas por uso (no dependen del plazo comercial 1y/2y). */
+export function fixedPriceForUsage(usage: LicenseUsageCode): {
+  amount: number;
+  label: string;
+  annual?: boolean;
+} | null {
+  switch (usage) {
+    case "film_feature":
+      return {
+        amount: LICENSE_PRICES.filmFeature,
+        label: "Cine largometraje / productora (1 obra, 1 título)",
+      };
+    case "series_multi":
+      return {
+        amount: LICENSE_PRICES.seriesMulti,
+        label: "Serie varios episodios (1 obra, mismo proyecto)",
+      };
+    case "tour_event":
+      return {
+        amount: LICENSE_PRICES.tourEvent,
+        label: "Tour / multi-ciudad / multi-fecha",
+      };
+    case "game_liveops":
+      return {
+        amount: LICENSE_PRICES.gameLiveopsAnnual,
+        label: "Juego live-ops / marketing continuo (anual)",
+        annual: true,
+      };
+    case "app_saas":
+      return {
+        amount: LICENSE_PRICES.appSaasAnnual,
+        label: "SaaS / app uso ilimitado (anual)",
+        annual: true,
+      };
+    case "other":
+      return {
+        amount: LICENSE_PRICES.broadcast,
+        label: "Broadcast / TV / SVOD (no exclusiva, 1 título)",
+      };
+    default:
+      return null;
   }
 }
 
@@ -297,26 +361,31 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
     meta.base === "exclusive" || !!input.exclusive || input.usage === "exclusive_scope";
   const wantsBuyout = meta.base === "buyout" || !!input.buyout || input.usage === "buyout";
 
-  const forceReview =
-    !!input.needSpecialReview ||
-    input.usage === "other" ||
-    term === "custom" ||
-    (!meta.canInstant && !wantsExclusive && !wantsBuyout);
+  // Solo “presupuesto especial” cierra sin total. Plazo custom → lista 2 años.
+  const forceReview = !!input.needSpecialReview;
 
-  // —— Personal ——
+  // —— Personal (precio cerrado) ——
   if (meta.base === "personal") {
+    const amount = LICENSE_PRICES.personalFixed;
+    let total = amount;
+    lineItems.push({
+      code: "personal",
+      label: "Licencia personal / privado (sin negocio)",
+      amount,
+    });
+    total = addExtras(input, lineItems, total, false);
     return {
-      mode: "review",
+      mode: "instant",
       currency: "EUR",
-      total: null,
-      fromAmount: 0,
-      lineItems: [],
-      summaryKey: "quoteResultPersonal",
-      summaryEs: `Uso personal: se revisa el propósito (0–${LICENSE_PRICES.personalMax} € o denegación). No sirve para marca ni ads.`,
+      total,
+      fromAmount: null,
+      lineItems,
+      summaryKey: "quoteResultInstant",
+      summaryEs: `Uso personal: ${total} € (IVA no incluido). No sirve para marca, cliente ni ads.`,
       scopeEs: [
         ...scopeEs,
         "Solo uso no comercial y propósito declarado.",
-        "El estudio puede denegar o pedir crédito.",
+        "Si hay marca, monetización o cliente → licencia comercial.",
       ],
     };
   }
@@ -412,22 +481,9 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
     };
   }
 
-  // —— Revisión ——
-  if (meta.base === "review" || forceReview) {
-    const fromBase = commercialPriceForTerm(term === "custom" ? "2y" : term).amount;
-    let from = fromBase;
-    if (input.usage === "film_feature" || input.usage === "series_multi") {
-      from = LICENSE_PRICES.indieProFrom;
-    } else if (input.usage === "game_liveops" || input.usage === "app_saas") {
-      from = LICENSE_PRICES.saasAnnualFrom;
-    } else if (input.usage === "tour_event") {
-      from = LICENSE_PRICES.indieProFrom;
-    } else if (meta.base === "ads" || input.usage === "ads_paid") {
-      from = fromBase + LICENSE_PRICES.adsUplift;
-    } else if (input.usage === "other" && input.needSpecialReview) {
-      // broadcast / SVOD / rarezas: suelo alto orientativo
-      from = LICENSE_PRICES.broadcastFrom;
-    }
+  // —— Solo presupuesto especial (sin precio cerrado) ——
+  if (forceReview) {
+    const from = commercialPriceForTerm(term === "custom" ? "2y" : term).amount;
     return {
       mode: "review",
       currency: "EUR",
@@ -437,9 +493,40 @@ export function calculateLicenseQuote(input: LicenseQuoteInput): LicenseQuoteRes
         { code: "review_from", label: "Referencia mínima orientativa", amount: from },
       ],
       summaryKey: "quoteResultReview",
-      summaryEs: `Caso fuera de tarifa fija. Referencia desde ${from} €; confirmación por email.`,
+      summaryEs: `Presupuesto especial: sin tarifa fija. Referencia orientativa desde ${from} €; te respondemos por email.`,
       scopeEs,
     };
+  }
+
+  // —— Tarifas fijas por uso (feature, serie multi, tour, live-ops, SaaS, broadcast) ——
+  if (meta.base === "fixed") {
+    const fixed = fixedPriceForUsage(input.usage);
+    if (fixed) {
+      let total = fixed.amount;
+      lineItems.push({
+        code: input.usage,
+        label: fixed.label,
+        amount: fixed.amount,
+      });
+      total = addExtras(input, lineItems, total, false);
+      scopeEs.push(
+        fixed.annual
+          ? "Licencia anual renovable. Uso en el producto/servicio declarado."
+          : "1 obra y 1 proyecto/título declarado. No exclusiva salvo add-ons.",
+      );
+      return {
+        mode: "instant",
+        currency: "EUR",
+        total,
+        fromAmount: null,
+        lineItems,
+        summaryKey: "quoteResultInstant",
+        summaryEs: fixed.annual
+          ? `Presupuesto de catálogo: ${total} € / año (IVA no incluido).`
+          : `Presupuesto de catálogo: ${total} € (IVA no incluido).`,
+        scopeEs,
+      };
+    }
   }
 
   // —— Instant comercial / ads ——

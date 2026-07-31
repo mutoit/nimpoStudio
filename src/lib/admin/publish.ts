@@ -1,12 +1,9 @@
 /**
- * Submit del form admin biblioteca: meta-only update o publish con bake/preview.
+ * Submit admin biblioteca: meta-only o publish.
+ * Stems HQ intactos → R2 full/stems. Preview = 1 mix generado (copia de trabajo).
  */
 
-import {
-  bakePreviewNoise,
-  bakeMixPreview,
-  bakeMixPreviewFromUrls,
-} from "../preview-noise-bake";
+import { bakeLibraryPreview, bakeLibraryPreviewFromUrls } from "../preview-noise-bake";
 import { compressImageForUpload } from "../admin-image-compress";
 import type { AdminMixPreview } from "../admin-mix-preview";
 import { normalizeMood } from "./moods";
@@ -41,6 +38,12 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+type DeliveryStem = { id?: string; label?: string; key?: string };
+
+function adminMediaUrl(key: string): string {
+  return `/admin/media?key=${encodeURIComponent(key)}`;
+}
+
 export function bindAdminPublish(deps: PublishDeps) {
   document.querySelector("[data-admin-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -52,7 +55,7 @@ export function bindAdminPublish(deps: PublishDeps) {
     const editingSlug = deps.getEditingSlug();
     const editingItem = deps.getEditingItem();
     const stemRows = deps.getStemRows();
-    let mixDirty = deps.getMixDirty();
+    const mixDirty = deps.getMixDirty();
 
     try {
       const titleInput = form.querySelector("[data-title]") as HTMLInputElement | null;
@@ -106,26 +109,26 @@ export function bindAdminPublish(deps: PublishDeps) {
       const masterFile =
         (form.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0] || null;
       const hasMasterFile = !!masterFile;
-      const hasAnyNewMedia =
-        hasVideoFile || hasCoverFile || hasStemFiles || hasMasterFile;
 
-      type ServerStem = { id?: string; label?: string; src?: string; cleanSrc?: string };
-      const serverStemsForMix = Array.isArray(editingItem?.stems)
-        ? (editingItem!.stems as ServerStem[])
+      const serverStems: DeliveryStem[] = Array.isArray(editingItem?.stems)
+        ? (editingItem!.stems as DeliveryStem[])
         : [];
-      const cleanServerStems = serverStemsForMix.filter(
-        (s) => s && String(s.cleanSrc || "").trim(),
-      );
-      const wantsRemixedNoise =
-        !!editingSlug && channel === "stems" && !hasStemFiles && mixDirty;
+      const serverStemKeys = serverStems
+        .map((s) => String(s.key || "").trim())
+        .filter((k) => k.startsWith("library/"));
 
-      if (wantsRemixedNoise && !cleanServerStems.length) {
-        throw new Error(
-          "Has cambiado el ruido, pero esta ficha no tiene copia limpia en servidor. Arrastra los stems limpios otra vez y publica (solo una vez); luego podrás bajar el ruido a 0% y guardar.",
-        );
-      }
+      // Solo rehacer preview (ruido) sin re-subir stems HQ
+      const wantsNewPreviewOnly =
+        !!editingSlug &&
+        channel === "stems" &&
+        !hasStemFiles &&
+        mixDirty &&
+        serverStemKeys.length > 0;
 
-      if (editingSlug && !hasAnyNewMedia && !wantsRemixedNoise) {
+      const hasAnyNewMedia =
+        hasVideoFile || hasCoverFile || hasStemFiles || hasMasterFile || wantsNewPreviewOnly;
+
+      if (editingSlug && !hasAnyNewMedia) {
         deps.setLight("upload", "loading", "Guardando meta…");
         deps.setStatus("Guardando cambios (audio se conserva tal cual)…");
         const res = await fetch("/admin/items", {
@@ -167,13 +170,8 @@ export function bindAdminPublish(deps: PublishDeps) {
           );
         }
         deps.setLight("upload", "ok", "Meta OK · audio igual");
-        deps.setStatus(
-          `✅ ${data.message || "Guardado"} — el audio no se tocó (no moviste el ruido o no había re-bake).`,
-        );
-        deps.showToast(
-          `✅ «${title}» meta guardada · audio igual en servidor`,
-          14000,
-        );
+        deps.setStatus(`✅ ${data.message || "Guardado"} — stems/master/preview sin tocar.`);
+        deps.showToast(`✅ «${title}» meta guardada`, 14000);
         await deps.loadPubs();
         const updated =
           deps.getPublications().find((p) => p.slug === editingSlug) ||
@@ -198,7 +196,6 @@ export function bindAdminPublish(deps: PublishDeps) {
       body.set("provisional", "0");
       body.set("licenseEnabled", fd.get("licenseEnabled") === "on" ? "1" : "0");
 
-      // Master HQ: sin bake, bytes tal cual (campo aparte de stems/preview).
       if (hasMasterFile && masterFile) {
         deps.setLight("master", "loading", "Master…");
         body.set("master", masterFile, masterFile.name);
@@ -206,10 +203,7 @@ export function bindAdminPublish(deps: PublishDeps) {
 
       if (channel === "video") {
         const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
-        if (!v && !editingSlug && !hasMasterFile) throw new Error("Elige un vídeo.");
-        if (!v && !editingSlug && hasMasterFile) {
-          throw new Error("Para publicar nueva ficha en canal vídeo hace falta el vídeo (el master es opcional de entrega).");
-        }
+        if (!v && !editingSlug) throw new Error("Elige un vídeo.");
         if (v) body.set("video", v, v.name);
         const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
         if (c) {
@@ -224,130 +218,66 @@ export function bindAdminPublish(deps: PublishDeps) {
           const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
           body.set("cover", small, small.name);
         }
+
         const { music01, noise01 } = deps.readMixGains();
         const withFile = stemRows.filter((r) => r.file);
         if (!withFile.length && !editingSlug) {
-          throw new Error("Añade al menos un stem con audio.");
+          throw new Error("Añade al menos un stem HQ.");
         }
 
-        const fetchCleanAsFile = async (url: string, name: string) => {
-          const res = await fetch(url, { credentials: "same-origin", cache: "reload" });
-          if (!res.ok) throw new Error(`No se pudo bajar limpio (${res.status}): ${name}`);
-          const blob = await res.blob();
-          const base = name.replace(/[^\w.\-()+ ]+/g, "_") || "stem";
-          const ext = (blob.type || "").includes("wav")
-            ? "wav"
-            : (blob.type || "").includes("mpeg")
-              ? "mp3"
-              : "wav";
-          return new File([blob], `${base}.${ext}`, {
-            type: blob.type || "audio/wav",
-          });
-        };
-
-        const bakedPublic: File[] = [];
+        // HQ intactos → servidor (sin bake por capa)
         if (withFile.length) {
-          deps.mixPreview.stop();
-          deps.setLight("stems", "loading", `Bake ${withFile.length}…`);
-          deps.setLight("upload", "loading", "Procesando ruido…");
-          deps.setStatus(
-            `Procesando mezcla (audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%) en ${withFile.length} stem(s)…`,
-          );
+          deps.setLight("stems", "loading", `HQ ${withFile.length}…`);
           let n = 0;
-          const layerCount = withFile.length;
           for (const row of withFile) {
             if (!row.file) continue;
-            deps.setLight("stems", "loading", `${n + 1}/${layerCount} bake`);
-            body.set(`stem_${n}_clean`, row.file, row.file.name);
-            let baked = row.file;
-            try {
-              baked = await bakePreviewNoise(row.file, noise01, music01, layerCount);
-            } catch (err) {
-              console.warn("[bake noise]", err);
-              deps.setLight("stems", "err", "Bake falló (sube original)");
-            }
-            body.set(`stem_${n}_file`, baked, baked.name);
+            body.set(`stem_${n}_file`, row.file, row.file.name);
             body.set(`stem_${n}_label`, row.label || row.file.name);
-            bakedPublic.push(baked);
-            n++;
-          }
-        } else if (wantsRemixedNoise && cleanServerStems.length) {
-          deps.mixPreview.stop();
-          const layerCount = cleanServerStems.length;
-          deps.setLight("stems", "loading", `Re-mezcla ${layerCount}…`);
-          deps.setLight("upload", "loading", "Bajando limpios + bake…");
-          deps.setStatus(
-            `Re-aplicando ruido ${Math.round(noise01 * 100)}% desde copias limpias (${layerCount} stem(s))…`,
-          );
-          let n = 0;
-          for (const st of cleanServerStems) {
-            const cleanUrl = String(st.cleanSrc || "").trim();
-            const label = String(st.label || st.id || `stem-${n + 1}`);
-            deps.setLight("stems", "loading", `${n + 1}/${layerCount} limpio`);
-            const cleanFile = await fetchCleanAsFile(cleanUrl, label);
-            deps.setLight("stems", "loading", `${n + 1}/${layerCount} bake`);
-            let baked = cleanFile;
-            try {
-              baked = await bakePreviewNoise(cleanFile, noise01, music01, layerCount);
-            } catch (err) {
-              console.warn("[bake noise cleanSrc]", err);
-              throw new Error(`No se pudo re-mezclar «${label}». Prueba re-subir stems.`);
-            }
-            body.set(`stem_${n}_clean`, cleanFile, cleanFile.name);
-            body.set(`stem_${n}_file`, baked, baked.name);
-            body.set(`stem_${n}_label`, label);
-            bakedPublic.push(baked);
             n++;
           }
         }
-        if (bakedPublic.length) {
-          deps.setStatus("Generando preview mix MP3…");
-          deps.setLight("stems", "loading", "Preview MP3…");
-          try {
-            const mix = await bakeMixPreview(bakedPublic);
-            const ext =
-              mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
-            body.set("preview", mix, `${slug}-preview.${ext}`);
-          } catch (err) {
-            console.warn("[bake mix preview]", err);
+
+        // Preview biblioteca = 1 mix (copia de trabajo mono/MP3 + ruido)
+        const needPreview =
+          withFile.length > 0 || wantsNewPreviewOnly || (editingSlug && !editingItem?.preview);
+
+        if (needPreview) {
+          deps.mixPreview.stop();
+          deps.setLight("upload", "loading", "Mix preview…");
+          deps.setStatus(
+            withFile.length
+              ? `Generando preview web (mix + ruido ${Math.round(noise01 * 100)}%) — originales intactos…`
+              : `Rehaciendo preview desde stems HQ en R2 (ruido ${Math.round(noise01 * 100)}%)…`,
+          );
+
+          let mix: File;
+          if (withFile.length) {
+            const originals = withFile.map((r) => r.file!).filter(Boolean);
+            mix = await bakeLibraryPreview(originals, noise01, music01);
+          } else {
+            const urls = serverStemKeys.map(adminMediaUrl);
+            mix = await bakeLibraryPreviewFromUrls(urls, {
+              noise01,
+              music01,
+              fetchInit: { credentials: "same-origin", cache: "reload" },
+            });
           }
-        } else if (editingSlug) {
-          const pub = deps.getPublications().find((p) => p.slug === editingSlug) as
-            | { stems?: { src?: string }[]; preview?: string }
-            | undefined;
-          const srcs = (pub?.stems || [])
-            .map((s) => String(s.src || "").trim())
-            .filter(Boolean);
-          if (srcs.length && !pub?.preview) {
-            try {
-              deps.setStatus("Generando preview MP3 desde stems publicados…");
-              const mix = await bakeMixPreviewFromUrls(srcs, {
-                credentials: "same-origin",
-                cache: "reload",
-              });
-              const ext =
-                mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
-              body.set("preview", mix, `${slug}-preview.${ext}`);
-            } catch (err) {
-              console.warn("[rebuild mix preview]", err);
-            }
-          }
+          const ext =
+            mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
+          body.set("preview", mix, `${slug}-preview.${ext}`);
         }
       }
 
       deps.mixPreview.stop();
       if (hasVideoFile) deps.setLight("video", "loading", "Subiendo…");
       if (hasCoverFile) deps.setLight("cover", "loading", "Subiendo…");
-      if (hasStemFiles) deps.setLight("stems", "loading", "Subiendo…");
+      if (hasStemFiles) deps.setLight("stems", "loading", "Stems HQ…");
       if (hasMasterFile) deps.setLight("master", "loading", "Master R2…");
       deps.setLight("upload", "loading", "Publicando en R2…");
       deps.setStatus(
-        editingSlug
-          ? hasMasterFile
-            ? "Subiendo… master HQ intacto a R2 privado (/full/)."
-            : "Subiendo archivos (URL nueva cada vez)…"
-          : "Publicando… (subida + catálogo)",
+        editingSlug ? "Subiendo…" : "Publicando… (stems privados + preview web)",
       );
+
       const res = await fetch("/admin/publish", {
         method: "POST",
         body,
@@ -362,7 +292,7 @@ export function bindAdminPublish(deps: PublishDeps) {
         const err = String(data.error || "");
         if (err === "bad_extension") {
           throw new Error(
-            "Tipo no permitido. Vídeo: mp4/webm/mov · Stems: mp3/wav/m4a · Master: wav/flac/aiff/mp3 · Imagen: jpg/png/webp",
+            "Tipo no permitido. Vídeo: mp4/webm · Stems/master: wav/flac/aiff/mp3 · Imagen: jpg/png/webp",
           );
         }
         if (err === "file_too_large" || err === "total_too_large") {
@@ -373,7 +303,7 @@ export function bindAdminPublish(deps: PublishDeps) {
           );
         }
         if (err === "missing_stems") {
-          throw new Error("Faltan stems y no hay stems previos que conservar.");
+          throw new Error("Faltan stems HQ y no hay stems previos que conservar.");
         }
         if (err === "missing_video") {
           throw new Error("Falta vídeo y no hay vídeo previo que conservar.");
@@ -384,31 +314,20 @@ export function bindAdminPublish(deps: PublishDeps) {
       const msg =
         data.message ||
         `✅ ${editingSlug ? "Guardado" : "Publicado"} «${data.item?.title || title}»`;
-      deps.setLight(
-        "upload",
-        "ok",
-        mixDirty || hasStemFiles ? "Mezcla OK" : "Listo",
-      );
-      if (hasStemFiles || wantsRemixedNoise) deps.setLight("stems", "ok", "En servidor");
+      deps.setLight("upload", "ok", "Listo");
+      if (hasStemFiles) deps.setLight("stems", "ok", "HQ en R2");
       if (hasMasterFile || data.master?.hasMaster) {
-        deps.setLight(
-          "master",
-          "ok",
-          hasMasterFile
-            ? `Master ${(Number(data.master?.bytes || masterFile?.size || 0) / (1024 * 1024)).toFixed(1)} MB`
-            : "En R2",
-        );
+        deps.setLight("master", "ok", hasMasterFile ? "Master OK" : "En R2");
       }
       deps.setMixDirty(false);
       deps.setStatus(`✅ ${msg}`);
       deps.showToast(
-        hasMasterFile
-          ? `✅ ${msg} · master HQ en R2 privado (verifica con «Comprobar R2»)`
-          : hasStemFiles || wantsRemixedNoise
-            ? `✅ ${msg} · audio con la mezcla actual (Ctrl+F5 en biblioteca)`
-            : `✅ ${msg}`,
+        hasStemFiles || wantsNewPreviewOnly
+          ? `✅ ${msg} · preview web regenerado · stems HQ intactos`
+          : `✅ ${msg}`,
         18000,
       );
+
       const out = document.querySelector("[data-out]");
       if (out instanceof HTMLElement) {
         out.hidden = false;
@@ -417,14 +336,16 @@ export function bindAdminPublish(deps: PublishDeps) {
             ok: true,
             merged: data.merged,
             keptMedia: data.keptMedia,
-            catalogCount: data.catalogCount,
+            stems: data.stems,
             master: data.master,
+            catalogCount: data.catalogCount,
             item: data.item,
           },
           null,
           2,
         );
       }
+
       await deps.loadPubs();
       const updated =
         deps.getPublications().find((p) => p.slug === slug) ||
@@ -442,7 +363,6 @@ export function bindAdminPublish(deps: PublishDeps) {
             p.innerHTML = "";
           }
         });
-        // Tras subir master: head R2 automático (botón Comprobar R2 también disponible)
         if (hasMasterFile && data.master?.hasMaster) {
           try {
             const vr = await fetch(`/admin/master?slug=${encodeURIComponent(slug)}`, {
@@ -452,33 +372,21 @@ export function bindAdminPublish(deps: PublishDeps) {
             const vj = (await vr.json()) as {
               ok?: boolean;
               exists?: boolean;
-              intact?: boolean;
-              bytes?: number | null;
-              contentType?: string | null;
-              key?: string | null;
               message?: string;
+              bytes?: number | null;
             };
             if (vr.ok && vj.ok && vj.exists) {
               deps.setLight(
                 "master",
-                vj.intact ? "ok" : "err",
+                "ok",
                 vj.bytes != null
                   ? `${(Number(vj.bytes) / (1024 * 1024)).toFixed(2)} MB R2`
                   : "En R2",
               );
-              deps.showToast(
-                vj.message ||
-                  `Master verificado en R2 · ${vj.contentType || "?"} · ${vj.key || ""}`,
-                14000,
-              );
-              const vmsg = document.querySelector("[data-master-verify-msg]");
-              if (vmsg instanceof HTMLElement) {
-                vmsg.hidden = false;
-                vmsg.textContent = vj.message || "Master OK en R2";
-              }
+              deps.showToast(vj.message || "Master verificado en R2", 12000);
             }
           } catch {
-            /* verify best-effort; el botón Comprobar R2 sigue ahí */
+            /* best-effort */
           }
         }
       } else {

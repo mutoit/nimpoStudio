@@ -92,21 +92,22 @@ export function toIndexEntry(raw: unknown): CatalogIndexEntry | null {
   const hasMaster =
     Boolean(o.hasMaster) ||
     (masterKey.startsWith("library/") && masterKey.includes("/full/"));
+  const hasStems =
+    stems.length > 0 || String(o.kind || "") === "stems" || Boolean(o.hasStems);
   return {
     id: String(o.id || `lib-${slug}`),
     slug,
     title: String(o.title || slug),
-    kind:
-      stems.length > 0 || String(o.kind || "") === "stems"
-        ? "stems"
-        : String(o.kind || "video") === "video"
-          ? "video"
-          : String(o.kind || "stems"),
+    kind: hasStems
+      ? "stems"
+      : String(o.kind || "video") === "video"
+        ? "video"
+        : String(o.kind || "stems"),
     aspect: String(o.aspect || "1:1"),
     cover,
     preview,
     hasPreview: Boolean(preview),
-    hasStems: stems.length > 0 || String(o.kind || "") === "stems",
+    hasStems,
     hasVideo: Boolean(video),
     hasMaster,
     moods: Array.isArray(o.moods) ? o.moods.map(String) : [],

@@ -1,17 +1,14 @@
 /**
- * Sesión de play biblioteca.
- * Si hay stems → StemTransport (mismo audio/volumen en grid y ficha).
- * Preview MP3 solo si no hay capas o se pide explícitamente (preferStems=false).
+ * Play biblioteca: solo preview único (mix ligero).
+ * Stems HQ no se cargan en el visitante (entrega / licencia).
  */
 
-import type { StemTransport } from "../stem-transport";
 import { safeMediaUrl } from "../dom-escape";
 import type { LibraryItem } from "./catalog-client";
 import type { LibraryPreviewPlayer } from "./preview-player";
 
 export type PlaySessionDeps = {
   previewPlayer: LibraryPreviewPlayer;
-  stemsTx: StemTransport;
   abortPlay: () => void;
   getPlayAbort: () => AbortController | null;
   setPlayAbort: (c: AbortController | null) => void;
@@ -33,66 +30,38 @@ export type PlaySessionDeps = {
     autoHideMs?: number;
   }) => void;
   hideStemError: () => void;
-  applyStemMixFromUi: () => void;
 };
 
 export function createPlaySession(deps: PlaySessionDeps) {
-  const playStems = async (
-    item: LibraryItem,
-    playId: string,
-    signal?: AbortSignal,
-  ) => {
-    if (!item.stems?.length) {
+  const playPreview = async (item: LibraryItem, playId: string, signal?: AbortSignal) => {
+    const previewUrl = safeMediaUrl(item.preview);
+    if (!previewUrl) {
       deps.setPlayerStatus({
-        msg: "Sin capas de audio en esta obra.",
+        msg: item.hasStems
+          ? "Sin preview web. Re-publica desde admin (genera el mix)."
+          : "Sin audio de preview en esta obra.",
         kind: "err",
         playPct: 0,
       });
+      deps.resetPlayButtons();
       return;
     }
     if (deps.isLoading()) return;
     deps.setLoading(true);
     deps.hideStemError();
-    deps.previewPlayer.stop();
     deps.setPlayingId(playId);
     deps.markPlayingButtons(playId);
     deps.setPlayLoading(playId, "…");
     deps.setPlayerStatus({
-      msg: `Cargando capas 0/${item.stems.length}…`,
+      msg: `Cargando «${item.title || "preview"}»…`,
       kind: "load",
       playPct: 5,
+      bufPct: 0,
       time: "…",
     });
     try {
-      await deps.stemsTx.resumeCtx();
-      const stems = item.stems
-        .map((s) => ({
-          ...s,
-          src: safeMediaUrl(s.src) || s.src,
-        }))
-        .filter((s) => s.src);
-      if (!stems.length) throw new Error("URLs de stems vacías tras sanitizar");
-      const bust = item.updatedAt || item.slug || item.id;
-      await deps.stemsTx.load(item.id, stems, {
-        cacheBust: bust,
-        forceReload: false,
-        signal,
-        onProgress: ({ loaded, total }) => {
-          deps.setPlayLoading(playId, `${loaded}/${total}`);
-          const pct = total > 0 ? (loaded / total) * 100 : 0;
-          deps.setPlayerStatus({
-            msg: `Cargando capas ${loaded}/${total}…`,
-            kind: "load",
-            playPct: Math.max(8, pct),
-            bufPct: pct,
-            time: `${loaded}/${total}`,
-          });
-        },
-      });
+      await deps.previewPlayer.play(item.id, previewUrl);
       if (signal?.aborted) return;
-      deps.applyStemMixFromUi();
-      await deps.stemsTx.resumeCtx();
-      deps.stemsTx.play();
       deps.setPlayingId(playId);
       deps.setTransportPlaying(true);
       deps.markPlayingButtons(playId);
@@ -100,24 +69,17 @@ export function createPlaySession(deps: PlaySessionDeps) {
       deps.updateProgressUI();
       deps.hideStemError();
       deps.setPlayerStatus({
-        msg: `▶ ${item.title || "Audio"} (capas)`,
+        msg: `▶ ${item.title || "Audio"}`,
         kind: "play",
         playPct: 0,
         time: "0:00 / …",
       });
-      if (deps.stemsTx.lastError) {
-        deps.setPlayerStatus({
-          msg: deps.stemsTx.lastError,
-          kind: "err",
-          playPct: 0,
-        });
-      }
     } catch (e) {
       if ((e as Error)?.name === "AbortError") return;
-      const msg = e instanceof Error ? e.message : "No se pudieron cargar los stems";
-      console.warn("[lb] stems load/play fail", e);
+      const msg = e instanceof Error ? e.message : "No se pudo cargar el preview";
+      console.warn("[lb] preview fail", e);
       deps.setPlayerStatus({
-        msg: `Error: ${msg}. En admin usa 🎧 Previews para play rápido.`,
+        msg: `Error: ${msg}`,
         kind: "err",
         playPct: 0,
       });
@@ -129,71 +91,22 @@ export function createPlaySession(deps: PlaySessionDeps) {
     }
   };
 
+  /** Compat: preferStems ignorado — siempre preview único. */
   const playPreviewOrStems = async (
     item: LibraryItem,
     playId: string,
-    preferStems: boolean,
+    _preferStems?: boolean,
   ) => {
     deps.abortPlay();
     const ac = new AbortController();
     deps.setPlayAbort(ac);
-    const signal = ac.signal;
-    const previewUrl = safeMediaUrl(item.preview);
-    if (previewUrl && !preferStems) {
-      deps.setLoading(true);
-      deps.setPlayLoading(playId, "…");
-      deps.setPlayerStatus({
-        msg: `Cargando «${item.title || "preview"}»…`,
-        kind: "load",
-        playPct: 5,
-        bufPct: 0,
-        time: "…",
-      });
-      try {
-        await deps.previewPlayer.play(item.id, previewUrl);
-        if (signal.aborted) return;
-        deps.setPlayingId(playId);
-        deps.setTransportPlaying(true);
-        deps.markPlayingButtons(playId);
-        deps.startProgressLoop();
-        deps.updateProgressUI();
-        deps.hideStemError();
-      } catch (e) {
-        if ((e as Error)?.name === "AbortError") return;
-        console.warn("[lb] preview fail, fallback stems", e);
-        if (item.stems?.length) {
-          deps.setPlayerStatus({
-            msg: "Preview falló · cargando capas…",
-            kind: "load",
-            playPct: 0,
-          });
-          await playStems(item, playId, signal);
-        } else {
-          deps.setPlayerStatus({
-            msg: "No se pudo cargar el preview de audio.",
-            kind: "err",
-            playPct: 0,
-          });
-          deps.resetPlayButtons();
-        }
-      } finally {
-        deps.setLoading(false);
-      }
-      return;
-    }
-    if (item.stems?.length) {
-      await playStems(item, playId, signal);
-      return;
-    }
-    deps.setPlayerStatus({
-      msg: preferStems
-        ? "Sin stems. Re-publica desde admin (genera preview)."
-        : "Sin preview ni stems. Re-publica la obra desde admin.",
-      kind: "err",
-      playPct: 0,
-    });
-    deps.resetPlayButtons();
+    await playPreview(item, playId, ac.signal);
   };
 
-  return { playStems, playPreviewOrStems };
+  return {
+    playPreview,
+    playPreviewOrStems,
+    /** @deprecated multi-stem eliminado */
+    playStems: playPreview,
+  };
 }

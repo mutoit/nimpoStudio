@@ -4,7 +4,6 @@ import {
     isLicenseUsageCode,
     type LicenseUsageCode,
   } from "../license-quote";
-import { StemTransport } from "../stem-transport";
 import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
 import { translateFilterLabels } from "../filter-label-i18n";
 import { absoluteShareUrl, libraryItemSharePath, shareUrl } from "../share";
@@ -35,7 +34,7 @@ export function bindLibraryBrowser() {
       let listFetchGen = 0;
       let listLoading = false;
       let listError = false;
-      /** Preview = 1 archivo (industria). Stems Web Audio solo mixer. */
+      /** Preview único (mix ligero). Stems HQ no se reproducen en biblioteca. */
       const previewPlayer = new LibraryPreviewPlayer();
       let playAbort: AbortController | null = null;
       const abortPlay = () => {
@@ -210,8 +209,6 @@ export function bindLibraryBrowser() {
       };
       // Filtros se pintan tras el fetch vivo (o fallback semilla)
       let active: Item | null = null;
-      /** Web Audio multi-stem (seek real; CF no soporta Range en static) */
-      const stemsTx = new StemTransport();
       let gridVideo: HTMLVideoElement | null = null;
       let statusHideTimer = 0;
 
@@ -316,7 +313,6 @@ export function bindLibraryBrowser() {
 
       const mediaDuration = (): number => {
         if (previewPlayer.duration > 0) return previewPlayer.duration;
-        if (stemsTx.duration > 0) return stemsTx.duration;
         if (gridVideo && Number.isFinite(gridVideo.duration) && gridVideo.duration > 0) {
           return gridVideo.duration;
         }
@@ -330,7 +326,6 @@ export function bindLibraryBrowser() {
       const mediaCurrent = (): number => {
         if (seekTargetSec != null && seeking) return seekTargetSec;
         if (previewPlayer.loadedItemId) return previewPlayer.currentTime;
-        if (stemsTx.loadedItemId) return stemsTx.currentTime;
         if (gridVideo) return gridVideo.currentTime;
         const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
         if (modalVid) return modalVid.currentTime;
@@ -381,7 +376,6 @@ export function bindLibraryBrowser() {
           if (
             transportPlaying ||
             previewPlayer.isPlaying ||
-            stemsTx.isPlaying ||
             (gridVideo && !gridVideo.paused)
           ) {
             progressRaf = requestAnimationFrame(tick);
@@ -423,7 +417,6 @@ export function bindLibraryBrowser() {
         seekTargetSec = null;
         transportPlaying = false;
         previewPlayer.stop();
-        stemsTx.stop();
         if (gridVideo) {
           gridVideo.pause();
           gridVideo.currentTime = 0;
@@ -437,45 +430,6 @@ export function bindLibraryBrowser() {
         playingId = null;
         resetPlayButtons();
         updateProgressUI();
-      };
-
-      const normSrc = (s: string) => {
-        try {
-          return decodeURIComponent(s).replace(/\\/g, "/");
-        } catch {
-          return s.replace(/\\/g, "/");
-        }
-      };
-
-      /** ids de ítem pueden ser lib-slug o slug; stemsTx guarda item.id del load */
-      const stemsLoadedForActive = () => {
-        if (!active) return false;
-        const loaded = stemsTx.loadedItemId;
-        if (!loaded) return false;
-        const ids = [active.id, safeDomId(active.id), active.slug, safeDomId(active.slug || "")]
-          .map(String)
-          .filter(Boolean);
-        return ids.includes(String(loaded));
-      };
-
-      /**
-       * Aplica mute de checkboxes al StemTransport.
-       * P: modal abierto + stems cargados para active.
-       * Q: gain por capa según checked. Empty Set = todas mute.
-       * Nunca pasar null por “vacío” (null = todas ON en applyMix).
-       */
-      const applyStemMixFromUi = () => {
-        const modalOpen =
-          overlay instanceof HTMLElement && !overlay.hidden && !!active;
-        if (!modalOpen || !stemsLoadedForActive()) return;
-        const checks = root.querySelectorAll<HTMLInputElement>("[data-stem-src]");
-        const on = new Set(
-          [...checks]
-            .filter((c) => c.checked)
-            .map((c) => normSrc(c.dataset.stemSrc || ""))
-            .filter(Boolean),
-        );
-        stemsTx.applyMix(on);
       };
 
       const showStemError = (msg: string, kind: "err" | "info" = "err") => {
@@ -514,13 +468,9 @@ export function bindLibraryBrowser() {
         }
       };
 
-      /**
-       * Grid y modal: si hay stems → mismo audio (StemTransport).
-       * Preview MP3 solo si no hay capas (obra video-only o sin stems).
-       */
-      const { playPreviewOrStems, playStems } = createPlaySession({
+      /** Grid y modal: solo preview mix (1 archivo). */
+      const { playPreviewOrStems } = createPlaySession({
         previewPlayer,
-        stemsTx,
         abortPlay,
         getPlayAbort: () => playAbort,
         setPlayAbort: (c) => {
@@ -543,32 +493,7 @@ export function bindLibraryBrowser() {
         updateProgressUI,
         setPlayerStatus,
         hideStemError,
-        applyStemMixFromUi,
       });
-
-      /** Toggle checkbox: garantiza modo stems y aplica mute. */
-      const onStemMixChange = () => {
-        void (async () => {
-          if (!(overlay instanceof HTMLElement) || overlay.hidden || !active) return;
-          let full = active;
-          if (!full.stems?.length && (full.hasStems || full.kind === "stems")) {
-            const d = await ensureDetail(full);
-            if (d) {
-              full = d;
-              active = d;
-            }
-          }
-          if (!full.stems?.length) return;
-
-          if (!stemsLoadedForActive()) {
-            // Estaba en preview mono o idle → cargar capas reales
-            previewPlayer.stop();
-            const modalPlayId = "modal-" + full.id;
-            await playStems(full, modalPlayId);
-          }
-          applyStemMixFromUi();
-        })();
-      };
 
       const seekToRatio = async (ratio: number): Promise<boolean> => {
         const dur = mediaDuration();
@@ -582,12 +507,6 @@ export function bindLibraryBrowser() {
           if (transportPlaying || previewPlayer.isPlaying) {
             transportPlaying = true;
             if (previewPlayer.isPlaying) startProgressLoop();
-          }
-        } else if (stemsTx.loadedItemId) {
-          stemsTx.seek(t);
-          if (transportPlaying || stemsTx.isPlaying) {
-            transportPlaying = true;
-            startProgressLoop();
           }
         } else {
           const el =
@@ -620,7 +539,7 @@ export function bindLibraryBrowser() {
       };
 
       const playVideoThumb = async (item: Item, v: HTMLVideoElement) => {
-        stemsTx.pause();
+        previewPlayer.pause();
         v.muted = false;
         gridVideo = v;
         try {
@@ -778,8 +697,6 @@ export function bindLibraryBrowser() {
             const canPlay = !!(
               item.hasPreview ||
               safeMediaUrl(item.preview) ||
-              item.hasStems ||
-              item.stems?.length ||
               item.hasVideo ||
               safeMediaUrl(item.video)
             );
@@ -850,9 +767,7 @@ export function bindLibraryBrowser() {
             if (!item) return;
 
             if (playingId === id || (playingId === "modal-" + id && transportPlaying)) {
-              // soft stop: deja posición
               previewPlayer.pause();
-              stemsTx.pause();
               if (gridVideo) gridVideo.pause();
               playingId = null;
               transportPlaying = false;
@@ -866,8 +781,6 @@ export function bindLibraryBrowser() {
               gridVideo = null;
             }
 
-            // Gesture: desbloquear Web Audio por si hace falta fallback stems
-            void stemsTx.resumeCtx();
             setPlayLoading(id, "…");
             setPlayerStatus({
               msg: `Preparando «${item.title || "audio"}»…`,
@@ -879,9 +792,8 @@ export function bindLibraryBrowser() {
 
             void (async () => {
               try {
-                // Card puede traer preview sin detail; detail trae stems/preview
                 let full = item;
-                if (!safeMediaUrl(item.preview) || (!item.stems?.length && item.hasStems)) {
+                if (!safeMediaUrl(item.preview)) {
                   setPlayerStatus({
                     msg: `Cargando ficha «${item.title || ""}»…`,
                     kind: "load",
@@ -892,29 +804,19 @@ export function bindLibraryBrowser() {
                   if (d) full = d;
                 }
                 const canPreview = !!safeMediaUrl(full.preview);
-                const canStems = !!(full.stems?.length);
                 const canVideo = !!(full.hasVideo || safeMediaUrl(full.video));
-                if (!canPreview && !canStems && !canVideo) {
+                if (!canPreview && !canVideo) {
                   setPlayerStatus({
-                    msg: "Sin preview ni stems. En admin → 🎧 Previews (o re-publica la obra).",
+                    msg: "Sin preview. En admin → 🎧 Previews (o re-publica la obra).",
                     kind: "err",
                     playPct: 0,
                   });
                   resetPlayButtons();
                   return;
                 }
-                if (canStems) {
-                  setPlayerStatus({
-                    msg: `Cargando ${full.stems!.length} capas (mismo audio que la ficha)…`,
-                    kind: "load",
-                    playPct: 10,
-                    time: "…",
-                  });
-                }
-                // Vídeo muted de fondo opcional
                 const frame = grid.querySelector(`[data-frame="${CSS.escape(id)}"]`);
                 const vUrl = safeMediaUrl(full.video);
-                if (frame && vUrl && (canPreview || canStems)) {
+                if (frame && vUrl && canPreview) {
                   let v = frame.querySelector<HTMLVideoElement>("video");
                   if (!v) {
                     frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="none" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
@@ -927,9 +829,8 @@ export function bindLibraryBrowser() {
                     gridVideo = v;
                   }
                 }
-                // Preferir stems (= ficha). El mix MP3 solo si no hay capas.
-                if (canPreview || canStems) {
-                  await playPreviewOrStems(full, id, canStems);
+                if (canPreview) {
+                  await playPreviewOrStems(full, id);
                 } else if (canVideo && frame && vUrl) {
                   frame.innerHTML = `<video src="${escapeHtml(vUrl)}" muted loop playsinline preload="metadata" poster="${escapeHtml(safeMediaUrl(full.cover) || "")}" data-vid="${escapeHtml(id)}"></video>`;
                   const v = frame.querySelector<HTMLVideoElement>("video");
@@ -953,7 +854,6 @@ export function bindLibraryBrowser() {
           const seekFromEvent = (clientX: number) => {
             const id = bar.dataset.thumbProgress || "";
             const activeHere =
-              stemsTx.loadedItemId === id ||
               playingId === id ||
               playingId === "modal-" + id ||
               (gridVideo && playingId === id);
@@ -961,12 +861,6 @@ export function bindLibraryBrowser() {
             const rect = bar.getBoundingClientRect();
             if (rect.width <= 0) return;
             const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-            // Si estaba en play, seek reanuda; si no, deja posición
-            if (!transportPlaying && stemsTx.loadedItemId === id) {
-              stemsTx.seek(ratio * (mediaDuration() || 0));
-              updateProgressUI();
-              return;
-            }
             void seekToRatio(ratio);
           };
           bar.addEventListener("pointerdown", (e) => {
@@ -1110,21 +1004,18 @@ export function bindLibraryBrowser() {
         // Valoraciones mock dentro del modal (junto al player)
         paintItemReviews(item);
 
+        // Stems HQ no se escuchan en biblioteca (solo flag de licencia + preview mix)
         const stemsWrap = root.querySelector("[data-lb-stems-wrap]");
         const mixer = root.querySelector("[data-lb-mixer]");
-        const hasStems = !!(item.stems && item.stems.length);
+        const hasStems = Boolean(item.hasStems);
+        const stemCount = Number(item.stemCount || 0);
         if (stemsWrap instanceof HTMLElement) stemsWrap.hidden = !hasStems;
-        if (mixer && hasStems && item.stems) {
-          mixer.innerHTML = item.stems
-            .map((s) => {
-              const src = escapeHtml(safeMediaUrl(s.src));
-              return `<label class="lb__mix-row" title="Ctrl+clic: solo esta capa · otra vez: todas"><input type="checkbox" checked data-stem-src="${src}" /> <span class="lb__mix-label">${escapeHtml(s.label)}</span></label>`;
-            })
-            .join("");
-          mixer.insertAdjacentHTML(
-            "beforeend",
-            `<p class="lb__mix-hint" data-lb-mix-hint>Ctrl+clic en una capa: oculta las demás. Ctrl+clic otra vez en la misma: muestra todas.</p>`,
-          );
+        if (mixer instanceof HTMLElement) {
+          mixer.innerHTML = hasStems
+            ? `<p class="lb__mix-hint">Esta obra incluye <strong>stems de entrega</strong>${
+                stemCount > 0 ? ` (${stemCount})` : ""
+              } con la licencia. En la web solo se reproduce el <strong>preview</strong> (mix ligero).</p>`
+            : "";
         }
 
         const licWrap = root.querySelector("[data-lb-lic-wrap]");
@@ -1183,7 +1074,6 @@ export function bindLibraryBrowser() {
         const modalPlayId = "modal-" + active.id;
         if (playingId === modalPlayId || playingId === active.id || transportPlaying) {
           previewPlayer.pause();
-          stemsTx.pause();
           const mv = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (mv) mv.pause();
           if (gridVideo) gridVideo.pause();
@@ -1194,23 +1084,17 @@ export function bindLibraryBrowser() {
           updateProgressUI();
           return;
         }
-        void stemsTx.resumeCtx();
-        // Modal y grid: si hay capas → multi-stem (mismo archivo/volumen).
         void (async () => {
           let full = active!;
-          if (
-            !full.stems?.length &&
-            (full.hasStems || full.kind === "stems" || safeMediaUrl(full.preview))
-          ) {
+          if (!safeMediaUrl(full.preview)) {
             const d = await ensureDetail(full);
             if (d) {
               full = d;
               active = d;
             }
           }
-          const preferStems = !!(full.stems && full.stems.length);
-          await playPreviewOrStems(full, modalPlayId, preferStems);
-          if (!safeMediaUrl(full.preview) && !full.stems?.length) {
+          await playPreviewOrStems(full, modalPlayId);
+          if (!safeMediaUrl(full.preview)) {
             const v = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
             if (v) {
               v.play()
@@ -1225,63 +1109,6 @@ export function bindLibraryBrowser() {
           }
         })();
       });
-
-      // Checkboxes del mixer: mute sin reiniciar
-      root.addEventListener("change", (e) => {
-        const t = e.target;
-        if (t instanceof HTMLInputElement && t.hasAttribute("data-stem-src")) {
-          syncStemSoloUi();
-          onStemMixChange();
-        }
-      });
-
-      /** Solo / restore: Ctrl+clic (Mac: ⌘+clic) en una capa de stems */
-      const syncStemSoloUi = () => {
-        const checks = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
-        const checked = checks.filter((c) => c.checked);
-        checks.forEach((c) => {
-          const row = c.closest(".lb__mix-row");
-          if (!(row instanceof HTMLElement)) return;
-          const solo = c.checked && checked.length === 1;
-          row.classList.toggle("is-solo", solo);
-        });
-      };
-
-      root.addEventListener(
-        "click",
-        (e) => {
-          if (!(e.ctrlKey || e.metaKey)) return;
-          const t = e.target;
-          if (!(t instanceof Element)) return;
-          const row = t.closest(".lb__mix-row");
-          if (!(row instanceof HTMLElement) || !root.contains(row)) return;
-          const input = row.querySelector<HTMLInputElement>("[data-stem-src]");
-          if (!input) return;
-          e.preventDefault();
-          e.stopPropagation();
-
-          const all = [...root.querySelectorAll<HTMLInputElement>("[data-stem-src]")];
-          if (all.length < 2) return;
-
-          const checkedCount = all.filter((c) => c.checked).length;
-          // Solo esta capa ya activa → restaurar todas
-          const isSoloThis = input.checked && checkedCount === 1;
-
-          if (isSoloThis) {
-            all.forEach((c) => {
-              c.checked = true;
-            });
-          } else {
-            // Incluye “todas off”: activa solo esta y oculta el resto
-            all.forEach((c) => {
-              c.checked = c === input;
-            });
-          }
-          syncStemSoloUi();
-          onStemMixChange();
-        },
-        true,
-      );
 
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
       let seekDragging = false;
@@ -1605,7 +1432,6 @@ export function bindLibraryBrowser() {
           items = [];
           listError = false;
           catalogReady = false;
-          stemsTx.dispose();
           previewPlayer.dispose();
           stopAll();
           renderGrid();

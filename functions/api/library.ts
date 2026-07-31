@@ -8,10 +8,7 @@ import {
   resolveMoodsVocabulary,
   type CatalogBucket,
 } from "../lib/library-catalog";
-import {
-  sanitizeCatalogItem,
-  stripCleanSrcFromItem,
-} from "../lib/catalog-sanitize";
+import { sanitizeCatalogItem } from "../lib/catalog-sanitize";
 import { filterAndPage } from "../lib/library-query";
 
 type Env = {
@@ -72,11 +69,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (!raw) {
       return json({ ok: false, error: "not_found", source: "r2" }, 404);
     }
-    const full = sanitizeCatalogItem(raw);
-    if (!full || full.availability === "off_catalog") {
+    // Público: sin stems[] ni masterKey (solo flags + preview)
+    const item = sanitizeCatalogItem(raw, { includeDelivery: false });
+    if (!item || item.availability === "off_catalog") {
       return json({ ok: false, error: "not_found", source: "r2" }, 404);
     }
-    const item = stripCleanSrcFromItem(full);
     return json({
       ok: true,
       source: "r2",
@@ -118,6 +115,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       hasVideo: Boolean(o.hasVideo),
       hasStems: Boolean(o.hasStems),
       hasMaster: Boolean(o.hasMaster),
+      stemCount: o.stemCount != null ? Number(o.stemCount) : undefined,
       moods: Array.isArray(o.moods) ? o.moods : [],
       tags: Array.isArray(o.tags) ? o.tags : [],
       availability: o.availability ?? "available",

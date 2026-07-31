@@ -46,7 +46,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   if (request.method === "GET") {
     const raw = (await readCatalog(bucket)) || [];
-    const items = sanitizeCatalogItems(raw, { includeOffCatalog: true });
+    // includeDelivery: stems[{id,label,key}] + masterKey para admin (no públicos)
+    const items = sanitizeCatalogItems(raw, {
+      includeOffCatalog: true,
+      includeDelivery: true,
+    });
     const moods = await resolveMoodsVocabulary(bucket, [], { persist: true });
     return json({ ok: true, items, moods, count: items.length });
   }

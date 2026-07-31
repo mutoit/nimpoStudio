@@ -54,8 +54,52 @@ type Env = AdminEnv & {
   RATE_LIMIT_KV?: RateLimitKv;
 };
 
-/** src = preview público (con ruido bake). cleanSrc = original limpio (admin). */
-type StemItem = { id: string; label: string; src: string; cleanSrc?: string };
+/**
+ * Stem de entrega (HQ). key = R2 bajo library/{slug}/full/stems/…
+ * Nunca se sirve por /api/media público. Preview de biblioteca = item.preview (1 mix).
+ */
+type StemItem = { id: string; label: string; key: string };
+
+/** Extrae key R2 desde key cruda o URL /api/media/… (legacy). */
+function mediaRefToKey(raw: unknown): string {
+  let u = String(raw || "").trim();
+  if (!u) return "";
+  if (u.startsWith("library/")) return u.split("?")[0] || u;
+  if (u.startsWith("/api/media/")) {
+    u = u.slice("/api/media/".length).split("?")[0] || "";
+    return u.startsWith("library/") ? u : "";
+  }
+  try {
+    const parsed = new URL(u, "https://www.nimpo3dstudio.com");
+    if (parsed.pathname.startsWith("/api/media/")) {
+      const k = parsed.pathname.slice("/api/media/".length);
+      return k.startsWith("library/") ? k : "";
+    }
+  } catch {
+    /* */
+  }
+  return "";
+}
+
+function normalizeExistingStems(raw: unknown): StemItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StemItem[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const s = raw[i];
+    if (!s || typeof s !== "object") continue;
+    const o = s as Record<string, unknown>;
+    const label = clipText(o.label || o.id || `Stem ${i + 1}`, 80);
+    const id = safeSlug(String(o.id || label), `stem-${i + 1}`);
+    // Preferir key privada; legacy: cleanSrc (HQ) luego src (preview viejo)
+    const key =
+      mediaRefToKey(o.key) ||
+      mediaRefToKey(o.cleanSrc) ||
+      mediaRefToKey(o.src);
+    if (!key) continue;
+    out.push({ id, label, key });
+  }
+  return out;
+}
 
 type MasterMeta = {
   masterKey: string | null;
@@ -210,10 +254,15 @@ export async function onRequest(context: {
   };
 
   /**
-   * Master HQ: bytes intactos, clave bajo library/{slug}/full/…
-   * No se sirve por /api/media (403). Solo token de descarga futuro / admin head.
+   * Master o stem HQ: bytes intactos bajo library/{slug}/full/…
+   * No se sirve por /api/media (403). Admin: GET /admin/media?key=
    */
-  const putMaster = async (file: File) => {
+  const putPrivateAudio = async (
+    role: "master" | "stem",
+    file: File,
+    subdir: "full" | "full/stems",
+    fileBase: string,
+  ) => {
     const sizeErr = checkFileSize(file.size);
     if (sizeErr) throw new Error(sizeErr);
 
@@ -222,12 +271,12 @@ export async function onRequest(context: {
     if (totalErr) throw new Error(totalErr);
 
     const ext = resolveExt(file.name, "master");
-    if (!ext) throw new Error(`bad_extension:master:${file.name}`);
+    if (!ext) throw new Error(`bad_extension:${role}:${file.name}`);
 
     const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-    const base = safeName(file.name.replace(/\.[^.]+$/, "")) || "master";
+    const base = safeName(fileBase || file.name.replace(/\.[^.]+$/, "")) || role;
     const fileName = `${base.slice(0, 60)}-${stamp}.${ext}`;
-    const key = `library/${slug}/full/${fileName}`;
+    const key = `library/${slug}/${subdir}/${fileName}`;
     const buf = await file.arrayBuffer();
     const contentType = contentTypeForExt(ext);
     await env.LIBRARY_BUCKET!.put(key, buf, {
@@ -236,12 +285,22 @@ export async function onRequest(context: {
         cacheControl: "private, no-store",
       },
     });
-    uploaded.push({ role: "master", key, url: "", name: fileName });
+    uploaded.push({ role, key, url: "", name: fileName });
+    return { key, fileName, contentType, bytes: file.size };
+  };
+
+  const putMaster = async (file: File) => {
+    const put = await putPrivateAudio(
+      "master",
+      file,
+      "full",
+      safeName(file.name.replace(/\.[^.]+$/, "")) || "master",
+    );
     return {
-      masterKey: key,
-      masterName: fileName,
-      masterBytes: file.size,
-      masterContentType: contentType,
+      masterKey: put.key,
+      masterName: put.fileName,
+      masterBytes: put.bytes,
+      masterContentType: put.contentType,
       hasMaster: true as const,
     };
   };
@@ -255,9 +314,11 @@ export async function onRequest(context: {
       existing && typeof (existing as { preview?: string }).preview === "string"
         ? String((existing as { preview: string }).preview)
         : null;
-    let stems: StemItem[] | undefined = Array.isArray(existing?.stems)
-      ? (existing!.stems as StemItem[])
-      : undefined;
+    // Normaliza legacy src/cleanSrc → key
+    let stems: StemItem[] | undefined = (() => {
+      const n = normalizeExistingStems(existing?.stems);
+      return n.length ? n : undefined;
+    })();
 
     const videoFile = form.get("video");
     const hasNewVideo = videoFile instanceof File && videoFile.size > 0;
@@ -283,9 +344,9 @@ export async function onRequest(context: {
         cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
       }
 
+      // stem_i_file = HQ original intacto → full/stems/ (NO bake)
       const stemItems: StemItem[] = [];
       for (let i = 0; i < MAX_STEMS; i++) {
-        // stem_i_file = con ruido (público). stem_i_clean = original limpio (admin preview).
         const f = form.get(`stem_${i}_file`);
         if (!(f instanceof File) || !f.size) continue;
         if (stemItems.length >= MAX_STEMS) throw new Error("too_many_stems");
@@ -294,29 +355,18 @@ export async function onRequest(context: {
           80,
         );
         const id = safeSlug(label, `stem-${i + 1}`);
-        const src = await putFile(`stem_${i}`, f, "audio", `${slug}-${id}`);
-        const cleanFile = form.get(`stem_${i}_clean`);
-        let cleanSrc: string | undefined;
-        if (cleanFile instanceof File && cleanFile.size > 0) {
-          cleanSrc = await putFile(
-            `stem_${i}_clean`,
-            cleanFile,
-            "audio",
-            `${slug}-${id}-clean`,
-          );
-        }
-        stemItems.push(cleanSrc ? { id, label, src, cleanSrc } : { id, label, src });
+        const put = await putPrivateAudio("stem", f as File, "full/stems", `${id}`);
+        stemItems.push({ id, label, key: put.key });
       }
       if (stemItems.length) {
-        // Nuevos stems → sustituyen la lista
         stems = stemItems;
       } else if (!stems?.length) {
         return json({ ok: false, error: "missing_stems" }, 400);
       }
-      // si no hay stems nuevos y ya había: se conservan (incl. cleanSrc si existía)
+      // sin stems nuevos: se conservan keys previas (HQ)
     }
 
-    // Mix preview (1 archivo) — play de biblioteca sin bajar N stems
+    // Único audio público de biblioteca: mix preview (generado en cliente)
     if (hasNewPreview) {
       preview = await putFile("preview", previewFile as File, "audio", `${slug}-preview`);
     }
@@ -376,16 +426,15 @@ export async function onRequest(context: {
       { persist: true },
     );
 
-    // Respuesta admin: no devolver masterKey en cleartext al browser log si se puede
-    // (admin sí lo necesita para verificar; se incluye bajo master.privateKey).
-    const itemPublic = {
-      ...item,
-      masterKey: undefined,
-    };
-
+    // Admin recibe keys de stems (privadas) + master meta; no URLs públicas de HQ
     return json({
       ok: true,
-      item: itemPublic,
+      item: {
+        ...item,
+        // masterKey solo en bloque master
+        masterKey: undefined,
+      },
+      stems: (stems || []).map((s) => ({ id: s.id, label: s.label, key: s.key })),
       master: master.hasMaster
         ? {
             hasMaster: true,
@@ -398,14 +447,15 @@ export async function onRequest(context: {
         : { hasMaster: false },
       moods: moodsVocab,
       uploaded: uploaded.map((u) =>
-        u.role === "master" ? { ...u, url: undefined } : u,
+        u.role === "master" || u.role === "stem" ? { ...u, url: undefined } : u,
       ),
       merged: Boolean(existing),
       keptMedia: {
         video: !hasNewVideo && Boolean(video),
         cover: !hasNewCover && Boolean(cover),
-        stems: kind === "stems" && !uploaded.some((u) => u.role.startsWith("stem_")),
+        stems: kind === "stems" && !uploaded.some((u) => u.role === "stem"),
         master: !hasNewMaster && master.hasMaster,
+        preview: !hasNewPreview && Boolean(preview),
       },
       catalogCount: catalog.length,
       limits: {
@@ -415,12 +465,12 @@ export async function onRequest(context: {
       },
       publicUrl: "https://www.nimpo3dstudio.com/es/biblioteca/",
       message: existing
-        ? hasNewMaster
-          ? "Guardado. Master HQ subido a R2 (privado /full/, sin bake)."
-          : "Guardado (se conservó la media que no re-subiste)."
-        : hasNewMaster
-          ? "Publicado + master HQ en R2 privado."
-          : "Publicado. Ya debería verse en la biblioteca (recarga la página).",
+        ? hasNewPreview
+          ? "Guardado. Preview web (mix) actualizado; stems HQ intactos."
+          : hasNewMaster
+            ? "Guardado. Master HQ en R2 privado."
+            : "Guardado (media no re-subida se conserva)."
+        : "Publicado. Biblioteca usa solo el preview; stems/master privados.",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "upload_failed";

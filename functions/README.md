@@ -9,8 +9,9 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `*` (middleware) | `_middleware.ts` | Protege `/admin/*` (cookie firmada) |
 | `POST /admin/session` | `admin/session.ts` | Login / logout admin |
 | `GET /admin/session` | `admin/session.ts` | Estado de sesión |
-| `POST /admin/publish` | `admin/publish.ts` | Subida + catálogo (allowlist + cuotas); master → `library/{slug}/full/` |
-| `GET /admin/master` | `admin/master.ts` | Head R2 del master HQ (size/type/key; auth admin) |
+| `POST /admin/publish` | `admin/publish.ts` | Preview público + stems/master bajo `full/` (HQ intactos) |
+| `GET /admin/master` | `admin/master.ts` | Head R2 del master HQ (auth admin) |
+| `GET /admin/media` | `admin/media.ts` | Stream R2 privado (stems/master; auth admin) |
 | `POST /admin/upload` | `admin/upload.ts` | **410 Gone** — usar publish |
 | `GET /api/library` | `api/library.ts` | Catálogo R2 sanitizado |
 | `GET /api/updates` | `api/updates.ts` | Feed Novedades R2 |
@@ -57,8 +58,9 @@ Memoria del isolate + KV si hay binding. IP solo desde `CF-Connecting-IP`.
 - Extensiones allowlist (vídeo/audio/imagen/master)
 - MIME canónico por extensión
 - 100 MB/archivo, 250 MB/publish, 24 stems
-- **Master HQ:** `library/{slug}/full/…`, sin bake, `private, no-store`; bloqueado en `/api/media`
-- Catálogo sanitizado al leer (`catalog-sanitize.ts`) — **nunca** expone `masterKey` en API pública
+- **Stems/Master HQ:** `library/{slug}/full/…`, sin bake; bloqueado en `/api/media`
+- **Preview web:** un solo mix público (generado en admin; no se tocan los HQ)
+- Catálogo público: flags `hasStems`/`hasMaster` + `preview`; sin keys de entrega
 - Front: `escapeHtml` + `safeDomId` / `safeAspectLabel` / `safeMediaUrl`
 
 ## CORS (`/api/quote`)

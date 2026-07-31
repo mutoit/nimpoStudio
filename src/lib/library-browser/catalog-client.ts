@@ -5,8 +5,6 @@
 
 import { escapeHtml, safeAspectLabel, safeDomId, safeMediaUrl } from "../dom-escape";
 
-export type Stem = { id: string; label: string; src: string };
-
 export type LibraryItem = {
   id: string;
   slug: string;
@@ -15,10 +13,9 @@ export type LibraryItem = {
   aspect: string;
   cover?: string | null;
   thumb?: string | null;
-  /** Mix preview ligero (1 archivo). Preferido para ▶ de grid. */
+  /** Único audio de play en biblioteca (mix ligero). */
   preview?: string | null;
   video?: string | null;
-  stems?: Stem[];
   tags: string[];
   moods: string[];
   filterMoods?: string[];
@@ -30,24 +27,18 @@ export type LibraryItem = {
   availability?: string;
   updatedAt?: string;
   hasVideo?: boolean;
+  /** Entrega con licencia (no player multi-capa). */
   hasStems?: boolean;
   hasPreview?: boolean;
+  hasMaster?: boolean;
+  stemCount?: number;
 };
 
 export function mapLiveItem(raw: LibraryItem): LibraryItem {
-  const stems = Array.isArray(raw.stems)
-    ? raw.stems
-        .map((s) => ({
-          id: safeDomId(s.id),
-          label: String(s.label || ""),
-          src: safeMediaUrl(s.src),
-        }))
-        .filter((s) => s.src)
-    : undefined;
   const video = safeMediaUrl(raw.video) || null;
   const preview = safeMediaUrl(raw.preview) || null;
   const cover = safeMediaUrl(raw.cover) || safeMediaUrl(raw.thumb) || null;
-  const hasStems = Boolean(raw.hasStems || (stems && stems.length) || raw.kind === "stems");
+  const hasStems = Boolean(raw.hasStems || raw.kind === "stems");
   const hasVideo = Boolean(raw.hasVideo || video);
   const hasPreview = Boolean(raw.hasPreview || preview);
   return {
@@ -65,9 +56,13 @@ export function mapLiveItem(raw: LibraryItem): LibraryItem {
     hasStems,
     hasVideo,
     hasPreview,
+    hasMaster: Boolean(raw.hasMaster),
+    stemCount:
+      raw.stemCount != null && Number.isFinite(Number(raw.stemCount))
+        ? Number(raw.stemCount)
+        : undefined,
     updatedAt:
       typeof raw.updatedAt === "string" ? String(raw.updatedAt) : undefined,
-    stems,
   };
 }
 
@@ -87,22 +82,15 @@ function slugCandidates(card: LibraryItem): string[] {
 }
 
 /**
- * List cards (índice) traen preview/hasStems pero NO stems[] ni description.
- * Solo se considera detalle hidratado si las capas/campos de ficha están de verdad.
+ * List cards (índice) traen preview/hasStems pero no description.
+ * Detalle hidratado: campos de ficha (description/video) o preview ya en card.
  */
 export function isHydratedDetail(item: LibraryItem): boolean {
-  const wantsStems =
-    item.hasStems === true ||
-    item.kind === "stems" ||
-    (Array.isArray(item.stems) && item.stems.length > 0);
-  if (wantsStems) {
-    return Array.isArray(item.stems) && item.stems.length > 0;
-  }
-  // Sin stems: detalle si hay URL de vídeo o description (solo vienen en ?slug=)
   return (
     Boolean(item.video) ||
     typeof item.description === "string" ||
-    typeof item.notes === "string"
+    typeof item.notes === "string" ||
+    Boolean(item.hasPreview && item.preview)
   );
 }
 

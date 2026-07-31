@@ -1,8 +1,9 @@
 /**
  * 🎧 Previews: genera mix preview MP3 para obras sin preview.
+ * Baja stems HQ vía /admin/media?key= (privados).
  */
 
-import { bakeMixPreviewFromUrls } from "../preview-noise-bake";
+import { bakeLibraryPreviewFromUrls } from "../preview-noise-bake";
 import { setStatus } from "./status";
 
 export type PubItem = {
@@ -19,7 +20,7 @@ export type PubItem = {
   year?: number;
   licenseEnabled?: boolean;
   preview?: string;
-  stems?: { src?: string }[];
+  stems?: { key?: string; src?: string; cleanSrc?: string }[];
 };
 
 export function setPreviewJob(opts: {
@@ -47,6 +48,22 @@ export function setPreviewJob(opts: {
   if (detail) detail.textContent = opts.detail || "";
 }
 
+function stemFetchUrls(stems: PubItem["stems"]): string[] {
+  if (!Array.isArray(stems)) return [];
+  const urls: string[] = [];
+  for (const s of stems) {
+    const key = String(s?.key || "").trim();
+    if (key.startsWith("library/")) {
+      urls.push(`/admin/media?key=${encodeURIComponent(key)}`);
+      continue;
+    }
+    // Legacy público (antes del modelo full/stems)
+    const legacy = String(s?.cleanSrc || s?.src || "").trim();
+    if (legacy) urls.push(legacy);
+  }
+  return urls;
+}
+
 export async function runPreviewRebuild(opts: {
   loadPubs: () => Promise<void>;
   getPublications: () => PubItem[];
@@ -64,8 +81,8 @@ export async function runPreviewRebuild(opts: {
     await opts.loadPubs();
     const publications = opts.getPublications();
     const need = publications.filter((p) => {
-      const stems = Array.isArray(p.stems) ? p.stems : [];
-      return stems.length > 0 && !p.preview;
+      const urls = stemFetchUrls(p.stems);
+      return urls.length > 0 && !p.preview;
     });
     if (!need.length) {
       setPreviewJob({
@@ -81,7 +98,7 @@ export async function runPreviewRebuild(opts: {
     setPreviewJob({
       show: true,
       msg: `Generando 0/${need.length}`,
-      detail: "Bajando stems → mix MP3 → subiendo…",
+      detail: "Stems HQ → mix MP3 → subiendo…",
       pct: 0,
       kind: "load",
     });
@@ -92,21 +109,20 @@ export async function runPreviewRebuild(opts: {
       const p = need[i]!;
       const slug = String(p.slug || "");
       const title = String(p.title || slug);
-      const srcs = (Array.isArray(p.stems) ? p.stems : [])
-        .map((s) => String(s.src || "").trim())
-        .filter(Boolean);
+      const urls = stemFetchUrls(p.stems);
       setPreviewJob({
         show: true,
         msg: `${i + 1}/${need.length} · «${title}»`,
-        detail: `Mezclando ${srcs.length} capa(s) → MP3…`,
+        detail: `Mezclando ${urls.length} capa(s) → MP3…`,
         pct: ((i + 0.15) / need.length) * 100,
         kind: "load",
       });
       setStatus(`Preview ${i + 1}/${need.length}: «${title}»…`);
       try {
-        const mix = await bakeMixPreviewFromUrls(srcs, {
-          credentials: "same-origin",
-          cache: "reload",
+        const mix = await bakeLibraryPreviewFromUrls(urls, {
+          noise01: 0.12,
+          music01: 1,
+          fetchInit: { credentials: "same-origin", cache: "reload" },
         });
         setPreviewJob({
           show: true,
@@ -148,33 +164,32 @@ export async function runPreviewRebuild(opts: {
         });
       } catch (e) {
         fail++;
-        console.warn("[rebuild preview]", slug, e);
+        console.warn("[preview-rebuild]", title, e);
         setPreviewJob({
           show: true,
-          msg: `${i + 1}/${need.length} · error «${title}»`,
-          detail: e instanceof Error ? e.message : "fallo",
+          msg: `${i + 1}/${need.length} · fallo «${title}»`,
+          detail: e instanceof Error ? e.message : String(e),
           pct: ((i + 1) / need.length) * 100,
           kind: "err",
         });
       }
     }
-    const finalMsg = `✅ Previews: ${ok} ok · ${fail} fallos`;
     setPreviewJob({
       show: true,
-      msg: finalMsg,
-      detail:
-        fail > 0
-          ? "Revisa consola si falló alguna. Ctrl+F5 en /es/biblioteca/"
-          : "Listo (MP3). Ctrl+F5 en /es/biblioteca/.",
+      msg: fail ? `Hecho con fallos · ${ok} ok · ${fail} fail` : `✅ ${ok} preview(s)`,
+      detail: fail
+        ? "Revisa obras fallidas (¿keys privadas accesibles?)."
+        : "Biblioteca usará el mix único.",
       pct: 100,
-      kind: fail > 0 && ok === 0 ? "err" : "ok",
+      kind: fail ? "err" : "ok",
     });
-    setStatus(`${finalMsg}. Ctrl+F5 en /es/biblioteca/`);
+    setStatus(
+      fail
+        ? `Previews: ${ok} ok, ${fail} fallos.`
+        : `✅ ${ok} preview(s) generados.`,
+      !fail,
+    );
     await opts.loadPubs();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Error previews";
-    setPreviewJob({ show: true, msg: "Error", detail: msg, pct: 0, kind: "err" });
-    setStatus(msg, false);
   } finally {
     if (btn instanceof HTMLButtonElement) btn.disabled = false;
   }

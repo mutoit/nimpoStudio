@@ -1,10 +1,15 @@
 /**
  * Catálogo R2 = no confiable. Sanitiza ítems antes de servir o re-hidratar.
+ *
+ * Modelo único:
+ * - Público: preview (+ video/cover). Sin stems[] ni masterKey.
+ * - hasStems / hasMaster = flags de entrega (licencia), no player multi-capa.
+ * - Admin: stems[{id,label,key}] privadas bajo full/stems.
  */
 
 import { safeAspect, safeName, clipText, clipStringList, safeItemId } from "./media-upload";
 
-/** Reescribe r2.dev → /api/media/... (same-origin, Web Audio OK). */
+/** Reescribe r2.dev → /api/media/... (same-origin). */
 function toSameOriginMedia(u: string): string {
   try {
     if (u.startsWith("/api/media/")) return u;
@@ -24,6 +29,8 @@ function safeMediaUrlField(url: unknown): string | null {
   if (url == null || url === "") return null;
   let u = String(url).trim().slice(0, 2048);
   u = toSameOriginMedia(u);
+  // Nunca exponer rutas /full/ como URL de media pública
+  if (u.includes("/full/")) return null;
   if (u.startsWith("/") && !u.startsWith("//")) return u;
   try {
     const parsed = new URL(u);
@@ -37,7 +44,9 @@ function safeMediaUrlField(url: unknown): string | null {
       host === "localhost" ||
       host === "127.0.0.1"
     ) {
-      return toSameOriginMedia(u);
+      const out = toSameOriginMedia(u);
+      if (out.includes("/full/")) return null;
+      return out;
     }
   } catch {
     return null;
@@ -45,7 +54,43 @@ function safeMediaUrlField(url: unknown): string | null {
   return null;
 }
 
-export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | null {
+function mediaRefToKey(raw: unknown): string {
+  let u = String(raw || "").trim();
+  if (!u) return "";
+  if (u.startsWith("library/")) return u.split("?")[0] || u;
+  if (u.startsWith("/api/media/")) {
+    u = u.slice("/api/media/".length).split("?")[0] || "";
+    return u.startsWith("library/") ? u : "";
+  }
+  return "";
+}
+
+export type DeliveryStem = { id: string; label: string; key: string };
+
+/** Stems de entrega (admin). Solo keys R2, sin URL pública. */
+export function extractDeliveryStems(raw: unknown): DeliveryStem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DeliveryStem[] = [];
+  for (let i = 0; i < Math.min(24, raw.length); i++) {
+    const s = raw[i];
+    if (!s || typeof s !== "object") continue;
+    const st = s as Record<string, unknown>;
+    const label = clipText(st.label || st.id || `Stem ${i + 1}`, 80);
+    const id = safeName(String(st.id || label)) || `stem-${i + 1}`;
+    const key =
+      mediaRefToKey(st.key) ||
+      mediaRefToKey(st.cleanSrc) ||
+      mediaRefToKey(st.src);
+    if (!key.startsWith("library/")) continue;
+    out.push({ id, label, key });
+  }
+  return out;
+}
+
+export function sanitizeCatalogItem(
+  raw: unknown,
+  opts?: { includeDelivery?: boolean },
+): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const slug = safeName(String(o.slug || "")) || "item";
@@ -55,36 +100,14 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     : safeItemId(slug);
 
   const kind = String(o.kind || "") === "stems" ? "stems" : "video";
-  const stemsIn = Array.isArray(o.stems) ? o.stems : [];
-  const stems = stemsIn
-    .slice(0, 24)
-    .map((s, i) => {
-      if (!s || typeof s !== "object") return null;
-      const st = s as Record<string, unknown>;
-      const src = safeMediaUrlField(st.src);
-      if (!src) return null;
-      const label = clipText(st.label || `Stem ${i + 1}`, 80);
-      const sid = safeName(String(st.id || label)) || `stem-${i + 1}`;
-      // cleanSrc = original sin ruido (solo admin re-mezcla / preview limpio)
-      const cleanSrc = safeMediaUrlField(st.cleanSrc) || undefined;
-      return cleanSrc
-        ? { id: sid, label, src, cleanSrc }
-        : { id: sid, label, src };
-    })
-    .filter(Boolean);
-
-  const availability = ["available", "reserved", "sold_exclusive", "off_catalog"].includes(
-    String(o.availability || ""),
-  )
-    ? String(o.availability)
-    : "available";
-
-  const hasStems = stems.length > 0 || kind === "stems";
+  const deliveryStems = extractDeliveryStems(o.stems);
+  // Legacy: array stems con solo src público → cuenta como hasStems
+  const legacyStemCount = Array.isArray(o.stems) ? o.stems.length : 0;
+  const hasStems =
+    deliveryStems.length > 0 || legacyStemCount > 0 || kind === "stems" || Boolean(o.hasStems);
   const hasVideo = Boolean(safeMediaUrlField(o.video));
   const hasPreview = Boolean(safeMediaUrlField(o.preview));
 
-  // Master de entrega: NUNCA exponer masterKey (R2 privado bajo /full/).
-  // Solo meta para admin/UI: hasMaster + nombre/tamaño/tipo.
   const rawMasterKey = String(o.masterKey || "").trim();
   const hasMaster =
     Boolean(o.hasMaster) ||
@@ -100,19 +123,23 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     ? clipText(o.masterContentType || "audio/wav", 80) || undefined
     : undefined;
 
-  return {
+  const availability = ["available", "reserved", "sold_exclusive", "off_catalog"].includes(
+    String(o.availability || ""),
+  )
+    ? String(o.availability)
+    : "available";
+
+  const base: Record<string, unknown> = {
     id,
     slug,
     title: clipText(o.title || slug, 200) || slug,
     kind: hasStems ? "stems" : kind,
     aspect: safeAspect(String(o.aspect || "1:1")),
     cover: safeMediaUrlField(o.cover),
-    /** Miniatura de grid (opcional; si falta se usa cover). */
     thumb: safeMediaUrlField(o.thumb),
-    /** Mix preview público (1 archivo mono). Grid ▶; modal con capas usa stems[]. */
+    /** Único audio de play en biblioteca pública. */
     preview: safeMediaUrlField(o.preview),
     video: safeMediaUrlField(o.video),
-    stems: stems.length ? stems : undefined,
     hasStems,
     hasVideo,
     hasPreview,
@@ -120,6 +147,7 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     masterName,
     masterBytes,
     masterContentType,
+    stemCount: deliveryStems.length || legacyStemCount || undefined,
     tags: clipStringList(o.tags),
     moods: clipStringList(o.moods),
     filterMoods: clipStringList(o.filterMoods),
@@ -132,52 +160,45 @@ export function sanitizeCatalogItem(raw: unknown): Record<string, unknown> | nul
     availability,
     publishedAt:
       typeof o.publishedAt === "string" ? clipText(o.publishedAt, 40) : undefined,
-    // Para cache-bust de media en el cliente tras re-publicar
     updatedAt:
       typeof o.updatedAt === "string" ? clipText(o.updatedAt, 40) : undefined,
   };
+
+  if (opts?.includeDelivery) {
+    base.stems = deliveryStems;
+    if (hasMaster && rawMasterKey.includes("/full/")) {
+      base.masterKey = rawMasterKey;
+    }
+  }
+
+  return base;
 }
 
 export function sanitizeCatalogItems(
   items: unknown[],
-  opts?: { includeOffCatalog?: boolean; stripCleanSrc?: boolean },
+  opts?: { includeOffCatalog?: boolean; includeDelivery?: boolean; stripCleanSrc?: boolean },
 ): Record<string, unknown>[] {
   if (!Array.isArray(items)) return [];
   return items
-    .map(sanitizeCatalogItem)
+    .map((x) => sanitizeCatalogItem(x, { includeDelivery: opts?.includeDelivery }))
     .filter((x): x is Record<string, unknown> => x != null)
-    .filter((x) => opts?.includeOffCatalog || x.availability !== "off_catalog")
-    .map((item) => (opts?.stripCleanSrc ? stripCleanSrcFromItem(item) : item));
+    .filter((x) => opts?.includeOffCatalog || x.availability !== "off_catalog");
 }
 
-/** Público: no exponer stems limpios (solo preview con ruido). */
+/** @deprecated — stems públicos eliminados; no-op de compat. */
 export function stripCleanSrcFromItem(
   item: Record<string, unknown>,
 ): Record<string, unknown> {
-  const stems = item.stems;
-  if (!Array.isArray(stems)) return item;
-  return {
-    ...item,
-    stems: stems.map((s) => {
-      if (!s || typeof s !== "object") return s;
-      const { cleanSrc: _c, ...rest } = s as Record<string, unknown>;
-      return rest;
-    }),
-  };
+  const { stems: _s, masterKey: _m, ...rest } = item;
+  return rest;
 }
 
 /**
  * Card de listado público: sin stems[], video URL, description, notes.
- * Flags hasVideo / hasStems para la UI.
  */
 export function toLibraryCard(item: Record<string, unknown>): Record<string, unknown> {
-  const stems = Array.isArray(item.stems) ? item.stems : [];
-  const video = item.video;
-  const hasVideo = typeof video === "string" && video.length > 0;
   const moods = Array.isArray(item.moods) ? item.moods.slice(0, 8) : [];
   const tags = Array.isArray(item.tags) ? item.tags.slice(0, 8) : [];
-
-  // Grid: preferir thumb (miniatura) si existe; cover full solo en detail
   const thumb = item.thumb ?? null;
   const cover = thumb || item.cover || null;
   const preview =
@@ -192,9 +213,10 @@ export function toLibraryCard(item: Record<string, unknown>): Record<string, unk
     cover,
     preview,
     hasPreview: Boolean(preview),
-    hasVideo,
-    hasStems: stems.length > 0 || String(item.kind || "") === "stems",
+    hasVideo: Boolean(item.hasVideo),
+    hasStems: Boolean(item.hasStems),
     hasMaster: Boolean(item.hasMaster),
+    stemCount: item.stemCount,
     moods,
     tags,
     availability: item.availability ?? "available",

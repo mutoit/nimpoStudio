@@ -1,103 +1,16 @@
 /**
- * Incrusta ruido blanco en un archivo de audio de preview (solo admin, al publicar).
- * Devuelve WAV PCM 16-bit mono @ ≤22.05 kHz (ligero para la biblioteca web).
+ * Preview de biblioteca: UNA copia de trabajo (mix) a partir de stems HQ locales.
+ * Los originales no se modifican en disco/R2 — solo se leen para generar el mix.
  *
- * P: noise01 en [0,1], file decodificable
- * Q: File .wav con música + ruido mezclado (siempre mono preview; limpio va aparte)
- *
- * Volumen (importante):
- * - OfflineAudioContext stereo→mono usa ~0.5*(L+R). Stems solo en L (o descorrelacionados)
- *   salían ~6 dB bajos y el make-up antiguo **fijaba** ese nivel (target = pico mono).
- * - Ahora: downmix mono a mano + make-up al **pico de canal** del original × music01.
- * - layerCount solo reparte el **ruido** (√N), no atenúa la música.
+ * Salida: mono @ 22.05 kHz, MP3 preferido (ligero para grid/modal).
+ * Ruido: un solo bus (como admin Escuchar), no por capa.
  */
 
-/** Sample rate de preview público: suficiente para oír la mezcla, ~4× más ligero que stereo 48k. */
+/** Sample rate del preview público (no de los stems de entrega). */
 const PREVIEW_SAMPLE_RATE = 22050;
 
 function writeString(view: DataView, offset: number, str: string) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-}
-
-/** Pico máximo en cualquier canal (no el mid mono). */
-function channelPeak(buffer: AudioBuffer): number {
-  let peak = 0;
-  for (let c = 0; c < buffer.numberOfChannels; c++) {
-    const data = buffer.getChannelData(c);
-    for (let i = 0; i < data.length; i++) {
-      const a = Math.abs(data[i] ?? 0);
-      if (a > peak) peak = a;
-    }
-  }
-  return peak;
-}
-
-function peakMono(buffer: AudioBuffer): number {
-  const data = buffer.getChannelData(0);
-  let peak = 0;
-  for (let i = 0; i < data.length; i++) {
-    const a = Math.abs(data[i] ?? 0);
-    if (a > peak) peak = a;
-  }
-  return peak;
-}
-
-/**
- * Escala el canal 0 in-place para acercar el pico a targetPeak (sin pasar de 0.99).
- * Si out ya es más alto (p.ej. ruido suma), solo baja si supera 0.99.
- */
-function applyPeakMakeup(buffer: AudioBuffer, targetPeak: number): void {
-  const data = buffer.getChannelData(0);
-  const outPeak = peakMono(buffer);
-  if (outPeak < 1e-8) return;
-  const cap = 0.99;
-  const want = Math.max(0, Math.min(cap, targetPeak));
-  let scale = 1;
-  if (outPeak < want * 0.98) {
-    scale = want / outPeak;
-  } else if (outPeak > cap) {
-    scale = cap / outPeak;
-  }
-  if (Math.abs(scale - 1) < 0.001) return;
-  for (let i = 0; i < data.length; i++) data[i]! *= scale;
-}
-
-/**
- * Stereo/multi → mono en el sample rate del buffer.
- * Mid 0.5*(L+R) y luego restaura pico al del canal más alto (stems solo-L, etc.).
- */
-function toMonoPeakPreserve(ctx: BaseAudioContext, buffer: AudioBuffer): AudioBuffer {
-  const n = buffer.length;
-  const nCh = buffer.numberOfChannels;
-  const mono = ctx.createBuffer(1, n, buffer.sampleRate);
-  const out = mono.getChannelData(0);
-  const channels: Float32Array[] = [];
-  for (let c = 0; c < nCh; c++) channels.push(buffer.getChannelData(c));
-
-  let peakCh = 0;
-  let peakMid = 0;
-  for (let i = 0; i < n; i++) {
-    let sum = 0;
-    let maxAbs = 0;
-    for (let c = 0; c < nCh; c++) {
-      const v = channels[c]![i] ?? 0;
-      sum += v;
-      const a = Math.abs(v);
-      if (a > maxAbs) maxAbs = a;
-    }
-    const mid = nCh > 1 ? sum / nCh : sum;
-    out[i] = mid;
-    if (maxAbs > peakCh) peakCh = maxAbs;
-    const am = Math.abs(mid);
-    if (am > peakMid) peakMid = am;
-  }
-
-  // Restaurar nivel si el mid se quedó corto (p.ej. mono solo en L → mid = 0.5·L)
-  if (peakMid > 1e-8 && peakCh > peakMid * 1.02) {
-    const scale = Math.min(0.99 / peakMid, peakCh / peakMid);
-    for (let i = 0; i < n; i++) out[i]! *= scale;
-  }
-  return mono;
 }
 
 function encodeWavMono(buffer: AudioBuffer): Blob {
@@ -113,8 +26,8 @@ function encodeWavMono(buffer: AudioBuffer): Blob {
   writeString(view, 8, "WAVE");
   writeString(view, 12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
@@ -132,87 +45,41 @@ function encodeWavMono(buffer: AudioBuffer): Blob {
   return new Blob([ab], { type: "audio/wav" });
 }
 
-/**
- * @param noise01 0 = sin ruido, 0.12 típico, 1 = solo ruido
- * @param music01 volumen de la música en la mezcla final (default 1)
- * @param layerCount nº de stems que se publican juntos. El ruido se reparte en √N
- *   para que, al sonar todas las capas, el ruido total ≈ el del preview admin
- *   (1 bus de ruido). Sin esto, 7 stems suenan a “ruido al máximo”.
- *   No baja el volumen de la música por capa.
- */
-export async function bakePreviewNoise(
-  file: File,
-  noise01: number,
-  music01 = 1,
-  layerCount = 1,
-): Promise<File> {
-  const nLevel = Math.max(0, Math.min(1, noise01));
-  const mLevel = Math.max(0, Math.min(1, music01));
-  const layers = Math.max(1, Math.min(24, Math.floor(layerCount) || 1));
-
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  const ctx = new AC();
-  try {
-    const raw = await file.arrayBuffer();
-    const decoded = await ctx.decodeAudioData(raw.slice(0));
-    // Pico de canal del original (no mid): objetivo de loudness del stem público
-    const sourcePeak = channelPeak(decoded);
-    // Mono a mano (preserva pico) antes del offline → evita downmix silencioso del OAC
-    const monoSrc = toMonoPeakPreserve(ctx, decoded);
-
-    const targetRate = PREVIEW_SAMPLE_RATE;
-    const frames = Math.max(1, Math.ceil(decoded.duration * targetRate));
-    const offline = new OfflineAudioContext(1, frames, targetRate);
-
-    const src = offline.createBufferSource();
-    src.buffer = monoSrc;
-    const musicGain = offline.createGain();
-    musicGain.gain.value = mLevel;
-    src.connect(musicGain);
-    musicGain.connect(offline.destination);
-
-    if (nLevel >= 0.005) {
-      const noiseBuf = offline.createBuffer(1, frames, targetRate);
-      const data = noiseBuf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-      const noiseSrc = offline.createBufferSource();
-      noiseSrc.buffer = noiseBuf;
-      const noiseGain = offline.createGain();
-      // Admin preview: 1× (noise01 × 0.22). Público: N stems → ÷ √N (solo ruido)
-      noiseGain.gain.value = (nLevel * 0.22) / Math.sqrt(layers);
-      noiseSrc.connect(noiseGain);
-      noiseGain.connect(offline.destination);
-      noiseSrc.start(0);
-    }
-
-    src.start(0);
-    const mixed = await offline.startRendering();
-    // Make-up al pico de canal del original (no al mid 0.5·(L+R))
-    const targetPeak = Math.min(0.99, Math.max(sourcePeak * mLevel, 1e-6));
-    applyPeakMakeup(mixed, targetPeak);
-
-    const blob = encodeWavMono(mixed);
-    const base = file.name.replace(/\.[^.]+$/, "") || "preview";
-    return new File([blob], `${base}-preview.wav`, { type: "audio/wav" });
-  } finally {
-    await ctx.close().catch(() => {});
+/** Mid multi-canal → mono (solo en la copia de trabajo del preview). */
+function toMonoBuffer(ctx: BaseAudioContext, buffer: AudioBuffer): AudioBuffer {
+  const n = buffer.length;
+  const nCh = buffer.numberOfChannels;
+  const mono = ctx.createBuffer(1, n, buffer.sampleRate);
+  const out = mono.getChannelData(0);
+  if (nCh === 1) {
+    out.set(buffer.getChannelData(0));
+    return mono;
   }
+  const chans: Float32Array[] = [];
+  for (let c = 0; c < nCh; c++) chans.push(buffer.getChannelData(c));
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let c = 0; c < nCh; c++) sum += chans[c]![i] ?? 0;
+    out[i] = sum / nCh;
+  }
+  return mono;
 }
 
 /**
- * Mezcla N stems (ya con ruido) en **un** preview mono @ 22.05 kHz.
- * Preferido: **MP3** (lamejs). Fallback: WAV si encode falla.
- *
- * Misma lógica de volumen que el admin al “Escuchar” todas las capas a gain 1:
- * se suman a nivel pleno y luego se normaliza el pico a ~0.95 (solo evita clip).
- *
- * P: files decodificables. Q: 1 File (audio/mpeg o audio/wav).
+ * Genera el único audio de biblioteca: mezcla de stems + ruido opcional → MP3/WAV ligero.
+ * P: files HQ decodificables (no se mutan).
+ * Q: 1 File preview (audio/mpeg o audio/wav).
  */
-export async function bakeMixPreview(files: File[]): Promise<File> {
+export async function bakeLibraryPreview(
+  files: File[],
+  noise01 = 0.12,
+  music01 = 1,
+): Promise<File> {
   const list = files.filter((f) => f instanceof File && f.size > 0);
-  if (!list.length) throw new Error("bake_mix_empty");
+  if (!list.length) throw new Error("bake_preview_empty");
+
+  const nLevel = Math.max(0, Math.min(1, noise01));
+  const mLevel = Math.max(0, Math.min(1, music01));
 
   const AC =
     window.AudioContext ||
@@ -228,17 +95,32 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
     const targetRate = PREVIEW_SAMPLE_RATE;
     const frames = Math.max(1, Math.ceil(duration * targetRate));
     const offline = new OfflineAudioContext(1, frames, targetRate);
-    // Gain 1 por capa (= admin playBuffers). La normalización de pico evita clip.
+
     for (const buf of decoded) {
-      const mono = toMonoPeakPreserve(offline, buf);
+      const mono = toMonoBuffer(offline, buf);
       const src = offline.createBufferSource();
       src.buffer = mono;
       const g = offline.createGain();
-      g.gain.value = 1;
+      g.gain.value = mLevel;
       src.connect(g);
       g.connect(offline.destination);
       src.start(0);
     }
+
+    if (nLevel >= 0.005) {
+      const noiseBuf = offline.createBuffer(1, frames, targetRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const noiseSrc = offline.createBufferSource();
+      noiseSrc.buffer = noiseBuf;
+      const noiseGain = offline.createGain();
+      // Un bus de ruido (igual que admin Escuchar), no por stem
+      noiseGain.gain.value = nLevel * 0.22;
+      noiseSrc.connect(noiseGain);
+      noiseGain.connect(offline.destination);
+      noiseSrc.start(0);
+    }
+
     const mixed = await offline.startRendering();
     const data = mixed.getChannelData(0);
     let peak = 0;
@@ -247,36 +129,65 @@ export async function bakeMixPreview(files: File[]): Promise<File> {
       const scale = 0.95 / peak;
       for (let i = 0; i < data.length; i++) data[i]! *= scale;
     }
+
     try {
       const { encodeMp3FromAudioBuffer } = await import("./preview-mp3-encode");
       return await encodeMp3FromAudioBuffer(mixed, {
         kbps: 128,
-        fileName: "mix-preview.mp3",
+        fileName: "library-preview.mp3",
       });
     } catch (e) {
-      console.warn("[bakeMixPreview] mp3 encode fail → wav", e);
-      const blob = encodeWavMono(mixed);
-      return new File([blob], "mix-preview.wav", { type: "audio/wav" });
+      console.warn("[bakeLibraryPreview] mp3 → wav", e);
+      return new File([encodeWavMono(mixed)], "library-preview.wav", {
+        type: "audio/wav",
+      });
     }
   } finally {
     await ctx.close().catch(() => {});
   }
 }
 
+/** @deprecated alias — usar bakeLibraryPreview */
+export async function bakeMixPreview(files: File[]): Promise<File> {
+  return bakeLibraryPreview(files, 0, 1);
+}
+
 /**
- * Igual que bakeMixPreview pero desde URLs (rebuild de obras ya publicadas).
+ * Mix preview desde URLs (rebuild admin). Preferir /admin/media?key= para stems privados.
  */
-export async function bakeMixPreviewFromUrls(
+export async function bakeLibraryPreviewFromUrls(
   urls: string[],
-  fetchInit?: RequestInit,
+  opts?: { noise01?: number; music01?: number; fetchInit?: RequestInit },
 ): Promise<File> {
   const files: File[] = [];
   let i = 0;
   for (const u of urls) {
-    const res = await fetch(u, fetchInit);
+    const res = await fetch(u, opts?.fetchInit);
     if (!res.ok) throw new Error(`mix_fetch_${res.status}`);
     const blob = await res.blob();
     files.push(new File([blob], `stem-${i++}.wav`, { type: blob.type || "audio/wav" }));
   }
-  return bakeMixPreview(files);
+  return bakeLibraryPreview(files, opts?.noise01 ?? 0.12, opts?.music01 ?? 1);
+}
+
+/** @deprecated */
+export async function bakeMixPreviewFromUrls(
+  urls: string[],
+  fetchInit?: RequestInit,
+): Promise<File> {
+  return bakeLibraryPreviewFromUrls(urls, { noise01: 0, music01: 1, fetchInit });
+}
+
+/**
+ * @deprecated Ya no se bakea por stem. Se mantiene stub por si hay imports residuales.
+ * Preferir bakeLibraryPreview.
+ */
+export async function bakePreviewNoise(
+  file: File,
+  _noise01: number,
+  _music01 = 1,
+  _layerCount = 1,
+): Promise<File> {
+  console.warn("[bakePreviewNoise] deprecated — use bakeLibraryPreview");
+  return bakeLibraryPreview([file], 0, 1);
 }

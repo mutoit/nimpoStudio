@@ -237,7 +237,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
-- Admin `/admin/abonados/` + newsletter (abono, confirm, avisar al publicar feed)
+- Admin `/admin/abonados/` + newsletter (abono en **home** bajo hero; rail = solo feed; confirm + avisar al publicar)
 - Catálogo ficha: **Compartir** + etiqueta **Probar beta** / **Probar demo** según status
 - Admin productos: estados **beta/demo**, precios decimales, media append al editar (no wipe)
 - Escala catálogo: dual-write monofile + `catalog/items/{slug}.json` + índice ligero; productos API paginada; media Range; requireAdmin compartido; precios SSoT JSON

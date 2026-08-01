@@ -111,7 +111,13 @@ export async function onRequest(context: { request: Request; env: Env }) {
     "other";
 
   let status = String(form.get("status") || existing?.status || "published");
-  if (status !== "published" && status !== "draft" && status !== "coming-soon") {
+  if (
+    status !== "published" &&
+    status !== "draft" &&
+    status !== "coming-soon" &&
+    status !== "beta" &&
+    status !== "demo"
+  ) {
     status = "published";
   }
 
@@ -154,7 +160,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const demoUrl = clipText(form.get("demoUrl"), 500) || existing?.demo?.url || "";
   const demoNotes = clipText(form.get("demoNotes"), 500);
   const planName = clipText(form.get("planName"), 80);
+  // Beta/demo: precio no obligatorio (vacío → null). Decimales OK (9.90).
   const priceEurRaw = String(form.get("priceEur") ?? "").trim();
+  const priceEurForItem =
+    priceEurRaw === "" && (status === "beta" || status === "demo")
+      ? ""
+      : priceEurRaw;
   const buyUrl = clipText(form.get("buyUrl"), 500);
   const stripePriceId = clipText(form.get("stripePriceId"), 80);
   const version = clipText(form.get("version"), 40);
@@ -261,7 +272,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
       demoUrl: demoUrlResolved,
       demoNotes: demoNotes || existing?.demo?.notes || "",
       planName: planName || existing?.pricing?.[0]?.name || "Standard",
-      priceEur: priceEurRaw !== "" ? priceEurRaw : existing?.pricing?.[0]?.priceEur ?? "",
+      priceEur:
+        priceEurForItem !== ""
+          ? priceEurForItem
+          : status === "beta" || status === "demo"
+            ? ""
+            : (existing?.pricing?.[0]?.priceEur ?? ""),
       buyUrl: buyUrl || existing?.pricing?.[0]?.buyUrl || "",
       stripePriceId: stripePriceId || existing?.pricing?.[0]?.stripePriceId || "",
       version: version || existing?.version || "",

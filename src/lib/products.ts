@@ -8,7 +8,12 @@ export type ProductCategory =
   | "bundles"
   | "servicios";
 
-export type ProductStatus = "published" | "draft" | "coming-soon";
+export type ProductStatus =
+  | "published"
+  | "draft"
+  | "coming-soon"
+  | "beta"
+  | "demo";
 
 export type LicenseType = "personal" | "commercial" | "exclusive" | "custom";
 
@@ -65,7 +70,11 @@ const allProducts = rawProducts as Product[];
 
 export function getPublishedProducts(): Product[] {
   return allProducts.filter(
-    (product) => product.status === "published" || product.status === "coming-soon",
+    (product) =>
+      product.status === "published" ||
+      product.status === "coming-soon" ||
+      product.status === "beta" ||
+      product.status === "demo",
   );
 }
 

@@ -138,9 +138,13 @@ export function sanitizeCatalogItem(
   const stemsStripePriceId = /^price_[a-zA-Z0-9]+$/.test(stemsStripePriceIdRaw)
     ? stemsStripePriceIdRaw
     : "";
+  const priceRaw =
+    o.priceEur != null && o.priceEur !== ""
+      ? Number(String(o.priceEur).replace(",", "."))
+      : NaN;
   const priceEur =
-    o.priceEur != null && Number.isFinite(Number(o.priceEur)) && Number(o.priceEur) > 0
-      ? Number(o.priceEur)
+    Number.isFinite(priceRaw) && priceRaw > 0
+      ? Math.round(priceRaw * 100) / 100
       : null;
   // Pagar online: master HQ + licencia on. Prices son del baremo global (no por obra).
   const checkoutReady = Boolean(hasMaster && o.licenseEnabled !== false);

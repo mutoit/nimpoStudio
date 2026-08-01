@@ -137,6 +137,9 @@ export const translations = {
     productNotice:
       "Compra y descarga disponibles próximamente. Por ahora este producto forma parte del catálogo público.",
     productSoon: "Próximamente disponible",
+    productBeta: "Beta",
+    productDemoStatus: "Demo",
+    productNoPrice: "Sin precio (beta / demo)",
     productDemo: "Probar demo",
     productDemoRequest: "Solicitar demo",
     productBuy: "Comprar",
@@ -550,6 +553,9 @@ export const translations = {
     productNotice:
       "Purchase and downloads available soon. For now this product is part of the public catalog.",
     productSoon: "Available soon",
+    productBeta: "Beta",
+    productDemoStatus: "Demo",
+    productNoPrice: "No price (beta / demo)",
     productDemo: "Try demo",
     productDemoRequest: "Request demo",
     productBuy: "Buy",
@@ -951,6 +957,9 @@ export const translations = {
     productNotice:
       "Achat et téléchargements disponibles bientôt. Pour l'instant ce produit fait partie du catalogue public.",
     productSoon: "Disponible bientôt",
+    productBeta: "Bêta",
+    productDemoStatus: "Démo",
+    productNoPrice: "Sans prix (bêta / démo)",
     productDemo: "Essayer la démo",
     productDemoRequest: "Demander une démo",
     productBuy: "Acheter",

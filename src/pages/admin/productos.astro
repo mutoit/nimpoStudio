@@ -58,6 +58,8 @@ import Layout from "../../components/Layout.astro";
               Estado
               <select name="status" data-status>
                 <option value="published" selected>Publicado</option>
+                <option value="beta">Beta (sin precio obligatorio)</option>
+                <option value="demo">Demo (sin precio obligatorio)</option>
                 <option value="coming-soon">Próximamente</option>
                 <option value="draft">Borrador (oculto)</option>
               </select>
@@ -120,7 +122,16 @@ import Layout from "../../components/Layout.astro";
             </label>
             <label>
               Precio EUR
-              <input name="priceEur" data-price-eur type="number" min="0" step="1" placeholder="49" />
+              <input
+                name="priceEur"
+                data-price-eur
+                type="number"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                placeholder="9.90"
+              />
+              <span class="field-hint" data-price-hint>Decimales OK (9.90). Vacío en beta/demo.</span>
             </label>
           </div>
           <label>
@@ -299,6 +310,27 @@ import Layout from "../../components/Layout.astro";
 
   document.querySelector("[data-edit-cancel]")?.addEventListener("click", resetForm);
 
+  const priceInput = form?.querySelector("[data-price-eur]") as HTMLInputElement | null;
+  const priceHint = document.querySelector("[data-price-hint]");
+  const statusSelect = form?.querySelector("[data-status]") as HTMLSelectElement | null;
+
+  const syncPriceOptional = () => {
+    const st = statusSelect?.value || "published";
+    const optional = st === "beta" || st === "demo";
+    if (priceInput) {
+      priceInput.required = false;
+      priceInput.removeAttribute("required");
+      priceInput.placeholder = optional ? "opcional" : "9.90";
+    }
+    if (priceHint instanceof HTMLElement) {
+      priceHint.textContent = optional
+        ? "Beta/demo: precio no obligatorio. Decimales OK (9.90)."
+        : "Decimales OK (9.90). Vacío = sin precio público.";
+    }
+  };
+  statusSelect?.addEventListener("change", syncPriceOptional);
+  syncPriceOptional();
+
   const fillForm = (item: Product) => {
     editingSlug = item.slug;
     if (editBar instanceof HTMLElement) editBar.hidden = false;
@@ -327,9 +359,15 @@ import Layout from "../../components/Layout.astro";
     set("[data-version]", item.version || "");
     const plan = item.pricing?.[0];
     set("[data-plan-name]", plan?.name || "Standard");
-    set("[data-price-eur]", plan?.priceEur != null ? String(plan.priceEur) : "");
+    set(
+      "[data-price-eur]",
+      plan?.priceEur != null && Number.isFinite(Number(plan.priceEur))
+        ? String(plan.priceEur)
+        : "",
+    );
     set("[data-buy-url]", plan?.buyUrl || "");
     set("[data-stripe-price]", plan?.stripePriceId || "");
+    syncPriceOptional();
     const fullSt = document.querySelector("[data-full-status]");
     if (fullSt instanceof HTMLElement) {
       if (item.fullKey) {
@@ -524,6 +562,13 @@ import Layout from "../../components/Layout.astro";
     color: var(--color-muted);
     font-size: 0.9rem;
     line-height: 1.5;
+  }
+  .field-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    line-height: 1.35;
   }
   .lead a {
     color: var(--color-accent);

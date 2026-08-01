@@ -31,7 +31,12 @@ export type ProductsBucket = {
   delete?: (key: string) => Promise<void>;
 };
 
-export type ProductStatus = "published" | "draft" | "coming-soon";
+export type ProductStatus =
+  | "published"
+  | "draft"
+  | "coming-soon"
+  | "beta"
+  | "demo";
 
 /** Cómo se ofrece la demo (ola 1: meta + URL; full binary = ola 2). */
 export type ProductDemoKind = "none" | "download" | "web" | "request";
@@ -80,8 +85,27 @@ export type SoftwareProduct = {
   updatedAt?: string;
 };
 
-const STATUSES = new Set(["published", "draft", "coming-soon"]);
+const STATUSES = new Set([
+  "published",
+  "draft",
+  "coming-soon",
+  "beta",
+  "demo",
+]);
 const DEMO_KINDS = new Set(["none", "download", "web", "request"]);
+
+/** Precio EUR con céntimos (9.90). Vacío/ inválido → null. */
+export function parsePriceEur(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(String(raw).trim().replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/** Beta/demo: precio opcional (no se exige en admin ni se fuerza en ficha). */
+export function statusSkipsPrice(status: string): boolean {
+  return status === "beta" || status === "demo";
+}
 
 function sanitizeDemo(raw: unknown, existing?: ProductDemo): ProductDemo {
   const base: ProductDemo = existing || { kind: "none", url: null, notes: "" };
@@ -120,13 +144,7 @@ function sanitizePricing(raw: unknown, existing?: ProductPlan[]): ProductPlan[] 
       if (!name) return null;
       const id =
         safeName(String(o.id || name)).slice(0, 40) || `plan-${i + 1}`;
-      const priceRaw = o.priceEur ?? o.price;
-      const priceEur =
-        priceRaw == null || priceRaw === ""
-          ? null
-          : Number.isFinite(Number(priceRaw))
-            ? Math.max(0, Number(priceRaw))
-            : null;
+      const priceEur = parsePriceEur(o.priceEur ?? o.price);
       let buyUrl = String(o.buyUrl || o.url || "").trim().slice(0, 500);
       if (buyUrl && !/^https:\/\//i.test(buyUrl) && !buyUrl.startsWith("mailto:")) {
         buyUrl = "";

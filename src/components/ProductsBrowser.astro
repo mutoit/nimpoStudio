@@ -49,6 +49,9 @@ const payload = {
     empty: t("catalogEmptyTitle"),
     emptyDesc: t("catalogEmptyDesc"),
     soon: t("productSoon"),
+    beta: t("productBeta"),
+    demoStatus: t("productDemoStatus"),
+    freeOrOnRequest: t("productNoPrice"),
     available: lang === "en" ? "Available" : lang === "fr" ? "Disponible" : "Disponible",
     contact: t("navContact"),
     formats: t("productFormats"),
@@ -569,10 +572,26 @@ const payload = {
       if (bodyEl) bodyEl.textContent = item.description || "";
 
       if (chipsEl) {
-        const soon = item.status === "coming-soon";
+        const st = item.status || "published";
+        const statusLabel =
+          st === "coming-soon"
+            ? L.soon || "Soon"
+            : st === "beta"
+              ? L.beta || "Beta"
+              : st === "demo"
+                ? L.demoStatus || "Demo"
+                : L.available || "OK";
+        const statusMod =
+          st === "coming-soon"
+            ? " pb__chip--soon"
+            : st === "beta"
+              ? " pb__chip--beta"
+              : st === "demo"
+                ? " pb__chip--demo"
+                : "";
         chipsEl.innerHTML = `
           <span class="pb__chip">${escapeHtml(item.category || "software")}</span>
-          <span class="pb__chip${soon ? " pb__chip--soon" : ""}">${escapeHtml(soon ? L.soon || "Soon" : L.available || "OK")}</span>
+          <span class="pb__chip${statusMod}">${escapeHtml(statusLabel)}</span>
         `;
       }
 
@@ -587,13 +606,22 @@ const payload = {
         tagsEl.innerHTML = tg.map((x) => `<span class="pb__tag">${escapeHtml(x)}</span>`).join("");
       }
 
-      // Pricing display
+      // Pricing display (decimales 9.90; beta/demo sin precio = sin forzar compra)
       const plan = (item.pricing && item.pricing[0]) || null;
+      const skipPrice = item.status === "beta" || item.status === "demo";
+      const formatEur = (n: number) => {
+        const r = Math.round(Number(n) * 100) / 100;
+        return Number.isInteger(r) ? String(r) : r.toFixed(2);
+      };
       if (priceEl instanceof HTMLElement) {
-        if (plan && plan.priceEur != null) {
+        if (plan && plan.priceEur != null && Number.isFinite(Number(plan.priceEur))) {
           priceEl.hidden = false;
           const ver = item.version ? ` · ${L.version || "v"} ${escapeHtml(item.version)}` : "";
-          priceEl.innerHTML = `<strong>${escapeHtml(plan.name || "")}</strong> · ${L.priceFrom || ""} ${plan.priceEur} €${ver}`;
+          priceEl.innerHTML = `<strong>${escapeHtml(plan.name || "")}</strong> · ${L.priceFrom || ""} ${formatEur(Number(plan.priceEur))} €${ver}`;
+        } else if (skipPrice) {
+          priceEl.hidden = false;
+          const ver = item.version ? ` · ${L.version || "v"} ${item.version}` : "";
+          priceEl.textContent = `${L.freeOrOnRequest || "Beta / demo"}${ver}`;
         } else if (item.version) {
           priceEl.hidden = false;
           priceEl.textContent = `${L.version || "v"} ${item.version}`;
@@ -625,9 +653,12 @@ const payload = {
         demoReqEl.hidden = demoKind !== "request";
       }
 
-      // Buy CTA: Checkout (stripe price) → Payment Link → mailto
+      // Buy CTA: Checkout / Payment Link / mailto.
+      // Beta/demo sin stripe ni buyUrl: no pedir precio ni compra (solo demo/feedback).
       const buyUrl = plan?.buyUrl ? String(plan.buyUrl).trim() : "";
       const canCheckout = Boolean(plan?.stripePriceId || plan?.checkoutReady);
+      const hasPaidPath =
+        canCheckout || (buyUrl && /^https:\/\//i.test(buyUrl));
       if (checkoutEl instanceof HTMLElement) {
         checkoutEl.hidden = !canCheckout;
       }
@@ -642,7 +673,7 @@ const payload = {
         }
       }
       if (buyMailEl instanceof HTMLAnchorElement) {
-        if (!canCheckout && (!buyUrl || !/^https:\/\//i.test(buyUrl))) {
+        if (!hasPaidPath && !skipPrice) {
           buyMailEl.hidden = false;
           const subj = encodeURIComponent(`Compra / buy: ${item.name}`);
           const body = encodeURIComponent(
@@ -1099,6 +1130,16 @@ const payload = {
     color: #ffb38a;
     background: rgb(50 22 12 / 0.5);
     border-color: rgb(255 140 80 / 0.35);
+  }
+  .pb__chip--beta {
+    color: #9ecbff;
+    background: rgb(12 28 50 / 0.55);
+    border-color: rgb(100 160 255 / 0.35);
+  }
+  .pb__chip--demo {
+    color: #b8f0c8;
+    background: rgb(12 40 24 / 0.55);
+    border-color: rgb(90 200 130 / 0.35);
   }
   .pb__name {
     margin: 0;

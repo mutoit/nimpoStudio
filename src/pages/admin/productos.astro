@@ -153,7 +153,7 @@ import Layout from "../../components/Layout.astro";
           <p class="lead lead--sm" data-full-status hidden></p>
 
           <label>
-            Imágenes / GIF (hasta 8)
+            Imágenes / GIF (hasta 8 · al editar se suman, no se borran)
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
@@ -161,17 +161,22 @@ import Layout from "../../components/Layout.astro";
               data-images
             />
           </label>
+          <p class="lead lead--sm" data-media-keep-hint hidden>
+            Media actual se conserva al guardar. Solo se borra si marcas «Reemplazar todo» abajo.
+          </p>
+          <div class="preview preview--row" data-images-current hidden></div>
           <div class="preview preview--row" data-images-preview hidden></div>
 
           <label>
-            Vídeo (opcional, mp4/webm)
+            Vídeo (opcional, mp4/webm · sin archivo nuevo = se mantiene)
             <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-video />
           </label>
+          <div class="preview preview--video" data-video-current hidden></div>
           <div class="preview preview--video" data-video-preview hidden></div>
 
           <label class="check" data-replace-wrap hidden>
             <input type="checkbox" name="replaceMedia" value="1" data-replace />
-            Sustituir media anterior (si editas y subes archivos nuevos)
+            Reemplazar todo el media (borra imágenes/vídeo previos y deja solo lo que subas ahora)
           </label>
 
           <button type="submit" class="btn btn--gold" data-publish>Publicar producto</button>
@@ -290,9 +295,60 @@ import Layout from "../../components/Layout.astro";
   bindPreview("[data-images]", "[data-images-preview]", true);
   bindPreview("[data-video]", "[data-video-preview]", false);
 
+  const clearFileInputs = () => {
+    form?.querySelectorAll('input[type="file"]').forEach((el) => {
+      if (el instanceof HTMLInputElement) el.value = "";
+    });
+  };
+
+  const clearPreview = (sel: string) => {
+    const el = document.querySelector(sel);
+    if (el instanceof HTMLElement) {
+      el.hidden = true;
+      el.innerHTML = "";
+    }
+  };
+
+  const showCurrentMedia = (item: Product) => {
+    const imgs = document.querySelector("[data-images-current]");
+    const vids = document.querySelector("[data-video-current]");
+    const hint = document.querySelector("[data-media-keep-hint]");
+    const list = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+    if (imgs instanceof HTMLElement) {
+      if (list.length) {
+        imgs.hidden = false;
+        imgs.innerHTML =
+          `<p class="fname">Actuales (${list.length}/8) — se conservan al guardar</p>` +
+          list
+            .map(
+              (src) =>
+                `<img src="${String(src).replace(/"/g, "")}" alt="" loading="lazy" />`,
+            )
+            .join("");
+      } else {
+        imgs.hidden = true;
+        imgs.innerHTML = "";
+      }
+    }
+    if (vids instanceof HTMLElement) {
+      const v = item.video ? String(item.video) : "";
+      if (v) {
+        vids.hidden = false;
+        vids.innerHTML = `<p class="fname">Vídeo actual — se mantiene si no subes otro</p><video src="${v.replace(/"/g, "")}" controls playsinline></video>`;
+      } else {
+        vids.hidden = true;
+        vids.innerHTML = "";
+      }
+    }
+    if (hint instanceof HTMLElement) {
+      hint.hidden = !(list.length || item.video);
+    }
+  };
+
   const resetForm = () => {
     editingSlug = null;
     form?.reset();
+    clearFileInputs();
     if (slugInput) {
       delete slugInput.dataset.touched;
       slugInput.value = "";
@@ -300,12 +356,14 @@ import Layout from "../../components/Layout.astro";
     if (editBar instanceof HTMLElement) editBar.hidden = true;
     if (replaceWrap instanceof HTMLElement) replaceWrap.hidden = true;
     if (publishBtn instanceof HTMLElement) publishBtn.textContent = "Publicar producto";
-    document.querySelectorAll("[data-images-preview], [data-video-preview]").forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.hidden = true;
-        el.innerHTML = "";
-      }
-    });
+    const replaceCb = form?.querySelector("[data-replace]") as HTMLInputElement | null;
+    if (replaceCb) replaceCb.checked = false;
+    clearPreview("[data-images-preview]");
+    clearPreview("[data-video-preview]");
+    clearPreview("[data-images-current]");
+    clearPreview("[data-video-current]");
+    const hint = document.querySelector("[data-media-keep-hint]");
+    if (hint instanceof HTMLElement) hint.hidden = true;
   };
 
   document.querySelector("[data-edit-cancel]")?.addEventListener("click", resetForm);
@@ -338,6 +396,13 @@ import Layout from "../../components/Layout.astro";
     if (replaceWrap instanceof HTMLElement) replaceWrap.hidden = false;
     if (publishBtn instanceof HTMLElement) publishBtn.textContent = "Guardar cambios";
 
+    // No reutilizar checkbox ni files de otra ficha
+    clearFileInputs();
+    const replaceCb = form?.querySelector("[data-replace]") as HTMLInputElement | null;
+    if (replaceCb) replaceCb.checked = false;
+    clearPreview("[data-images-preview]");
+    clearPreview("[data-video-preview]");
+
     const set = (sel: string, v: string) => {
       const el = form?.querySelector(sel) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
       if (el) el.value = v;
@@ -368,6 +433,7 @@ import Layout from "../../components/Layout.astro";
     set("[data-buy-url]", plan?.buyUrl || "");
     set("[data-stripe-price]", plan?.stripePriceId || "");
     syncPriceOptional();
+    showCurrentMedia(item);
     const fullSt = document.querySelector("[data-full-status]");
     if (fullSt instanceof HTMLElement) {
       if (item.fullKey) {
@@ -482,7 +548,9 @@ import Layout from "../../components/Layout.astro";
       body.set("buyUrl", String(fd.get("buyUrl") || "").trim());
       body.set("stripePriceId", String(fd.get("stripePriceId") || "").trim());
       if (fd.get("featured") === "1" || fd.get("featured") === "on") body.set("featured", "1");
-      if (fd.get("replaceMedia") === "1") body.set("replaceMedia", "1");
+      // Solo si el usuario marca la casilla; por defecto NO se envía → se conservan y se suman
+      const replaceCb = form.querySelector("[data-replace]") as HTMLInputElement | null;
+      if (replaceCb?.checked) body.set("replaceMedia", "1");
 
       const demoFile = form.querySelector("[data-demo-file]") as HTMLInputElement | null;
       if (demoFile?.files?.[0]) body.set("demoFile", demoFile.files[0]);
@@ -491,14 +559,24 @@ import Layout from "../../components/Layout.astro";
 
       const images = form.querySelector("[data-images]") as HTMLInputElement | null;
       if (images?.files?.length) {
-        // Galería producto: max 720px, webp/jpeg q0.78 (GIF se conserva)
-        const raw = [...images.files].slice(0, 8);
-        const small = await compressImagesForUpload(raw, {
-          maxEdge: 720,
-          quality: 0.78,
-          preserveGif: true,
-        });
-        small.forEach((f) => body.append("images", f, f.name));
+        const editing = Boolean(editingSlug);
+        const existingCount = editing
+          ? items.find((x) => x.slug === editingSlug)?.images?.length || 0
+          : 0;
+        const replaceAll = Boolean(replaceCb?.checked);
+        const room = replaceAll ? 8 : Math.max(0, 8 - existingCount);
+        // Galería: max 720px; al editar solo caben hasta llenar 8
+        const raw = [...images.files].slice(0, room || (replaceAll ? 8 : 0));
+        if (raw.length) {
+          const small = await compressImagesForUpload(raw, {
+            maxEdge: 720,
+            quality: 0.78,
+            preserveGif: true,
+          });
+          small.forEach((f) => body.append("images", f, f.name));
+        } else if (images.files.length && !replaceAll && existingCount >= 8) {
+          throw new Error("Ya hay 8 imágenes. Marca «Reemplazar todo» o borra el producto y vuelve a crear.");
+        }
       }
       const video = form.querySelector("[data-video]") as HTMLInputElement | null;
       if (video?.files?.[0]) body.set("video", video.files[0]);

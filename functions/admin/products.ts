@@ -212,6 +212,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
   };
 
   try {
+    // Por defecto: conservar media al editar. Solo se vacía si replaceMedia=1.
     let images: string[] = existing?.images ? [...existing.images] : [];
     let video: string | null = existing?.video ?? null;
 
@@ -227,17 +228,25 @@ export async function onRequest(context: { request: Request; env: Env }) {
       imageFiles.push(singleImage);
     }
 
+    // Nuevas imágenes → se suman a las existentes (máx MAX_IMAGES). No sustituyen salvo replaceMedia.
+    let imagesAdded = 0;
     if (imageFiles.length) {
-      if (replaceMedia || !existing) images = [];
-      for (const file of imageFiles.slice(0, MAX_IMAGES)) {
+      const room = Math.max(0, MAX_IMAGES - images.length);
+      const toUpload = imageFiles.slice(0, room);
+      for (const file of toUpload) {
         images.push(await putFile(file, "image", "img"));
+        imagesAdded++;
       }
       images = images.slice(0, MAX_IMAGES);
     }
 
+    // Vídeo: solo cambia si subes uno nuevo. Sin archivo → se mantiene el anterior.
+    // (Con replaceMedia y sin archivo nuevo, video ya quedó null arriba.)
     const videoFile = form.get("video");
+    let videoReplaced = false;
     if (videoFile instanceof File && videoFile.size > 0) {
       video = await putFile(videoFile, "video", "video");
+      videoReplaced = true;
     }
 
     let fullKey: string | null = existing?.fullKey ?? null;
@@ -292,11 +301,20 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     const list = await upsertProduct(bucket, clean);
+    const mediaNote = [
+      imagesAdded > 0 ? `+${imagesAdded} img` : null,
+      videoReplaced ? "vídeo actualizado" : null,
+      replaceMedia ? "media reemplazada" : existing ? "media anterior conservada" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
     return json({
       ok: true,
       item: clean,
       count: list.length,
-      message: existing ? "Producto actualizado" : "Producto publicado",
+      message: existing
+        ? `Producto actualizado${mediaNote ? ` (${mediaNote})` : ""}`
+        : `Producto publicado${mediaNote ? ` (${mediaNote})` : ""}`,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "upload_failed";

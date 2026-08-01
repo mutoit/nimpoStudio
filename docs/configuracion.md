@@ -160,7 +160,7 @@ npm run build    # genera dist/
 | Archivo | Qué configura |
 |---------|----------------|
 | `src/config/site.json` | Nombre, URL, email, redes |
-| `src/data/products.json` | Catálogo de productos |
+| `src/data/products.json` | Seed estático legacy (catálogo software vivo = R2 vía `/admin/productos/`) |
 | `astro.config.mjs` | `site: https://nimpo3dstudio.com` |
 | `wrangler.toml` | Pages, output dir |
 | `SETUP-PAGES.md` | Checklist migración Pages |

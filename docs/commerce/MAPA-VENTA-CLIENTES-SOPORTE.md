@@ -20,6 +20,19 @@
 
 **Qué vendemos:** software digital, **pago único** (Stripe), no suscripción. Demo pública; full en R2 privado.
 
+**Estados de ficha (admin → `status`, no categoría):**
+
+| status | Público | Precio |
+|--------|---------|--------|
+| `published` | sí | habitual |
+| `beta` | sí (chip Beta) | **opcional** |
+| `demo` | sí (chip Demo) | **opcional** |
+| `coming-soon` | sí | opcional |
+| `draft` | no | — |
+
+Precio display: EUR con céntimos (`9.90`). Media al editar: **append** por defecto (no wipe).  
+Admin: `/admin/productos/` — ver también `docs/admin-acceso.md`.
+
 **Identidad:** el **email de compra**. Sin password. Web = **magic link** → cookie 30 d. La **license key** es del binario (activate + seats), no del login web.
 
 ```

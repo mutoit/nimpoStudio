@@ -7,6 +7,19 @@ URLs (no están en el menú público):
 - https://www.nimpo3dstudio.com/admin/pedidos/ — pedidos, clientes, transfer, keys
 - https://www.nimpo3dstudio.com/admin/tickets/ — feedback / support / recovery
 
+## Admin productos (`/admin/productos/`)
+
+| Campo | Notas |
+|-------|--------|
+| **Estado** | `Publicado` · **`Beta`** · **`Demo`** · `Próximamente` · `Borrador` (oculto). No es la categoría. |
+| **Beta / Demo** | Precio **no obligatorio**. En catálogo público: chip + sin mailto de compra si no hay Stripe/Payment Link. |
+| **Precio EUR** | Decimales OK (`9.90`). Vacío = sin precio público. |
+| **Imágenes / vídeo** | Al **editar**, la media anterior **se conserva**. Archivos nuevos se **añaden** (máx. 8 imgs). Un vídeo nuevo **sustituye solo el vídeo**. |
+| **Reemplazar todo** | Casilla opcional: solo entonces se borran imágenes/vídeo previos y quedan los que subas ahora. |
+
+Feedback/soporte público y mailto de estudio: **`contacto@nimpo3dstudio.com`** (`src/config/site.json`).  
+Detalle catálogo/commerce: `docs/estado.md` § admin productos · `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`.
+
 ## Cómo entra solo tú
 
 1. Secretos en **Cloudflare Pages** → proyecto **nimpo-studio** → **Settings** → **Environment variables**

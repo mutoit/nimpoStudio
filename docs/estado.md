@@ -117,6 +117,16 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] POST `/api/license/activate` (seats + machineId)
 - [x] Admin `/admin/pedidos/` listar / revocar / reenviar
 
+### Admin productos — estados / precios / media (2026-08)
+- [x] **Estado** (`status`): `published` | `beta` | `demo` | `coming-soon` | `draft`  
+  - **No es categoría** (categoría = plugin/app/tool/pack/other).  
+  - **Beta / demo:** precio **opcional**; ficha pública sin forzar compra si no hay Stripe/link.
+- [x] **Precio EUR** con céntimos (`9.90`, `step=0.01`); sanitize a 2 decimales.
+- [x] **Media al editar:** por defecto **se conservan** imágenes/vídeo; archivos nuevos se **suman** (máx 8 imgs).  
+  Solo se borra todo si marcas «Reemplazar todo el media».  
+  Admin muestra miniaturas actuales al abrir la ficha.
+- Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`
+
 ### Fase D — Clientes / tickets / recovery (plan 2026-07-30) — hecha
 Canon: `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`  
 Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
@@ -222,6 +232,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Admin productos: estados **beta/demo**, precios decimales, media append al editar (no wipe)
 - Escala catálogo: dual-write monofile + `catalog/items/{slug}.json` + índice ligero; productos API paginada; media Range; requireAdmin compartido; precios SSoT JSON
 - Biblioteca **escala industrial:** list card paginado + detail `?slug=` + load more; grid sin vídeo masivo; stems on demand  
 - **UX:** móvil (nav hamburguesa, form denso); uso/plazo con badge dorado en desktop; **Ctrl+clic stems** + nota de ayuda  

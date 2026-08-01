@@ -15,6 +15,12 @@ repro: "Hub producto: demo + compra + feedback + checkout + cuenta"
 - Schema demo + pricing + version
 - Feedback API + hub CTAs
 
+### Post-hub (2026-08) — admin productos
+- `status`: `published` | `beta` | `demo` | `coming-soon` | `draft` (beta/demo sin precio obligatorio)
+- `priceEur` con céntimos (9.90)
+- Edit: media se conserva; nuevas imágenes se suman (máx 8); vídeo nuevo solo reemplaza vídeo
+- Docs: `docs/admin-acceso.md`, `docs/estado.md` § admin productos
+
 ### Ola 2
 - POST `/api/checkout` (Stripe Session)
 - POST `/api/webhooks/stripe` → order paid + license key + email

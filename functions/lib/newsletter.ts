@@ -196,6 +196,52 @@ export async function unsubscribeByToken(
   return sub;
 }
 
+/** Baja admin por email. */
+export async function unsubscribeByEmail(
+  bucket: NewsletterBucket,
+  emailRaw: string,
+): Promise<NewsletterSub | null> {
+  const email = normalizeEmail(emailRaw);
+  if (!email) return null;
+  const store = await readNewsletter(bucket);
+  const sub = store.subscribers.find((s) => s.email === email);
+  if (!sub) return null;
+  if (sub.status === "unsubscribed") return sub;
+  sub.status = "unsubscribed";
+  sub.unsubscribedAt = new Date().toISOString();
+  await writeNewsletter(bucket, store);
+  return sub;
+}
+
+/** Borra fila del store (admin). */
+export async function deleteSubscriber(
+  bucket: NewsletterBucket,
+  emailRaw: string,
+): Promise<boolean> {
+  const email = normalizeEmail(emailRaw);
+  if (!email) return false;
+  const store = await readNewsletter(bucket);
+  const next = store.subscribers.filter((s) => s.email !== email);
+  if (next.length === store.subscribers.length) return false;
+  await writeNewsletter(bucket, { subscribers: next });
+  return true;
+}
+
+/** Vista admin: sin exponer tokens completos si no hace falta (sí se pueden necesitar para links). */
+export function publicAdminSub(s: NewsletterSub): Omit<NewsletterSub, "token"> & {
+  tokenTail: string;
+} {
+  return {
+    email: s.email,
+    status: s.status,
+    createdAt: s.createdAt,
+    confirmedAt: s.confirmedAt,
+    unsubscribedAt: s.unsubscribedAt,
+    lang: s.lang,
+    tokenTail: s.token.slice(-6),
+  };
+}
+
 export function activeSubscribers(store: NewsletterStore): NewsletterSub[] {
   return store.subscribers.filter((s) => s.status === "active");
 }

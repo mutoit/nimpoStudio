@@ -5,6 +5,7 @@ URLs (no están en el menú público):
 - https://www.nimpo3dstudio.com/admin/biblioteca/ — biblioteca / música
 - https://www.nimpo3dstudio.com/admin/productos/ — productos software
 - https://www.nimpo3dstudio.com/admin/pedidos/ — pedidos, clientes, transfer, keys
+- https://www.nimpo3dstudio.com/admin/abonados/ — abonados newsletter + clientes compra (lista/export)
 - https://www.nimpo3dstudio.com/admin/tickets/ — feedback / support / recovery
 
 ## Admin productos (`/admin/productos/`)
@@ -100,7 +101,8 @@ En la **misma página** admin, bloque **Feed · Novedades**:
 3. **Publicar en el feed** → `POST /admin/feed` → R2 `catalog/updates.json` (+ mails si marcaste avisar)
 
 **Público:** panel Novedades (home) → form abono → `POST /api/newsletter` (doble opt-in).  
-Lista R2: `catalog/newsletter.json`. Confirm / baja: `GET /api/newsletter?action=confirm|unsubscribe&t=…`
+**Admin listas:** `/admin/abonados/` — abonados (filtro, baja, borrar, CSV) + clientes compra (CSV).  
+Lista R2: `catalog/newsletter.json`. Confirm / baja pública: `GET /api/newsletter?action=confirm|unsubscribe&t=…`
 
 Seed feed opcional:
 ```powershell

@@ -17,6 +17,7 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `GET /api/updates` | `api/updates.ts` | Feed Novedades R2 |
 | `POST /api/newsletter` | `api/newsletter.ts` | Abono novedades (doble opt-in) |
 | `GET /api/newsletter` | `api/newsletter.ts` | confirm / unsubscribe |
+| `GET/POST /admin/newsletter` | `admin/newsletter.ts` | Lista abonados, baja, borrar |
 | `POST /admin/feed` | `admin/feed.ts` | Publicar feed (+ avisar abonados opcional) |
 | `GET /api/products` | `api/products.ts` | Catálogo productos software (R2) |
 | `GET|POST|DELETE /admin/products` | `admin/products.ts` | CRUD productos software |

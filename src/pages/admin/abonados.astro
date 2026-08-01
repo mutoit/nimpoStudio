@@ -1,0 +1,473 @@
+---
+/**
+ * Admin: abonados newsletter + vista clientes compra.
+ */
+import Layout from "../../components/Layout.astro";
+---
+
+<Layout title="Admin abonados" description="Abonados y clientes" lang="es">
+  <div class="container admin">
+    <header class="head">
+      <div>
+        <p class="eyebrow">Privado · listas</p>
+        <h1>Abonados y clientes</h1>
+      </div>
+      <div class="head__actions">
+        <a class="btn btn--ghost" href="/admin/pedidos/">Pedidos</a>
+        <a class="btn btn--ghost" href="/admin/tickets/">Tickets</a>
+        <a class="btn btn--ghost" href="/admin/productos/">Productos</a>
+        <a class="btn btn--ghost" href="/admin/biblioteca/">Biblioteca</a>
+        <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
+      </div>
+    </header>
+
+    <p class="lead">
+      <strong>Abonados</strong> = novedades por email (opt-in).
+      <strong>Clientes</strong> = compraron (Stripe). Detalle de keys y reenvío en Pedidos.
+    </p>
+    <p class="status" data-status hidden></p>
+
+    <section class="block">
+      <div class="block__head">
+        <h2 class="subhead">Abonados · novedades</h2>
+        <p class="counts" data-nl-counts>—</p>
+      </div>
+      <div class="toolbar">
+        <label>
+          Estado
+          <select data-nl-status>
+            <option value="all">Todos</option>
+            <option value="active" selected>Activos</option>
+            <option value="pending">Pendientes confirmación</option>
+            <option value="unsubscribed">Dados de baja</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn--sm" data-nl-refresh>↻</button>
+        <button type="button" class="btn btn--sm btn--gold" data-nl-export>Export CSV</button>
+      </div>
+      <div class="table-wrap" data-nl-list>
+        <p class="empty">Cargando…</p>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block__head">
+        <h2 class="subhead">Clientes · compra</h2>
+        <a class="btn btn--sm" href="/admin/pedidos/">Abrir pedidos</a>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="btn btn--sm" data-buyers-refresh>↻</button>
+        <button type="button" class="btn btn--sm btn--gold" data-buyers-export>Export CSV</button>
+      </div>
+      <div class="table-wrap" data-buyers-list>
+        <p class="empty">Cargando…</p>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  type NlSub = {
+    email: string;
+    status: string;
+    createdAt?: string;
+    confirmedAt?: string;
+    unsubscribedAt?: string;
+    lang?: string;
+    tokenTail?: string;
+  };
+
+  type Cust = {
+    email: string;
+    nick?: string | null;
+    productSlugs?: string[];
+    lastPurchaseAt?: string;
+  };
+
+  let nlRows: NlSub[] = [];
+  let buyerRows: Cust[] = [];
+
+  const statusEl = document.querySelector("[data-status]");
+  const setStatus = (msg: string, ok = true) => {
+    if (!(statusEl instanceof HTMLElement)) return;
+    statusEl.hidden = false;
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("is-err", !ok);
+  };
+
+  document.querySelector("[data-logout]")?.addEventListener("click", async () => {
+    await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
+    location.href = "/admin/abonados/";
+  });
+
+  const esc = (s: string) =>
+    String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+
+  const downloadCsv = (filename: string, header: string[], rows: string[][]) => {
+    const lines = [header, ...rows].map((r) =>
+      r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","),
+    );
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const loadNl = async () => {
+    const list = document.querySelector("[data-nl-list]");
+    const status =
+      (document.querySelector("[data-nl-status]") as HTMLSelectElement)?.value || "all";
+    try {
+      const res = await fetch(`/admin/newsletter?status=${encodeURIComponent(status)}`, {
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      nlRows = (data.subscribers || []) as NlSub[];
+      const c = data.counts || {};
+      const countsEl = document.querySelector("[data-nl-counts]");
+      if (countsEl) {
+        countsEl.textContent = `Activos ${c.active ?? 0} · Pendientes ${c.pending ?? 0} · Bajas ${c.unsubscribed ?? 0} · Total ${c.total ?? 0}`;
+      }
+      if (!(list instanceof HTMLElement)) return;
+      if (!nlRows.length) {
+        list.innerHTML = `<p class="empty">Sin abonados en este filtro.</p>`;
+        return;
+      }
+      list.innerHTML = `<table class="tbl">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Estado</th>
+            <th>Lang</th>
+            <th>Alta</th>
+            <th>Confirmado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${nlRows
+            .map((s) => {
+              const emailAttr = String(s.email || "").replace(/"/g, "");
+              return `<tr>
+                <td><code>${esc(s.email)}</code></td>
+                <td><span class="pill pill--${esc(s.status)}">${esc(s.status)}</span></td>
+                <td>${esc(s.lang || "es")}</td>
+                <td>${esc((s.createdAt || "").slice(0, 10))}</td>
+                <td>${esc((s.confirmedAt || "").slice(0, 10) || "—")}</td>
+                <td class="acts">
+                  ${
+                    s.status !== "unsubscribed"
+                      ? `<button type="button" class="btn btn--sm" data-unsub="${emailAttr}">Baja</button>`
+                      : ""
+                  }
+                  <button type="button" class="btn btn--sm btn--danger" data-del="${emailAttr}">Borrar</button>
+                </td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>`;
+
+      list.querySelectorAll("[data-unsub]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const email = (btn as HTMLElement).dataset.unsub || "";
+          if (!email || !confirm(`¿Dar de baja a ${email}?`)) return;
+          try {
+            const r = await fetch("/admin/newsletter", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "unsubscribe", email }),
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+            setStatus(j.message || "OK");
+            await loadNl();
+          } catch (e) {
+            setStatus(e instanceof Error ? e.message : "Error", false);
+          }
+        });
+      });
+
+      list.querySelectorAll("[data-del]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const email = (btn as HTMLElement).dataset.del || "";
+          if (!email || !confirm(`¿Eliminar ${email} de la lista (irreversible)?`)) return;
+          try {
+            const r = await fetch("/admin/newsletter", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "delete", email }),
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+            setStatus(j.message || "OK");
+            await loadNl();
+          } catch (e) {
+            setStatus(e instanceof Error ? e.message : "Error", false);
+          }
+        });
+      });
+    } catch (e) {
+      if (list instanceof HTMLElement) {
+        list.innerHTML = `<p class="empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  const loadBuyers = async () => {
+    const list = document.querySelector("[data-buyers-list]");
+    try {
+      const res = await fetch("/admin/orders", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      buyerRows = (data.customers || []) as Cust[];
+      if (!(list instanceof HTMLElement)) return;
+      if (!buyerRows.length) {
+        list.innerHTML = `<p class="empty">Sin clientes de compra aún (aparecen al primer pago).</p>`;
+        return;
+      }
+      list.innerHTML = `<table class="tbl">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Nick</th>
+            <th>Productos</th>
+            <th>Última compra</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buyerRows
+            .map(
+              (c) => `<tr>
+                <td><code>${esc(c.email)}</code></td>
+                <td>${c.nick ? `@${esc(c.nick)}` : "—"}</td>
+                <td>${esc((c.productSlugs || []).join(", ") || "—")}</td>
+                <td>${esc((c.lastPurchaseAt || "").slice(0, 10) || "—")}</td>
+              </tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>`;
+    } catch (e) {
+      if (list instanceof HTMLElement) {
+        list.innerHTML = `<p class="empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      }
+    }
+  };
+
+  document.querySelector("[data-nl-status]")?.addEventListener("change", () => void loadNl());
+  document.querySelector("[data-nl-refresh]")?.addEventListener("click", () => void loadNl());
+  document.querySelector("[data-buyers-refresh]")?.addEventListener("click", () => void loadBuyers());
+
+  document.querySelector("[data-nl-export]")?.addEventListener("click", () => {
+    if (!nlRows.length) {
+      setStatus("Nada que exportar", false);
+      return;
+    }
+    downloadCsv(
+      `nimpo-abonados-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["email", "status", "lang", "createdAt", "confirmedAt", "unsubscribedAt"],
+      nlRows.map((s) => [
+        s.email,
+        s.status,
+        s.lang || "es",
+        s.createdAt || "",
+        s.confirmedAt || "",
+        s.unsubscribedAt || "",
+      ]),
+    );
+    setStatus(`CSV abonados · ${nlRows.length} filas`);
+  });
+
+  document.querySelector("[data-buyers-export]")?.addEventListener("click", () => {
+    if (!buyerRows.length) {
+      setStatus("Nada que exportar", false);
+      return;
+    }
+    downloadCsv(
+      `nimpo-clientes-compra-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["email", "nick", "productSlugs", "lastPurchaseAt"],
+      buyerRows.map((c) => [
+        c.email,
+        c.nick || "",
+        (c.productSlugs || []).join(";"),
+        c.lastPurchaseAt || "",
+      ]),
+    );
+    setStatus(`CSV clientes · ${buyerRows.length} filas`);
+  });
+
+  void loadNl();
+  void loadBuyers();
+</script>
+
+<style>
+  .admin {
+    padding-block: 2rem 4rem;
+    max-width: 72rem;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent-dim);
+    font-weight: 600;
+  }
+  h1 {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 500;
+  }
+  .lead {
+    margin: 0 0 1rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .status {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+  }
+  .status.is-err {
+    color: #ff9b8a;
+  }
+  .block {
+    margin-bottom: 2rem;
+  }
+  .block__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.65rem;
+  }
+  .subhead {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .counts {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-end;
+    margin-bottom: 0.75rem;
+  }
+  .toolbar label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .toolbar select {
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: inherit;
+    font: inherit;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: rgb(0 0 0 / 0.2);
+  }
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .tbl th,
+  .tbl td {
+    padding: 0.55rem 0.65rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+  .tbl th {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-muted);
+  }
+  .tbl tr:last-child td {
+    border-bottom: none;
+  }
+  .tbl code {
+    font-size: 0.78rem;
+  }
+  .empty {
+    margin: 0;
+    padding: 1rem;
+    color: var(--color-muted);
+    font-size: 0.88rem;
+  }
+  .empty.is-err {
+    color: #ff9b8a;
+  }
+  .pill {
+    display: inline-block;
+    padding: 0.12rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgb(201 169 98 / 0.12);
+    color: var(--color-accent-dim);
+  }
+  .pill--active {
+    color: #8fd9a8;
+    background: rgb(40 80 50 / 0.45);
+  }
+  .pill--pending {
+    color: #ffc978;
+    background: rgb(60 40 10 / 0.5);
+  }
+  .pill--unsubscribed {
+    color: #b0b0b8;
+    background: rgb(40 40 48 / 0.6);
+  }
+  .acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .btn--danger {
+    border-color: rgb(255 120 100 / 0.35);
+    color: #ff9b8a;
+  }
+</style>

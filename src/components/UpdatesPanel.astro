@@ -20,10 +20,18 @@ const formatDate = (iso: string) => {
 };
 
 const payload = {
-  lang,
+  lang: lang as string,
   labels: {
     empty: t("updatesEmpty"),
     tags: tagLabels as Record<string, string>,
+    nlTitle: t("newsletterTitle"),
+    nlLead: t("newsletterLead"),
+    nlEmail: t("newsletterEmail"),
+    nlSubmit: t("newsletterSubmit"),
+    nlOk: t("newsletterOk"),
+    nlAlready: t("newsletterAlready"),
+    nlErr: t("newsletterErr"),
+    nlPrivacy: t("newsletterPrivacy"),
   },
   seed: updates,
 };
@@ -48,6 +56,7 @@ const payload = {
         <ul class="updates-panel__list">
           {updates.map((item) => {
             const img = safeMediaUrl(item.image);
+            const link = (item as { link?: string }).link;
             return (
               <li class="updates-panel__item">
                 <div class="updates-panel__meta">
@@ -71,7 +80,15 @@ const payload = {
                     </div>
                   ) : null
                 }
-                <p class="updates-panel__item-title">{item.title}</p>
+                {
+                  link ? (
+                    <p class="updates-panel__item-title">
+                      <a href={link} class="updates-panel__link">{item.title}</a>
+                    </p>
+                  ) : (
+                    <p class="updates-panel__item-title">{item.title}</p>
+                  )
+                }
                 <p class="updates-panel__summary">{item.summary}</p>
               </li>
             );
@@ -80,6 +97,28 @@ const payload = {
       )
     }
   </div>
+
+  <form class="updates-panel__nl" data-newsletter-form>
+    <p class="updates-panel__nl-title">{t("newsletterTitle")}</p>
+    <p class="updates-panel__nl-lead">{t("newsletterLead")}</p>
+    <label class="updates-panel__nl-label">
+      <span class="visually-hidden">{t("newsletterEmail")}</span>
+      <input
+        type="email"
+        name="email"
+        required
+        maxlength="200"
+        autocomplete="email"
+        placeholder={t("newsletterEmail")}
+        data-newsletter-email
+      />
+    </label>
+    <button type="submit" class="updates-panel__nl-btn" data-newsletter-submit>
+      {t("newsletterSubmit")}
+    </button>
+    <p class="updates-panel__nl-privacy">{t("newsletterPrivacy")}</p>
+    <p class="updates-panel__nl-status" data-newsletter-status hidden></p>
+  </form>
 </div>
 
 <script>
@@ -110,13 +149,29 @@ const payload = {
     return `<div class="updates-panel__media"><img class="updates-panel__img" src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async" /></div>`;
   }
 
+  function safeLink(raw: unknown): string {
+    const u = String(raw || "").trim();
+    if (!u) return "";
+    if (u.startsWith("/") && !u.startsWith("//")) return u;
+    if (/^https:\/\/(www\.)?nimpo3dstudio\.com(\/|\?|#|$)/i.test(u)) return u;
+    if (/^https:\/\/nimpo-studio\.pages\.dev(\/|\?|#|$)/i.test(u)) return u;
+    return "";
+  }
+
   async function hydrateUpdates() {
     document.querySelectorAll("[data-updates-root]").forEach((root) => {
       if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
       root.dataset.bound = "1";
 
       let payload: {
-        labels: { empty: string; tags: Record<string, string> };
+        lang?: string;
+        labels: {
+          empty: string;
+          tags: Record<string, string>;
+          nlOk?: string;
+          nlAlready?: string;
+          nlErr?: string;
+        };
       } = { labels: { empty: "", tags: {} } };
       try {
         payload = JSON.parse(root.dataset.updatesPayload || "{}");
@@ -126,6 +181,49 @@ const payload = {
 
       const body = root.querySelector("[data-updates-body]");
       if (!body) return;
+
+      const nlForm = root.querySelector("[data-newsletter-form]");
+      nlForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const statusEl = root.querySelector("[data-newsletter-status]");
+        const btn = root.querySelector("[data-newsletter-submit]");
+        const emailEl = root.querySelector("[data-newsletter-email]") as HTMLInputElement | null;
+        const email = String(emailEl?.value || "").trim();
+        const L = payload.labels || {};
+        if (btn instanceof HTMLButtonElement) btn.disabled = true;
+        if (statusEl instanceof HTMLElement) {
+          statusEl.hidden = false;
+          statusEl.textContent = "…";
+          statusEl.classList.remove("is-err", "is-ok");
+        }
+        try {
+          const res = await fetch("/api/newsletter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ email, lang: payload.lang || "es" }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || data.error || L.nlErr || "Error");
+          }
+          if (statusEl instanceof HTMLElement) {
+            statusEl.classList.add("is-ok");
+            statusEl.textContent =
+              data.status === "already_active"
+                ? L.nlAlready || data.message || "OK"
+                : L.nlOk || data.message || "OK";
+          }
+          if (emailEl && data.status !== "already_active") emailEl.value = "";
+        } catch (err) {
+          if (statusEl instanceof HTMLElement) {
+            statusEl.classList.add("is-err");
+            statusEl.textContent =
+              err instanceof Error ? err.message : L.nlErr || "Error";
+          }
+        } finally {
+          if (btn instanceof HTMLButtonElement) btn.disabled = false;
+        }
+      });
 
       void (async () => {
         try {
@@ -144,6 +242,7 @@ const payload = {
                 tag?: string;
                 summary?: string;
                 image?: string;
+                link?: string;
               }) => {
                 const tag = safeTag(String(item.tag || "nuevo"));
                 const title = escapeHtml(String(item.title || "").slice(0, 160));
@@ -151,13 +250,17 @@ const payload = {
                 const date = String(item.date || "").slice(0, 10);
                 const tagLabel = escapeHtml(tags[tag] || tag);
                 const media = mediaBlock(item.image);
+                const href = safeLink(item.link);
+                const titleHtml = href
+                  ? `<p class="updates-panel__item-title"><a class="updates-panel__link" href="${escapeHtml(href)}">${title}</a></p>`
+                  : `<p class="updates-panel__item-title">${title}</p>`;
                 return `<li class="updates-panel__item">
                 <div class="updates-panel__meta">
                   <span class="updates-panel__tag updates-panel__tag--${tag}">${tagLabel}</span>
                   <time class="updates-panel__date" datetime="${escapeHtml(date)}">${escapeHtml(formatDate(date))}</time>
                 </div>
                 ${media}
-                <p class="updates-panel__item-title">${title}</p>
+                ${titleHtml}
                 <p class="updates-panel__summary">${summary}</p>
               </li>`;
               },
@@ -301,5 +404,88 @@ const payload = {
     margin: 0;
     font-size: 0.85rem;
     color: var(--color-muted);
+  }
+
+  .updates-panel__link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid rgb(201 169 98 / 0.35);
+  }
+  .updates-panel__link:hover {
+    color: var(--color-accent);
+  }
+
+  .updates-panel__nl {
+    margin-top: 1.15rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .updates-panel__nl-title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-accent-dim);
+  }
+  .updates-panel__nl-lead,
+  .updates-panel__nl-privacy {
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--color-muted);
+  }
+  .updates-panel__nl-label input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: rgb(0 0 0 / 0.35);
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .updates-panel__nl-btn {
+    margin: 0;
+    padding: 0.5rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--color-accent);
+    color: #0a0a0c;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .updates-panel__nl-btn:hover {
+    filter: brightness(1.06);
+  }
+  .updates-panel__nl-btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+  .updates-panel__nl-status {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+  .updates-panel__nl-status.is-ok {
+    color: var(--color-accent);
+  }
+  .updates-panel__nl-status.is-err {
+    color: #ff9b8a;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

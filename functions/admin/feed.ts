@@ -27,25 +27,40 @@ import {
   type FeedItem,
   type UpdatesBucket,
 } from "../lib/updates-catalog";
+import {
+  activeSubscribers,
+  buildUpdateEmail,
+  readNewsletter,
+  sanitizeNewsletterLink,
+  siteBaseFromRequest,
+  unsubscribeUrl,
+  type NewsletterBucket,
+} from "../lib/newsletter";
+import { sendStudioMail, type MailEnv } from "../lib/send-mail";
 
 /** Límite más bajo que publish: miniaturas de feed. */
 const MAX_FEED_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB
 
-type Env = AdminEnv & {
-  LIBRARY_BUCKET?: UpdatesBucket & {
-    put: (
-      key: string,
-      value: ArrayBuffer | string,
-      opts?: {
-        httpMetadata?: {
-          contentType?: string;
-          cacheControl?: string;
-        };
-      },
-    ) => Promise<unknown>;
+type Env = AdminEnv &
+  MailEnv & {
+    LIBRARY_BUCKET?: UpdatesBucket &
+      NewsletterBucket & {
+        put: (
+          key: string,
+          value: ArrayBuffer | string,
+          opts?: {
+            httpMetadata?: {
+              contentType?: string;
+              cacheControl?: string;
+            };
+          },
+        ) => Promise<unknown>;
+      };
+    RATE_LIMIT_KV?: RateLimitKv;
   };
-  RATE_LIMIT_KV?: RateLimitKv;
-};
+
+/** Tope por request Pages (evitar timeout). */
+const MAX_NOTIFY = 80;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -106,7 +121,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   if (request.method === "GET") {
     const items = (await readUpdates(env.LIBRARY_BUCKET)) || [];
-    return json({ ok: true, items, count: items.length });
+    const nl = await readNewsletter(env.LIBRARY_BUCKET);
+    const active = activeSubscribers(nl).length;
+    return json({
+      ok: true,
+      items,
+      count: items.length,
+      newsletterActive: active,
+      newsletterTotal: nl.subscribers.length,
+    });
   }
 
   if (request.method === "DELETE") {
@@ -146,6 +169,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
         tag: form.get("tag") ?? form.get("feedTag"),
         date: form.get("date") ?? form.get("feedDate"),
         image: form.get("imageUrl") ?? form.get("image"),
+        link: form.get("link") ?? form.get("feedLink"),
+        notify:
+          form.get("notify") === "1" ||
+          form.get("notify") === "on" ||
+          form.get("notify") === "true",
       };
       const f = form.get("image") ?? form.get("feedImage");
       if (f instanceof File && f.size > 0) imageFile = f;
@@ -201,11 +229,58 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   try {
     const list = await prependUpdate(env.LIBRARY_BUCKET, item as FeedItem);
+
+    const wantNotify =
+      raw.notify === true ||
+      raw.notify === 1 ||
+      raw.notify === "1" ||
+      raw.notify === "on" ||
+      raw.notify === "true";
+
+    let notified = 0;
+    let notifyFailed = 0;
+    let notifySkipped = 0;
+
+    if (wantNotify) {
+      const base = siteBaseFromRequest(request);
+      const absLink = sanitizeNewsletterLink(item.link, base);
+      const store = await readNewsletter(env.LIBRARY_BUCKET);
+      const targets = activeSubscribers(store).slice(0, MAX_NOTIFY);
+      notifySkipped = Math.max(0, activeSubscribers(store).length - targets.length);
+
+      for (const sub of targets) {
+        const mail = buildUpdateEmail({
+          title: item.title,
+          summary: item.summary,
+          link: absLink,
+          unsubscribeLink: unsubscribeUrl(base, sub.token),
+          lang: sub.lang,
+        });
+        const res = await sendStudioMail(env, {
+          to: [sub.email],
+          subject: mail.subject,
+          text: mail.text,
+          from: "noreply@nimpo3dstudio.com",
+        });
+        if (res.ok) notified++;
+        else notifyFailed++;
+      }
+    }
+
+    const notifyNote = wantNotify
+      ? ` · Aviso: ${notified} ok${notifyFailed ? `, ${notifyFailed} fallo` : ""}${
+          notifySkipped ? ` (${notifySkipped} pendientes otro envío)` : ""
+        }`
+      : "";
+
     return json({
       ok: true,
       item,
       count: list.length,
-      message: "Feed actualizado. Recarga la home para verlo.",
+      notified,
+      notifyFailed,
+      notifySkipped,
+      message: `Feed actualizado. Recarga la home.${notifyNote}`,
     });
   } catch (e) {
     console.error("[admin/feed]", e);

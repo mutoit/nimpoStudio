@@ -9,6 +9,8 @@ export type Update = {
   summary: string;
   /** Miniatura opcional (jpg/png/webp/gif) */
   image?: string;
+  /** Enlace opcional a producto/obra */
+  link?: string;
 };
 
 import type { Locale } from "../i18n/translations";

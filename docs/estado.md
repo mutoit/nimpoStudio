@@ -46,7 +46,8 @@ Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago autom
 ### Web base (fase 1, sigue viva)
 - [x] Home, Sobre, Contacto, Privacidad, Términos
 - [x] Música y catálogo digital (rutas existen; no son el foco del nav)
-- [x] Feed Novedades (`updates.json`)
+- [x] Feed Novedades (`updates.json` / R2)
+- [x] Newsletter novedades: abono + confirm email + aviso al publicar feed (opt-in)
 - [x] Diseño carbon + dorado
 - [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
 

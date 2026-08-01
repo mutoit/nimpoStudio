@@ -72,6 +72,9 @@ export function bindAdminFeed() {
         set("[data-feed-summary]", String(item.summary || ""));
         set("[data-feed-tag]", String(item.tag || "proximo"));
         set("[data-feed-date]", String(item.date || "").slice(0, 10));
+        set("[data-feed-link]", String((item as { link?: string }).link || ""));
+        const notifyCb = form?.querySelector("[data-feed-notify]") as HTMLInputElement | null;
+        if (notifyCb) notifyCb.checked = false;
         form?.scrollIntoView({ behavior: "smooth" });
       });
     });
@@ -108,6 +111,16 @@ export function bindAdminFeed() {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || res.status);
       feedItems = Array.isArray(data.items) ? data.items : [];
+      const nl = document.querySelector("[data-newsletter-count]");
+      if (nl instanceof HTMLElement) {
+        const n = Number(data.newsletterActive || 0);
+        const tot = Number(data.newsletterTotal || 0);
+        nl.hidden = false;
+        nl.textContent =
+          n > 0 || tot > 0
+            ? `Abonados novedades: ${n} activos${tot > n ? ` · ${tot} en lista (incl. pendientes/bajas)` : ""}.`
+            : "Abonados novedades: 0 (form en panel Novedades de la home).";
+      }
       renderFeedGrid();
     } catch (e) {
       if (grid instanceof HTMLElement) {
@@ -140,6 +153,12 @@ export function bindAdminFeed() {
       const date = String(
         (form.querySelector("[data-feed-date]") as HTMLInputElement)?.value || "",
       );
+      const link = String(
+        (form.querySelector("[data-feed-link]") as HTMLInputElement)?.value || "",
+      ).trim();
+      const notify = Boolean(
+        (form.querySelector("[data-feed-notify]") as HTMLInputElement | null)?.checked,
+      );
       const imageInput = form.querySelector("[data-feed-image]") as HTMLInputElement | null;
       const imageRaw = imageInput?.files?.[0] || null;
       const imageFile = imageRaw
@@ -151,7 +170,13 @@ export function bindAdminFeed() {
       body.set("summary", summary);
       body.set("tag", tag);
       body.set("date", date);
+      if (link) body.set("link", link);
+      if (notify) body.set("notify", "1");
       if (imageFile) body.set("image", imageFile, imageFile.name);
+
+      if (notify && status instanceof HTMLElement) {
+        status.textContent = "Publicando feed y enviando emails…";
+      }
 
       const res = await fetch("/admin/feed", {
         method: "POST",
@@ -163,8 +188,7 @@ export function bindAdminFeed() {
         throw new Error(data.message || data.error || `Error ${res.status}`);
       }
       if (status instanceof HTMLElement) {
-        const hasImg = data.item?.image ? " · con miniatura" : "";
-        status.textContent = `✅ Feed: «${data.item?.title || title}»${hasImg}. Abre la home y recarga.`;
+        status.textContent = `✅ ${data.message || "Feed actualizado"}`;
       }
       form.reset();
       const prev = document.querySelector("[data-feed-image-preview]");

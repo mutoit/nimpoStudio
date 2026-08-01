@@ -23,6 +23,8 @@ export type FeedItem = {
   summary: string;
   /** Miniatura: /api/media/library/feed/... (jpg/png/webp/gif animado) */
   image?: string;
+  /** Enlace opcional (producto / obra) — usado en mail y ficha feed */
+  link?: string;
 };
 
 const TAGS = new Set(["nuevo", "mejora", "fix", "proximo"]);
@@ -56,13 +58,25 @@ export function sanitizeFeedItem(raw: unknown): FeedItem | null {
     date = new Date().toISOString().slice(0, 10);
   }
   const image = sanitizeFeedImage(o.image);
+  const link = sanitizeFeedLink(o.link);
   return {
     date,
     title,
     tag: tag as FeedItem["tag"],
     summary,
     ...(image ? { image } : {}),
+    ...(link ? { link } : {}),
   };
+}
+
+/** Path del sitio o https de nimpo3dstudio / pages.dev */
+export function sanitizeFeedLink(raw: unknown): string | undefined {
+  const u = String(raw || "").trim().slice(0, 500);
+  if (!u) return undefined;
+  if (u.startsWith("/") && !u.startsWith("//")) return u;
+  if (/^https:\/\/(www\.)?nimpo3dstudio\.com(\/|\?|#|$)/i.test(u)) return u;
+  if (/^https:\/\/nimpo-studio\.pages\.dev(\/|\?|#|$)/i.test(u)) return u;
+  return undefined;
 }
 
 export async function readUpdates(

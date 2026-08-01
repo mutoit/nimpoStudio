@@ -296,8 +296,9 @@ import "../../styles/admin-biblioteca.css";
         <h2 class="subhead">Feed · Novedades (home)</h2>
         <p class="lead lead--sm">
           Panel lateral de la home. Título + descripción + miniatura opcional (imagen o GIF animado).
-          Se guarda en R2 y se ve al recargar, sin redeploy.
+          Se guarda en R2 y se ve al recargar, sin redeploy. Opcional: avisar a abonados por email.
         </p>
+        <p class="lead lead--sm" data-newsletter-count hidden></p>
         <form class="form" data-feed-form>
           <label>
             Título del aviso *
@@ -313,6 +314,15 @@ import "../../styles/admin-biblioteca.css";
               placeholder="Estamos construyendo la web…"
               data-feed-summary
             ></textarea>
+          </label>
+          <label>
+            Enlace (opcional · producto / obra)
+            <input
+              name="feedLink"
+              maxlength="500"
+              placeholder="/es/catalogo/?p=nimpo-glass o https://www.nimpo3dstudio.com/es/…"
+              data-feed-link
+            />
           </label>
           <div class="feed-row">
             <label>
@@ -341,6 +351,10 @@ import "../../styles/admin-biblioteca.css";
             JPG, PNG, WebP o GIF (hasta 8&nbsp;MB). El GIF se anima en el feed.
           </p>
           <div class="preview preview--img" data-feed-image-preview hidden></div>
+          <label class="check">
+            <input type="checkbox" name="notify" value="1" data-feed-notify />
+            Avisar abonados por email (solo activos; máx. 80 por publicación)
+          </label>
           <button type="submit" class="btn btn--gold" data-feed-publish>
             Publicar en el feed
           </button>

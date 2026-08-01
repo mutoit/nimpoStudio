@@ -56,6 +56,7 @@ BINARIO
 
 TÚ
   /admin/pedidos/  → clientes, reenviar, revocar, transfer email, rotate key, reset seats
+  /admin/abonados/ → abonados newsletter (lista/export/baja) + clientes compra (lista/export)
   /admin/tickets/  → bandeja filtrable, estados
 ```
 
@@ -412,6 +413,7 @@ ticket:    id, email, buyer, productSlug?, channel, subtype, message, nick?, sta
 |-------|--------|----------------|
 | `/admin/productos/` | ✅ | Demo, full, stripePriceId |
 | `/admin/pedidos/` | ✅ | Pedidos, clientes, reenviar, revocar, **transfer**, **rotate**, **reset seats** |
+| `/admin/abonados/` | ✅ | Abonados novedades (filtro, baja, borrar, CSV) + clientes compra (CSV) |
 | `/admin/tickets/` | ✅ | Bandeja feedback/recovery, cambiar status |
 | `/admin/biblioteca/` | ✅ | Música (otro flujo) |
 
@@ -460,7 +462,8 @@ ticket:    id, email, buyer, productSlug?, channel, subtype, message, nick?, sta
 | Admin pedidos / tickets | `functions/admin/orders.ts`, `tickets.ts` |
 | UI productos | `src/components/ProductsBrowser.astro` |
 | UI cuenta | `src/pages/[lang]/cuenta.astro` |
-| Admin UI | `src/pages/admin/{pedidos,tickets,productos}.astro` |
+| Admin UI | `src/pages/admin/{pedidos,tickets,productos,abonados}.astro` |
+| Newsletter | `functions/lib/newsletter.ts`, `api/newsletter.ts`, `admin/newsletter.ts` · R2 `catalog/newsletter.json` |
 
 ---
 

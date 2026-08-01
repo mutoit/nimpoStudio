@@ -48,6 +48,7 @@ Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago autom
 - [x] Música y catálogo digital (rutas existen; no son el foco del nav)
 - [x] Feed Novedades (`updates.json` / R2)
 - [x] Newsletter novedades: abono + confirm email + aviso al publicar feed (opt-in)
+- [x] Admin `/admin/abonados/` — lista abonados (filtro/baja/borrar/CSV) + clientes compra (CSV)
 - [x] Diseño carbon + dorado
 - [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
 
@@ -117,6 +118,7 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] `/es/cuenta/` magic link + re-descarga
 - [x] POST `/api/license/activate` (seats + machineId)
 - [x] Admin `/admin/pedidos/` listar / revocar / reenviar
+- [x] Admin `/admin/abonados/` abonados newsletter + vista clientes
 
 ### Admin productos — estados / precios / media (2026-08)
 - [x] **Estado** (`status`): `published` | `beta` | `demo` | `coming-soon` | `draft`  
@@ -235,6 +237,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Admin `/admin/abonados/` + newsletter (abono, confirm, avisar al publicar feed)
 - Catálogo ficha: **Compartir** + etiqueta **Probar beta** / **Probar demo** según status
 - Admin productos: estados **beta/demo**, precios decimales, media append al editar (no wipe)
 - Escala catálogo: dual-write monofile + `catalog/items/{slug}.json` + índice ligero; productos API paginada; media Range; requireAdmin compartido; precios SSoT JSON

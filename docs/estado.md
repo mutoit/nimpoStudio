@@ -125,7 +125,9 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] **Media al editar:** por defecto **se conservan** imágenes/vídeo; archivos nuevos se **suman** (máx 8 imgs).  
   Solo se borra todo si marcas «Reemplazar todo el media».  
   Admin muestra miniaturas actuales al abrir la ficha.
-- Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`
+- [x] Ficha pública: botón **Probar beta** si `status=beta`, si no **Probar demo** (mismo control; hace falta demo URL).
+- [x] Ficha pública: **Compartir** (Web Share / copiar deep-link `?p=slug`) — `src/lib/share.ts` `productSharePath`.
+- Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`, `src/components/ProductsBrowser.astro`
 
 ### Fase D — Clientes / tickets / recovery (plan 2026-07-30) — hecha
 Canon: `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`  
@@ -232,6 +234,7 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Catálogo ficha: **Compartir** + etiqueta **Probar beta** / **Probar demo** según status
 - Admin productos: estados **beta/demo**, precios decimales, media append al editar (no wipe)
 - Escala catálogo: dual-write monofile + `catalog/items/{slug}.json` + índice ligero; productos API paginada; media Range; requireAdmin compartido; precios SSoT JSON
 - Biblioteca **escala industrial:** list card paginado + detail `?slug=` + load more; grid sin vídeo masivo; stems on demand  

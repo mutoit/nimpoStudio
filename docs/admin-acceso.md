@@ -14,8 +14,19 @@ URLs (no están en el menú público):
 | **Estado** | `Publicado` · **`Beta`** · **`Demo`** · `Próximamente` · `Borrador` (oculto). No es la categoría. |
 | **Beta / Demo** | Precio **no obligatorio**. En catálogo público: chip + sin mailto de compra si no hay Stripe/Payment Link. |
 | **Precio EUR** | Decimales OK (`9.90`). Vacío = sin precio público. |
+| **Stripe Price ID** | Único campo necesario para cobrar (Checkout). Fallback URL opcional. Glass live: ver `TAREAS-VENTAS-PRIORIDAD.md`. |
 | **Imágenes / vídeo** | Al **editar**, la media anterior **se conserva**. Archivos nuevos se **añaden** (máx. 8 imgs). Un vídeo nuevo **sustituye solo el vídeo**. |
 | **Reemplazar todo** | Casilla opcional: solo entonces se borran imágenes/vídeo previos y quedan los que subas ahora. |
+
+### Ficha pública (`/es/catalogo/`)
+
+| CTA | Cuándo |
+|-----|--------|
+| **Probar beta** | `status=beta` **y** Demo = descarga/web + URL (o zip demo). Mismo botón que demo. |
+| **Probar demo** | Cualquier otro status público con Demo configurada. |
+| **Comprar** | Plan con `stripePriceId` (o Payment Link en buyUrl). |
+| **Compartir** | Siempre en ficha activa → Web Share o copiar `/es/catalogo/?p={slug}`. |
+| Feedback / contacto | Siempre. |
 
 Feedback/soporte público y mailto de estudio: **`contacto@nimpo3dstudio.com`** (`src/config/site.json`).  
 Detalle catálogo/commerce: `docs/estado.md` § admin productos · `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`.

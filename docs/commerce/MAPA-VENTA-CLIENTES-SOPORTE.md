@@ -31,6 +31,7 @@
 | `draft` | no | — |
 
 Precio display: EUR con céntimos (`9.90`). Media al editar: **append** por defecto (no wipe).  
+Ficha pública: CTA probar = **Probar beta** si `status=beta`, si no **Probar demo** (requiere demo URL); **Compartir** deep-link `?p=slug`.  
 Admin: `/admin/productos/` — ver también `docs/admin-acceso.md`.
 
 **Identidad:** el **email de compra**. Sin password. Web = **magic link** → cookie 30 d. La **license key** es del binario (activate + seats), no del login web.

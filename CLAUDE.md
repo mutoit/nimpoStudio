@@ -38,7 +38,8 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 
 | Tarea | Archivo(s) |
 |-------|------------|
-| Producto nuevo/editar | `src/data/products.json` + `public/images/products/` |
+| Producto software (vivo) | Admin `/admin/productos/` → R2 `catalog/products.json` · API `functions/admin/products.ts` · schema `functions/lib/products-catalog.ts` |
+| Producto seed estático (legacy) | `src/data/products.json` (el catálogo real es R2) |
 | Música / lanzamiento | `src/data/music.json` + `public/images/music/` + `public/previews/music/` |
 | Aviso / novedad | `src/data/updates.json` |
 | Marca, email, redes | `src/config/site.json` |

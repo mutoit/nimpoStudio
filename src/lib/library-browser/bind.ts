@@ -219,7 +219,7 @@ export function bindLibraryBrowser() {
         return `${m}:${s.toString().padStart(2, "0")}`;
       };
 
-      /** Solo feedback en modal (no barra flotante en la página). */
+      /** Solo texto de estado en modal. La barra de progreso la pinta updateProgressUI. */
       const setPlayerStatus = (
         opts: {
           msg: string;
@@ -231,25 +231,26 @@ export function bindLibraryBrowser() {
         },
       ) => {
         const modalSt = root.querySelector("[data-lb-modal-status]");
-        const modalFill = root.querySelector("[data-lb-modal-fill]");
-        const modalBuf = root.querySelector("[data-lb-modal-buf]");
         if (statusHideTimer) {
           window.clearTimeout(statusHideTimer);
           statusHideTimer = 0;
         }
         if (modalSt instanceof HTMLElement) {
-          // Solo mostrar texto de carga/error en modal; play silencioso
           const showText = opts.kind === "load" || opts.kind === "err" || opts.kind === "ok";
           modalSt.hidden = !showText;
           if (showText) modalSt.textContent = opts.msg;
           modalSt.classList.toggle("is-err", opts.kind === "err");
           modalSt.classList.toggle("is-ok", opts.kind === "ok");
         }
-        if (modalFill instanceof HTMLElement) {
-          modalFill.style.setProperty("--p", `${Math.max(0, Math.min(100, opts.playPct ?? 0))}%`);
-        }
-        if (modalBuf instanceof HTMLElement) {
-          modalBuf.style.setProperty("--b", `${Math.max(0, Math.min(100, opts.bufPct ?? 0))}%`);
+        // bufPct opcional solo en carga (no tocar fill aquí)
+        if (opts.bufPct != null) {
+          const modalBuf = root.querySelector("[data-lb-modal-buf]");
+          if (modalBuf instanceof HTMLElement) {
+            modalBuf.style.setProperty(
+              "--b",
+              `${Math.max(0, Math.min(100, opts.bufPct))}%`,
+            );
+          }
         }
         if (opts.autoHideMs && opts.autoHideMs > 0 && modalSt instanceof HTMLElement) {
           statusHideTimer = window.setTimeout(() => {
@@ -258,61 +259,18 @@ export function bindLibraryBrowser() {
         }
       };
 
-      previewPlayer.setHandlers({
-        onUpdate: (p) => {
-          updateProgressUI();
-          const pct = p.duration > 0 ? (p.current / p.duration) * 100 : 0;
-          const buf = (p.buffered || 0) * 100;
-          if (p.phase === "loading") {
-            setPlayerStatus({
-              msg: `Cargando… ${Math.round(buf)}%`,
-              kind: "load",
-              playPct: Math.max(pct, buf * 0.15),
-              bufPct: buf,
-            });
-          } else if (p.phase === "playing" || p.phase === "paused") {
-            setPlayerStatus({
-              msg: "",
-              kind: "play",
-              playPct: pct,
-              bufPct: buf,
-            });
-          } else if (p.phase === "ended") {
-            transportPlaying = false;
-            playingId = null;
-            resetPlayButtons();
-            stopProgressLoop();
-            updateProgressUI();
-            setPlayerStatus({
-              msg: "Fin del preview",
-              kind: "ok",
-              playPct: 100,
-              bufPct: 100,
-              autoHideMs: 2500,
-            });
-          } else if (p.phase === "error") {
-            transportPlaying = false;
-            playingId = null;
-            resetPlayButtons();
-            stopProgressLoop();
-            setPlayerStatus({
-              msg: p.error || "Error de audio",
-              kind: "err",
-              playPct: 0,
-              bufPct: 0,
-            });
-          }
-        },
-      });
       let playingId: string | null = null;
       let transportPlaying = false;
       let progressRaf = 0;
-      let seeking = false;
+      /** Solo true mientras el usuario arrastra el seek (no tras commit). */
+      let seekDragging = false;
       let seekTargetSec: number | null = null;
       let loadingStems = false;
 
       const mediaDuration = (): number => {
-        if (previewPlayer.duration > 0) return previewPlayer.duration;
+        if (previewPlayer.hasSource && previewPlayer.duration > 0) {
+          return previewPlayer.duration;
+        }
         if (gridVideo && Number.isFinite(gridVideo.duration) && gridVideo.duration > 0) {
           return gridVideo.duration;
         }
@@ -324,45 +282,113 @@ export function bindLibraryBrowser() {
       };
 
       const mediaCurrent = (): number => {
-        if (seekTargetSec != null && seeking) return seekTargetSec;
-        if (previewPlayer.loadedItemId) return previewPlayer.currentTime;
-        if (gridVideo) return gridVideo.currentTime;
+        // Durante arrastre: posición del dedo; si no, tiempo real del media
+        if (seekDragging && seekTargetSec != null) return seekTargetSec;
+        if (previewPlayer.hasSource) return previewPlayer.currentTime;
+        if (gridVideo && !gridVideo.paused) return gridVideo.currentTime;
         const modalVid = root.querySelector<HTMLVideoElement>("[data-modal-vid]");
+        if (modalVid && !modalVid.paused) return modalVid.currentTime;
+        if (gridVideo) return gridVideo.currentTime;
         if (modalVid) return modalVid.currentTime;
         return 0;
+      };
+
+      const mediaBufferedPct = (): number => {
+        if (previewPlayer.hasSource) return (previewPlayer.bufferedRatio || 0) * 100;
+        return 0;
+      };
+
+      const idsMatch = (a: string, b: string | null) => {
+        if (!b) return false;
+        if (a === b) return true;
+        if (b === "modal-" + a || a === "modal-" + b) return true;
+        const bare = (x: string) => (x.startsWith("modal-") ? x.slice(6) : x);
+        return bare(a) === bare(b);
       };
 
       const updateProgressUI = () => {
         const seek = root.querySelector<HTMLInputElement>("[data-lb-seek]");
         const timeEl = root.querySelector("[data-lb-time]");
+        const modalFill = root.querySelector("[data-lb-modal-fill]");
+        const modalBuf = root.querySelector("[data-lb-modal-buf]");
         const dur = mediaDuration();
         const cur = mediaCurrent();
-        if (seek && !seeking) {
+        const pct = dur > 0 ? Math.min(100, Math.max(0, (cur / dur) * 100)) : 0;
+        const buf = mediaBufferedPct();
+
+        if (seek && !seekDragging) {
           seek.value = dur > 0 ? String(Math.round((cur / dur) * 1000)) : "0";
         }
         if (timeEl) {
           timeEl.textContent = `${fmtTime(cur)} / ${dur > 0 ? fmtTime(dur) : "--:--"}`;
         }
+        if (modalFill instanceof HTMLElement) {
+          modalFill.style.setProperty("--p", `${pct}%`);
+        }
+        if (modalBuf instanceof HTMLElement) {
+          modalBuf.style.setProperty("--b", `${Math.max(buf, pct)}%`);
+        }
+
+        const playing =
+          transportPlaying ||
+          previewPlayer.isPlaying ||
+          !!(gridVideo && !gridVideo.paused);
+
         root.querySelectorAll("[data-thumb-progress]").forEach((bar) => {
           if (!(bar instanceof HTMLElement)) return;
           const id = bar.dataset.thumbProgress || "";
           const isThis =
-            id === playingId ||
-            playingId === "modal-" + id ||
-            (previewPlayer.loadedItemId === id &&
-              (transportPlaying || previewPlayer.isPlaying));
-          if (isThis && (transportPlaying || previewPlayer.isPlaying) && dur > 0) {
+            idsMatch(id, playingId) ||
+            idsMatch(id, previewPlayer.loadedItemId);
+          if (isThis && playing && dur > 0) {
             bar.hidden = false;
-            bar.style.setProperty("--p", `${Math.min(100, (cur / dur) * 100)}%`);
+            bar.style.setProperty("--p", `${pct}%`);
           } else if (isThis && loadingStems) {
             bar.hidden = false;
             bar.style.setProperty("--p", "12%");
-          } else {
+          } else if (!playing) {
             bar.hidden = true;
             bar.style.setProperty("--p", "0%");
           }
         });
       };
+
+      previewPlayer.setHandlers({
+        onUpdate: (p) => {
+          updateProgressUI();
+          const buf = (p.buffered || 0) * 100;
+          if (p.phase === "loading") {
+            setPlayerStatus({
+              msg: `Cargando… ${Math.round(buf)}%`,
+              kind: "load",
+              bufPct: buf,
+            });
+          } else if (p.phase === "playing" || p.phase === "paused") {
+            // sin texto; barra la mueve updateProgressUI
+            setPlayerStatus({ msg: "", kind: "play" });
+          } else if (p.phase === "ended") {
+            transportPlaying = false;
+            playingId = null;
+            resetPlayButtons();
+            stopProgressLoop();
+            updateProgressUI();
+            setPlayerStatus({
+              msg: "Fin del preview",
+              kind: "ok",
+              autoHideMs: 2500,
+            });
+          } else if (p.phase === "error") {
+            transportPlaying = false;
+            playingId = null;
+            resetPlayButtons();
+            stopProgressLoop();
+            setPlayerStatus({
+              msg: p.error || "Error de audio",
+              kind: "err",
+            });
+          }
+        },
+      });
 
       const stopProgressLoop = () => {
         if (progressRaf) cancelAnimationFrame(progressRaf);
@@ -376,6 +402,7 @@ export function bindLibraryBrowser() {
           if (
             transportPlaying ||
             previewPlayer.isPlaying ||
+            previewPlayer.phasePublic === "loading" ||
             (gridVideo && !gridVideo.paused)
           ) {
             progressRaf = requestAnimationFrame(tick);
@@ -393,27 +420,41 @@ export function bindLibraryBrowser() {
           b.setAttribute("aria-pressed", "false");
         });
         const prev = root.querySelector("[data-lb-preview-play]");
-        if (prev) prev.textContent = L.play;
+        if (prev) {
+          prev.textContent = "▶";
+          prev.setAttribute("aria-pressed", "false");
+          prev.setAttribute("aria-label", L.play || "Play");
+        }
       };
 
       const markPlayingButtons = (id: string) => {
         resetPlayButtons();
         const thumbId = id.startsWith("modal-") ? id.slice(6) : id;
-        const thumb = root.querySelector(`[data-thumb-play="${thumbId}"]`);
+        const stopLabel = L.stop || "❚❚";
+        const thumb = root.querySelector(`[data-thumb-play="${CSS.escape(thumbId)}"]`);
         if (thumb) {
-          thumb.textContent = L.stop;
+          thumb.textContent = stopLabel;
           thumb.setAttribute("aria-pressed", "true");
         }
-        if (active && (id === active.id || id === "modal-" + active.id || thumbId === active.id)) {
+        if (
+          active &&
+          (idsMatch(active.id, id) ||
+            idsMatch(safeDomId(active.id), id) ||
+            idsMatch(thumbId, active.id))
+        ) {
           const prev = root.querySelector("[data-lb-preview-play]");
-          if (prev) prev.textContent = L.stop;
+          if (prev) {
+            prev.textContent = stopLabel;
+            prev.setAttribute("aria-pressed", "true");
+            prev.setAttribute("aria-label", stopLabel);
+          }
         }
       };
 
       const stopAll = () => {
         abortPlay();
         stopProgressLoop();
-        seeking = false;
+        seekDragging = false;
         seekTargetSec = null;
         transportPlaying = false;
         previewPlayer.stop();
@@ -460,9 +501,13 @@ export function bindLibraryBrowser() {
       };
 
       const setPlayLoading = (playId: string, text: string) => {
-        const thumb = root.querySelector(`[data-thumb-play="${CSS.escape(playId)}"]`);
+        const bare = playId.startsWith("modal-") ? playId.slice(6) : playId;
+        const thumb = root.querySelector(`[data-thumb-play="${CSS.escape(bare)}"]`);
         if (thumb) thumb.textContent = text;
-        if (playId.startsWith("modal-") || playingId?.startsWith("modal-")) {
+        if (
+          playId.startsWith("modal-") ||
+          (active && (idsMatch(active.id, playId) || idsMatch(bare, active.id)))
+        ) {
           const prev = root.querySelector("[data-lb-preview-play]");
           if (prev) prev.textContent = text;
         }
@@ -500,26 +545,27 @@ export function bindLibraryBrowser() {
         if (!(dur > 0)) return false;
         const t = Math.max(0, Math.min(ratio, 1)) * dur;
         seekTargetSec = t;
-        seeking = true;
 
-        if (previewPlayer.loadedItemId) {
+        if (previewPlayer.hasSource) {
           previewPlayer.seek(t);
           if (transportPlaying || previewPlayer.isPlaying) {
             transportPlaying = true;
-            if (previewPlayer.isPlaying) startProgressLoop();
+            startProgressLoop();
           }
         } else {
           const el =
             gridVideo || root.querySelector<HTMLVideoElement>("[data-modal-vid]");
           if (!el) {
-            seeking = false;
+            seekDragging = false;
+            seekTargetSec = null;
             return false;
           }
           const resume = transportPlaying || !el.paused;
           try {
             el.currentTime = t;
           } catch {
-            seeking = false;
+            seekDragging = false;
+            seekTargetSec = null;
             return false;
           }
           if (resume) {
@@ -529,12 +575,11 @@ export function bindLibraryBrowser() {
           }
         }
 
+        // Soltar freeze de UI y leer currentTime real del media
+        seekDragging = false;
+        seekTargetSec = null;
         updateProgressUI();
-        window.setTimeout(() => {
-          seeking = false;
-          seekTargetSec = null;
-          updateProgressUI();
-        }, 120);
+        requestAnimationFrame(() => updateProgressUI());
         return true;
       };
 
@@ -892,7 +937,7 @@ export function bindLibraryBrowser() {
             e.preventDefault();
             e.stopPropagation();
             bar.setPointerCapture(e.pointerId);
-            seeking = true;
+            seekDragging = true;
             seekFromEvent(e.clientX);
           });
           bar.addEventListener("pointermove", (e) => {
@@ -905,7 +950,8 @@ export function bindLibraryBrowser() {
             if (bar.hasPointerCapture(e.pointerId)) {
               bar.releasePointerCapture(e.pointerId);
             }
-            seeking = false;
+            // seekFromEvent ya hace seekToRatio; liberar freeze
+            seekDragging = false;
             seekTargetSec = null;
             updateProgressUI();
           });
@@ -1147,51 +1193,40 @@ export function bindLibraryBrowser() {
       });
 
       const seekInput = root.querySelector<HTMLInputElement>("[data-lb-seek]");
-      let seekDragging = false;
 
       const previewSeekUi = (ratio: number) => {
         const dur = mediaDuration();
         if (!(dur > 0) || !seekInput) return;
-        seeking = true;
+        seekDragging = true;
         seekTargetSec = Math.max(0, Math.min(1, ratio)) * dur;
         seekInput.value = String(Math.round(Math.max(0, Math.min(1, ratio)) * 1000));
-        const timeEl = root.querySelector("[data-lb-time]");
-        if (timeEl) {
-          timeEl.textContent = `${fmtTime(seekTargetSec)} / ${fmtTime(dur)}`;
-        }
+        updateProgressUI();
       };
 
       const commitSeekFromInput = async () => {
         if (!seekInput) return;
         const ratio = Number(seekInput.value) / 1000;
-        seekDragging = false;
         await seekToRatio(ratio);
       };
 
-      // Durante el arrastre: solo UI (no martillar 6× WAV con seek cada frame)
+      // Durante el arrastre: solo UI; al soltar: seek real al audio
       seekInput?.addEventListener("pointerdown", () => {
         seekDragging = true;
-        seeking = true;
       });
       seekInput?.addEventListener("mousedown", () => {
         seekDragging = true;
-        seeking = true;
       });
       seekInput?.addEventListener(
         "touchstart",
         () => {
           seekDragging = true;
-          seeking = true;
         },
         { passive: true },
       );
       seekInput?.addEventListener("input", () => {
         if (!seekInput) return;
-        seeking = true;
-        seekDragging = true;
         previewSeekUi(Number(seekInput.value) / 1000);
       });
-      // Al soltar / change: seek real pause→set→play
       seekInput?.addEventListener("change", () => {
         void commitSeekFromInput();
       });

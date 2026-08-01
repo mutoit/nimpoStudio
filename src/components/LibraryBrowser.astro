@@ -180,9 +180,15 @@ const payload = {
           <p class="lb__prov-badge" data-lb-prov hidden></p>
           <div class="lb__media" data-lb-media></div>
           <div class="lb__transport" data-lb-transport>
-            <button type="button" class="lb__btn" data-lb-preview-play>{t("libPlay")}</button>
             <p class="lb__modal-status" data-lb-modal-status hidden role="status"></p>
             <div class="lb__progress" data-lb-progress>
+              <button
+                type="button"
+                class="lb__play-inline"
+                data-lb-preview-play
+                aria-label={t("libPlay")}
+                aria-pressed="false"
+              >▶</button>
               <div class="lb__player-track lb__player-track--modal" aria-hidden="true">
                 <div class="lb__player-buf" data-lb-modal-buf style="--b:0%"></div>
                 <div class="lb__player-fill" data-lb-modal-fill style="--p:0%"></div>

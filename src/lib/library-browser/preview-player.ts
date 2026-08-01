@@ -26,16 +26,39 @@ export class LibraryPreviewPlayer {
 
   get isPlaying() {
     const a = this.audio;
-    return !!(a && !a.paused && !a.ended && this.phase === "playing");
+    // Tiempo real del elemento: no depender solo de phase (waiting → loading rompía el loop)
+    return !!(a && a.src && !a.paused && !a.ended);
+  }
+
+  /** Hay src cargado (aunque esté en pause). */
+  get hasSource() {
+    return !!(this.audio && this.audio.src);
+  }
+
+  get phasePublic(): PreviewProgress["phase"] {
+    return this.phase;
   }
 
   get currentTime() {
-    return this.audio?.currentTime ?? 0;
+    const t = this.audio?.currentTime;
+    return t != null && Number.isFinite(t) ? t : 0;
   }
 
   get duration() {
-    const d = this.audio?.duration;
-    return d && Number.isFinite(d) ? d : 0;
+    const a = this.audio;
+    if (!a) return 0;
+    const d = a.duration;
+    if (d && Number.isFinite(d) && d > 0 && d !== Infinity) return d;
+    // WAV a veces tarda: usar fin del buffer como aproximación
+    try {
+      if (a.buffered && a.buffered.length > 0) {
+        const end = a.buffered.end(a.buffered.length - 1);
+        if (end > 0 && Number.isFinite(end)) return end;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 0;
   }
 
   get bufferedRatio() {
@@ -115,7 +138,8 @@ export class LibraryPreviewPlayer {
     this.stopProgress();
     const tick = () => {
       this.emit();
-      if (this.isPlaying || this.phase === "loading") {
+      // Seguir emitiendo mientras el audio corre o está bufferizando
+      if (this.isPlaying || this.phase === "loading" || this.phase === "playing") {
         this.raf = requestAnimationFrame(tick);
       } else {
         this.raf = 0;
@@ -218,7 +242,9 @@ export class LibraryPreviewPlayer {
     } catch {
       /* ignore */
     }
+    // Re-emit en el siguiente frame por si el browser aún no actualizó currentTime
     this.emit();
+    requestAnimationFrame(() => this.emit());
   }
 
   dispose() {

@@ -68,12 +68,8 @@ export function createPlaySession(deps: PlaySessionDeps) {
       deps.startProgressLoop();
       deps.updateProgressUI();
       deps.hideStemError();
-      deps.setPlayerStatus({
-        msg: `▶ ${item.title || "Audio"}`,
-        kind: "play",
-        playPct: 0,
-        time: "0:00 / …",
-      });
+      // No pisar la barra con playPct:0 — updateProgressUI lee currentTime real
+      deps.setPlayerStatus({ msg: "", kind: "play" });
     } catch (e) {
       if ((e as Error)?.name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "No se pudo cargar el preview";

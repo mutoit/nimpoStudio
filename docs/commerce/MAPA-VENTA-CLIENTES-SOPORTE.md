@@ -1,7 +1,7 @@
 # Mapa — Venta, clientes, tickets y soporte
 
-**Estado del sistema:** software A–D **implementado** · música preview/HQ/checkout **implementado** · Stripe **cableado en Pages** · falta **ops** (Prices en fichas, banco, smoke)  
-**Última revisión:** 2026-07-31  
+**Estado del sistema:** software A–D **implementado** · música preview/HQ/checkout baremo **implementado** · Stripe **live activo** (banco + catálogo licencias) · falta **ops** (smoke + publicar Nimpo Glass)  
+**Última revisión:** 2026-08-01  
 **Ámbito:** software **y** música (checkout compartido, datos en `catalog/commerce/*`).
 
 | Doc | Para qué |
@@ -91,15 +91,14 @@ Tras cambiar un secret: **nuevo deploy** (retry o push) si el runtime no lo ve.
 
 ### Falta de tu parte (ops) — **PRIORIDAD** 📝
 
-**Lista canónica (música + software + Stripe):**  
+**Lista canónica (solo pendientes):**  
 → **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
 
-Resumen software (detalle allí):
+Resumen:
 
-- [x] Secrets Pages Stripe + webhook + Price ejemplo 29 €
-- [ ] Banco + verificación Stripe (payouts)
-- [ ] Producto admin: `stripePriceId` + full + **published**
-- [ ] Smoke compra → cuenta → re-descarga
+- [x] Secrets Pages + webhook + Price software 29 € + **banco/verificación Stripe**
+- [x] Catálogo Stripe licencias/extras + checkout multi-línea música
+- [ ] Smoke música + publicar **Nimpo Glass** (full + published) + smoke software
 - [ ] (Rec.) Access `/admin*` · IVA/legal (ver § dinero)
 
 ### Hecho en proceso (tú, cuando haya tickets/ventas) 🧑

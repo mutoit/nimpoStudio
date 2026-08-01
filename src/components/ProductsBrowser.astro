@@ -84,10 +84,14 @@ const payload = {
     feedbackVerify: t("productFeedbackVerify"),
     priceFrom: t("productPriceFrom"),
     version: t("productVersion"),
+    share: t("share"),
+    shareCopied: t("shareCopied"),
+    shareFailed: t("shareFailed"),
     accountPath: `/${lang}/cuenta/`,
   },
   contactHref: `/${lang}/contacto/`,
   contactEmail: "contacto@nimpo3dstudio.com",
+  lang,
   seed,
   accountPath: `/${lang}/cuenta/`,
 };
@@ -142,6 +146,18 @@ const payload = {
             <button type="button" class="pb__btn pb__btn--gold" data-pb-checkout hidden>{t("productBuy")}</button>
             <a class="pb__btn pb__btn--gold" data-pb-buy hidden target="_blank" rel="noopener">{t("productBuy")}</a>
             <a class="pb__btn pb__btn--gold" data-pb-buy-mail hidden>{t("productBuyRequest")}</a>
+            <button type="button" class="pb__btn pb__btn--ghost" data-pb-share>
+              <span class="pb__share-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </span>
+              <span data-pb-share-label>{t("share")}</span>
+            </button>
             <button type="button" class="pb__btn pb__btn--ghost" data-pb-feedback>{t("productFeedback")}</button>
             <a class="pb__btn pb__btn--ghost" data-pb-contact href={`/${lang}/contacto/`}>{t("navContact")}</a>
           </div>
@@ -191,6 +207,7 @@ const payload = {
 
 <script>
   import { escapeHtml, safeMediaUrl, safeDomId } from "../lib/dom-escape";
+  import { absoluteShareUrl, productSharePath, shareUrl } from "../lib/share";
 
   type DemoInfo = { kind: string; url?: string | null; notes?: string };
   type PlanInfo = {
@@ -285,12 +302,47 @@ const payload = {
     const buyEl = root.querySelector("[data-pb-buy]");
     const buyMailEl = root.querySelector("[data-pb-buy-mail]");
     const checkoutEl = root.querySelector("[data-pb-checkout]");
+    const shareEl = root.querySelector("[data-pb-share]");
+    const shareLabelEl = root.querySelector("[data-pb-share-label]");
     const feedbackBtn = root.querySelector("[data-pb-feedback]");
     const feedbackForm = root.querySelector("[data-pb-feedback-form]");
+    const lang = String(payload.lang || "es");
+    let shareResetTimer = 0;
 
     if (contactEl instanceof HTMLAnchorElement && payload.contactHref) {
       contactEl.href = payload.contactHref;
     }
+
+    const shareProduct = async (item: Item, btn: HTMLElement) => {
+      const path = productSharePath(item.slug, lang);
+      const url = absoluteShareUrl(path);
+      const title = item.name || "Nimpo 3D Studio";
+      const text = item.shortDescription || item.name || "";
+      btn.setAttribute("disabled", "true");
+      const result = await shareUrl({ url, title, text });
+      btn.removeAttribute("disabled");
+      if (result === "cancelled") return;
+      const base = L.share || "Share";
+      const next =
+        result === "shared" || result === "copied"
+          ? L.shareCopied || base
+          : L.shareFailed || base;
+      if (shareLabelEl) shareLabelEl.textContent = next;
+      btn.setAttribute("aria-label", next);
+      btn.classList.toggle("is-ok", result === "shared" || result === "copied");
+      if (shareResetTimer) window.clearTimeout(shareResetTimer);
+      shareResetTimer = window.setTimeout(() => {
+        if (shareLabelEl) shareLabelEl.textContent = base;
+        btn.setAttribute("aria-label", base);
+        btn.classList.remove("is-ok");
+      }, 2200);
+    };
+
+    shareEl?.addEventListener("click", () => {
+      const item = items.find((x) => x.slug === activeSlug);
+      if (!item || !(shareEl instanceof HTMLElement)) return;
+      void shareProduct(item, shareEl);
+    });
 
     const SUBTYPES: Record<string, string[]> = {
       bug: ["crash", "install", "license_activate", "performance", "ui", "data_loss", "other"],
@@ -1239,6 +1291,20 @@ const payload = {
   }
   .pb__btn--ghost {
     background: transparent;
+  }
+  .pb__btn[data-pb-share] {
+    gap: 0.35rem;
+  }
+  .pb__share-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .pb__share-icon svg {
+    display: block;
+  }
+  .pb__btn[data-pb-share].is-ok {
+    border-color: rgb(201 169 98 / 0.45);
+    color: var(--color-accent);
   }
   .pb__btn[hidden],
   a.pb__btn[hidden] {

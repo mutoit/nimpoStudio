@@ -83,3 +83,10 @@ export function libraryItemSharePath(slug: string, lang: string): string {
   const l = String(lang || "es").trim() || "es";
   return `/${l}/biblioteca/?p=${encodeURIComponent(s)}`;
 }
+
+/** URL de catálogo software con deep-link a un producto. */
+export function productSharePath(slug: string, lang: string): string {
+  const s = String(slug || "").trim();
+  const l = String(lang || "es").trim() || "es";
+  return `/${l}/catalogo/?p=${encodeURIComponent(s)}`;
+}

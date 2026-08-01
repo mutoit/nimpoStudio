@@ -129,21 +129,20 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 - [x] WP7 docs mapa/estado
 
 ### 🔥 PRIORIDAD — Tus tareas de ventas
-**Lista única (música + software):** **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
+**Lista única (solo pendientes):** **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
 
-1. Stripe: banco + keys alineadas  
-2. Música: `price_…` en ficha (ej. Casa de campo) + smoke  
-3. Software: producto published + full + smoke  
+1. Smoke música (Pagar → cuenta → descarga)  
+2. Publicar **Nimpo Glass** + smoke software  
 
 ### Música biblioteca + pago (código listo)
 **Política:** `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
-- [x] Master/stems HQ privados · preview único · checkout · cuenta
-- [ ] → ops en **TAREAS-VENTAS-PRIORIDAD.md** § música
+- [x] Master/stems HQ · preview · baremo Stripe licencias/extras · checkout multi-línea · cuenta
+- [ ] → smoke en **TAREAS-VENTAS-PRIORIDAD.md**
 
 ### Software commerce (código listo)
 **Mapa:** `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`
-- [x] Secrets Stripe + webhook + Price ejemplo 29 € (`stripeConfigured: true`)
-- [ ] → ops en **TAREAS-VENTAS-PRIORIDAD.md** § software
+- [x] Secrets Stripe + webhook + Price 29 € + cuenta live
+- [ ] → Nimpo Glass published en **TAREAS-VENTAS-PRIORIDAD.md**
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

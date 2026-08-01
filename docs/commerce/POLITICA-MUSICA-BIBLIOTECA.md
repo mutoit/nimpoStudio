@@ -2,7 +2,7 @@
 
 **SSoT del modelo actual** (web + R2 + Stripe).  
 **Última revisión:** 2026-07-31  
-**Estado código:** implementado · **Ops:** falta pegar `price_…` en fichas + smoke pago
+**Estado código:** implementado · **Ops:** smoke pago + publicar software (ver TAREAS-VENTAS)
 
 Relacionado:
 
@@ -71,10 +71,10 @@ Checkout = line items del baremo (uso + extras) + metadata `workSlug`.
 
 | Acción | Comportamiento |
 |--------|----------------|
-| ▶ Play | Solo **preview** (1 archivo) |
-| Ficha / licencia | Cotizador (`POST /api/quote`) **siempre** disponible si `licenseEnabled` |
-| **Pagar con tarjeta** | Visible solo si `checkoutReady` |
-| Sin Price en Stripe | Mensaje de “configurar Price”; cotización sigue |
+| ▶ Play | Solo **preview** (1 archivo) · barra al tiempo real del audio |
+| Ficha / licencia | Cotizador + **Total** + **Pagar** (baremo global Stripe) si hay master |
+| **Pagar** | Visible si `checkoutReady` = master HQ + licencia on |
+| Presupuesto especial | Formulario (no Checkout); cobro Invoice/Link a mano |
 
 No hay mixer de capas en público. El texto de stems es **beneficio de licencia**, no player.
 
@@ -139,11 +139,10 @@ No mezclar con checkout de **software** (`productSlug` de `/admin/productos/`). 
 
 Solo música (extracto):
 
-- [ ] Stripe: Price(s) de música (`price_…`)  
-- [ ] Admin: pegar en cada obra + `priceEur`  
-- [ ] Master (y stems) en `full/`  
-- [ ] Smoke test (test mode primero): pagar → mail → cuenta → descarga  
-- [ ] Banco / verificación Stripe si live  
+- [x] Catálogo Stripe licencias + extras + mapa `stripe-license-prices.json`  
+- [x] Banco / verificación Stripe live  
+- [ ] Smoke: Pagar → mail → cuenta → descarga (obra con master en `full/`)  
+- [ ] Especial: Invoice/Link a mano cuando toque  
 
 ---
 

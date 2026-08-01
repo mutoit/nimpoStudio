@@ -2,17 +2,18 @@
 
 Documentos para **vender ya**, sin “consultar por todo”.
 
-## Modelo web actual (2026-07-31)
+## Modelo web actual (2026-08-01)
 
 **Política técnica completa:** [`docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`](../commerce/POLITICA-MUSICA-BIBLIOTECA.md)
 
 | Canal | Uso |
 |-------|-----|
-| **Pagar online** | Biblioteca → Checkout Stripe si la obra tiene master + `stripePriceId` |
-| **Cotización** | Formulario → `/api/quote` (exclusivas, usos raros, sin Price aún) |
+| **Pagar online** | Biblioteca → uso + extras → **Pagar** (Checkout multi-línea). Stripe = **licencias/extras** del baremo, no un Price por obra. Obra = metadata + entrega HQ (hace falta **master** en R2). |
+| **Presupuesto especial** | Flag en formulario → `/api/quote` → Invoice/Link a mano |
 | **Preview** | 1 mix ligero en web; master/stems HQ solo tras pago (R2 privado) |
 
-Los precios de la **calculadora** de este pack siguen siendo la referencia de catálogo; el Price de Stripe de cada ficha debe alinearse con la tarifa que quieras cobrar online.
+Mapa Stripe: `functions/lib/stripe-license-prices.json` (código cotizador → `price_…`).  
+Importes: `license-prices.json` + este pack (tabla / 00-PRECIOS).
 
 | Archivo | Para qué |
 |---------|----------|
@@ -56,18 +57,18 @@ Si cambias un precio: **license-quote** (src + functions) + **TABLA-RAPIDA** + *
 
 ## Flujo de una venta
 
-### A) Online (preferido cuando hay Price + master)
+### A) Online (baremo cerrado + master en R2)
 
-1. Cliente en biblioteca → **Pagar con tarjeta** (Stripe).  
+1. Cliente en biblioteca → elige uso/extras → **Pagar** (Stripe).  
 2. Webhook → pedido + mail con descarga 72 h.  
 3. Re-descarga desde `/es/cuenta/` (magic link).  
 4. Opcional: PDF de licencia con plantilla si quieres formalizar.
 
-### B) Cotización / exclusiva / sin Price
+### B) Presupuesto especial / a medida
 
-1. Cliente rellena formulario → `/api/quote`.  
-2. Confirmas tarifa (`00-PRECIOS-REFERENCIA.md` / tabla rápida).  
-3. Rellenas plantilla → PDF.  
+1. Cliente marca especial + notas → `/api/quote`.  
+2. Confirmas tarifa (`00-PRECIOS` / tabla) → Invoice o Payment Link Stripe.  
+3. Opcional: plantilla PDF.  
 4. Cobras (transfer / Stripe manual).  
 5. Entregas master/stems (R2 privado o envío).  
 6. Archivas PDF + pago.

@@ -60,6 +60,7 @@ const payload = {
     image: lang === "en" ? "Image" : "Imagen",
     select: lang === "en" ? "Select a product" : lang === "fr" ? "Choisissez un produit" : "Elige un producto",
     demo: t("productDemo"),
+    demoBeta: t("productDemoBeta"),
     demoRequest: t("productDemoRequest"),
     buy: t("productBuy"),
     buyRequest: t("productBuyRequest"),
@@ -639,18 +640,31 @@ const payload = {
         safeMediaUrl(demoUrlRaw) ||
         (/^https:\/\//i.test(demoUrlRaw) ? demoUrlRaw : "") ||
         (demoUrlRaw.startsWith("mailto:") ? demoUrlRaw : "");
+      // Mismo botón: etiqueta según status del producto (beta → "Probar beta")
+      const demoLabel =
+        item.status === "beta"
+          ? L.demoBeta || L.demo || "Beta"
+          : L.demo || "Demo";
       if (demoEl instanceof HTMLAnchorElement) {
         if ((demoKind === "download" || demoKind === "web") && demoUrl) {
           demoEl.hidden = false;
           demoEl.href = demoUrl;
-          demoEl.textContent = L.demo || "Demo";
+          demoEl.textContent = demoLabel;
         } else {
           demoEl.hidden = true;
           demoEl.removeAttribute("href");
         }
       }
       if (demoReqEl instanceof HTMLElement) {
-        demoReqEl.hidden = demoKind !== "request";
+        if (demoKind === "request") {
+          demoReqEl.hidden = false;
+          demoReqEl.textContent =
+            item.status === "beta"
+              ? L.demoBeta || L.demoRequest || "Beta"
+              : L.demoRequest || "Request demo";
+        } else {
+          demoReqEl.hidden = true;
+        }
       }
 
       // Buy CTA: Checkout / Payment Link / mailto.

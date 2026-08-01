@@ -89,7 +89,8 @@ TÚ
 | Cuenta Stripe | **nimpo3dStudio** (`acct_1Tyyww9hkzoHpGr7`) · pagos **no recurrentes** |
 | MCP Stripe + skills | Configurados en Grok; planner: Checkout hosted one-time |
 | Producto Stripe (live) | `prod_UyxEX5Z08ZnyNM` — *Nimpo Software — Standard* |
-| Price one-time (live) | `price_1TyzK89hkzoHpGr7QKVv2SgV` — **29,00 EUR** |
+| Price software Nimpo Glass (live) | `price_1TzjiE9hkzoHpGr7BWNn2qNH` — **9,90 EUR** (`prod_UzjAtCwWMDtD6Q`) |
+| Price software legacy ejemplo | `price_1TyzK89hkzoHpGr7QKVv2SgV` — 29 € (no Glass) |
 | Webhook live | `we_1TyzKG9hkzoHpGr7l7LV1ovM` → `https://nimpo3dstudio.com/api/webhooks/stripe` · `checkout.session.completed` |
 | Pages secrets | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` en proyecto **nimpo-studio** |
 | Redeploy | Commit vacío `2150885` para que el runtime cargue secrets |
@@ -170,7 +171,7 @@ Hay **dos capas** y deben coincidir:
 
 | Dónde | Qué es |
 |--------|--------|
-| **Stripe** | Product + **Price** (`price_…`). Ahí se **cobra** de verdad. Ejemplo actual: **29 €** one-time → `price_1TyzK89hkzoHpGr7QKVv2SgV` |
+| **Stripe** | Product + **Price** (`price_…`). Ahí se **cobra** de verdad. **Nimpo Glass:** **9,90 €** → `price_1TzjiE9hkzoHpGr7BWNn2qNH` |
 | **Web admin** `/admin/productos/` | En el plan: **`stripePriceId`** = ese `price_…`. Opcional `priceEur` solo para **mostrar** en la ficha |
 
 Flujo: catálogo → Comprar → API crea Checkout con el Price de Stripe → el cliente ve el precio de Stripe.

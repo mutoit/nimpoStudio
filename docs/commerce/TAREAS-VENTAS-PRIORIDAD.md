@@ -25,12 +25,16 @@ Código + catálogo Stripe licencias/extras **listos**. Falta probar de punta a 
 
 ### 2 — Software · Nimpo Glass
 
-Price Stripe software ya existe: `price_1TyzK89hkzoHpGr7QKVv2SgV` (29 €) — u otro si Glass tiene otro precio.
+| Stripe | ID |
+|--------|-----|
+| Product live | `prod_UzjAtCwWMDtD6Q` — **Nimpo Glass** |
+| Price one-time | **`price_1TzjiE9hkzoHpGr7BWNn2qNH`** — **9,90 EUR** |
+| (legacy 29 €) | `price_1TyzK89hkzoHpGr7QKVv2SgV` — no usar para Glass |
 
 | # | Tarea |
 |---|--------|
-| 2.1 | `/admin/productos/` → crear **Nimpo Glass** (`nimpo-glass`) · status **published** |
-| 2.2 | Pegar **`stripePriceId`** del Price live |
+| 2.1 | `/admin/productos/` → crear **Nimpo Glass** (`nimpo-glass`) · status **published** · `priceEur` **9.90** |
+| 2.2 | Pegar **`stripePriceId`** = `price_1TzjiE9hkzoHpGr7BWNn2qNH` |
 | 2.3 | Subir **full** (exe/zip) a `full/` · demo = mismo binario otra vez si quieres prueba pública |
 | 2.4 | **Smoke:** Comprar → mail con key → `/admin/pedidos/` → cuenta → re-descarga |
 

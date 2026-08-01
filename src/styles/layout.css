@@ -96,14 +96,23 @@
   }
 
   .page-with-feed__rail {
-    display: block;
+    display: flex;
+    flex-direction: column;
     grid-column: 3;
     position: sticky;
     top: 5.5rem;
     width: 100%;
     max-height: calc(100dvh - 7rem);
+    min-height: 0;
     z-index: 30;
     padding-block: 2.75rem 2rem;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .page-with-feed__rail > * {
+    min-height: 0;
+    max-height: 100%;
   }
 }
 

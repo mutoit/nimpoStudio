@@ -1,6 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import PageFrame from "../../components/PageFrame.astro";
+import NewsletterSignup from "../../components/NewsletterSignup.astro";
 import { site } from "../../lib/site";
 import type { Locale } from "../../i18n/translations";
 import { useTranslations, localizePath } from "../../lib/locale";
@@ -30,13 +31,9 @@ const contactHref = localizePath("/contacto", lang);
               <a href={contactHref} class="btn btn--ghost">{t("homeContact")}</a>
             </div>
           </header>
-        </div>
-      </section>
 
-      <section class="section section--pad">
-        <div class="container">
-          <div class="note prose">
-            <p>{t("homeStoreNote")}</p>
+          <div class="hero-nl">
+            <NewsletterSignup lang={lang} variant="hero" />
           </div>
         </div>
       </section>
@@ -89,6 +86,12 @@ const contactHref = localizePath("/contacto", lang);
     margin-top: 2rem;
   }
 
+  .hero-nl {
+    margin-top: 2.75rem;
+    margin-inline: auto;
+    max-width: 28rem;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -108,6 +111,12 @@ const contactHref = localizePath("/contacto", lang);
   @media (max-width: 720px) {
     .page {
       padding-block: 0 2rem;
+    }
+
+    .hero-nl {
+      margin-top: 2rem;
+      max-width: none;
+      padding-inline: 0.15rem;
     }
 
     .hero__lead {

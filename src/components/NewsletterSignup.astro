@@ -1,0 +1,228 @@
+---
+/**
+ * Abono novedades por email (doble opt-in vía /api/newsletter).
+ */
+import type { Locale } from "../i18n/translations";
+import { useTranslations } from "../lib/locale";
+
+type Props = {
+  lang?: Locale;
+  /** compact = rail; default = bloque home con aire */
+  variant?: "hero" | "compact";
+};
+
+const { lang = "es", variant = "hero" } = Astro.props;
+const t = useTranslations(lang);
+
+const payload = {
+  lang: lang as string,
+  labels: {
+    ok: t("newsletterOk"),
+    already: t("newsletterAlready"),
+    err: t("newsletterErr"),
+  },
+};
+---
+
+<div
+  class:list={["nl-signup", `nl-signup--${variant}`]}
+  data-nl-signup
+  data-nl-payload={JSON.stringify(payload)}
+>
+  <div class="nl-signup__inner">
+    <p class="nl-signup__eyebrow">{t("newsletterTitle")}</p>
+    <p class="nl-signup__lead">{t("newsletterLead")}</p>
+    <form class="nl-signup__form" data-nl-form>
+      <label class="nl-signup__field">
+        <span class="visually-hidden">{t("newsletterEmail")}</span>
+        <input
+          type="email"
+          name="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+          placeholder={t("newsletterEmail")}
+          data-nl-email
+        />
+      </label>
+      <button type="submit" class="nl-signup__btn" data-nl-submit>
+        {t("newsletterSubmit")}
+      </button>
+    </form>
+    <p class="nl-signup__privacy">{t("newsletterPrivacy")}</p>
+    <p class="nl-signup__status" data-nl-status hidden></p>
+  </div>
+</div>
+
+<script>
+  function bindNl() {
+    document.querySelectorAll("[data-nl-signup]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
+      root.dataset.bound = "1";
+
+      let payload: {
+        lang?: string;
+        labels?: { ok?: string; already?: string; err?: string };
+      } = {};
+      try {
+        payload = JSON.parse(root.dataset.nlPayload || "{}");
+      } catch {
+        /* */
+      }
+      const L = payload.labels || {};
+      const form = root.querySelector("[data-nl-form]");
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const statusEl = root.querySelector("[data-nl-status]");
+        const btn = root.querySelector("[data-nl-submit]");
+        const emailEl = root.querySelector("[data-nl-email]") as HTMLInputElement | null;
+        const email = String(emailEl?.value || "").trim();
+        if (btn instanceof HTMLButtonElement) btn.disabled = true;
+        if (statusEl instanceof HTMLElement) {
+          statusEl.hidden = false;
+          statusEl.textContent = "…";
+          statusEl.classList.remove("is-err", "is-ok");
+        }
+        try {
+          const res = await fetch("/api/newsletter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ email, lang: payload.lang || "es" }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || data.error || L.err || "Error");
+          }
+          if (statusEl instanceof HTMLElement) {
+            statusEl.classList.add("is-ok");
+            statusEl.textContent =
+              data.status === "already_active"
+                ? L.already || data.message || "OK"
+                : L.ok || data.message || "OK";
+          }
+          if (emailEl && data.status !== "already_active") emailEl.value = "";
+        } catch (err) {
+          if (statusEl instanceof HTMLElement) {
+            statusEl.classList.add("is-err");
+            statusEl.textContent = err instanceof Error ? err.message : L.err || "Error";
+          }
+        } finally {
+          if (btn instanceof HTMLButtonElement) btn.disabled = false;
+        }
+      });
+    });
+  }
+  document.addEventListener("DOMContentLoaded", bindNl);
+  document.addEventListener("astro:page-load", bindNl);
+</script>
+
+<style>
+  .nl-signup {
+    width: 100%;
+  }
+  .nl-signup__inner {
+    box-sizing: border-box;
+  }
+  .nl-signup--hero .nl-signup__inner {
+    max-width: 28rem;
+    margin-inline: auto;
+    padding: 1.35rem 1.25rem 1.25rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgb(201 169 98 / 0.22);
+    background: var(--color-surface);
+    box-shadow: var(--glow);
+  }
+  .nl-signup__eyebrow {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .nl-signup__lead {
+    margin: 0.45rem 0 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .nl-signup__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 1rem;
+    align-items: stretch;
+  }
+  .nl-signup__field {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+  .nl-signup__field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: rgb(0 0 0 / 0.4);
+    color: var(--color-fg, #e8e8ec);
+    font: inherit;
+    font-size: 0.9rem;
+    min-height: 2.75rem;
+  }
+  .nl-signup__field input::placeholder {
+    color: rgb(160 160 170 / 0.85);
+  }
+  .nl-signup__field input:focus {
+    outline: none;
+    border-color: rgb(201 169 98 / 0.55);
+  }
+  .nl-signup__btn {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-accent);
+    color: #0a0a0c;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    min-height: 2.75rem;
+  }
+  .nl-signup__btn:hover {
+    filter: brightness(1.06);
+  }
+  .nl-signup__btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+  .nl-signup__privacy {
+    margin: 0.65rem 0 0;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .nl-signup__status {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+  .nl-signup__status.is-ok {
+    color: var(--color-accent);
+  }
+  .nl-signup__status.is-err {
+    color: #ff9b8a;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

@@ -100,7 +100,8 @@ En la **misma página** admin, bloque **Feed · Novedades**:
 2. Casilla **Avisar abonados por email** (solo si quieres mail; máx. 80 por publicación)
 3. **Publicar en el feed** → `POST /admin/feed` → R2 `catalog/updates.json` (+ mails si marcaste avisar)
 
-**Público:** panel Novedades (home) → form abono → `POST /api/newsletter` (doble opt-in).  
+**Público:** form abono en **home** (bloque bajo el hero) → `POST /api/newsletter` (doble opt-in).  
+Panel lateral Novedades = solo feed (sin form; no rompe el rail).  
 **Admin listas:** `/admin/abonados/` — abonados (filtro, baja, borrar, CSV) + clientes compra (CSV).  
 Lista R2: `catalog/newsletter.json`. Confirm / baja pública: `GET /api/newsletter?action=confirm|unsubscribe&t=…`
 

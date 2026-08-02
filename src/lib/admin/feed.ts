@@ -42,14 +42,16 @@ export function bindAdminFeed() {
           : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
         const shortT = title.length > 18 ? `${title.slice(0, 16)}…` : title;
         return `<article class="tile" title="${safeT} · ${date}">
-          <div class="tile__media" data-feed-edit="${idx}" role="button" tabindex="0" aria-label="Editar ${safeT}">
-            ${thumb}
+          <div class="tile__media">
+            <button type="button" class="tile__cover" data-feed-edit="${idx}" aria-label="Editar ${safeT}">
+              ${thumb}
+            </button>
+            <div class="tile__actions tile__actions--on-cover">
+              <button type="button" class="tile__btn" data-feed-edit="${idx}" title="Editar" aria-label="Editar ${safeT}">Editar</button>
+              <button type="button" class="tile__btn tile__btn--danger" data-feed-del="${idx}" title="Borrar" aria-label="Borrar ${safeT}">Borrar</button>
+            </div>
           </div>
           <p class="tile__title">${shortT.replace(/</g, "&lt;")}</p>
-          <div class="tile__actions">
-            <button type="button" class="tile__btn" data-feed-edit="${idx}" title="Editar" aria-label="Editar ${safeT}">Editar</button>
-            <button type="button" class="tile__btn tile__btn--danger" data-feed-del="${idx}" title="Borrar" aria-label="Borrar ${safeT}">Borrar</button>
-          </div>
         </article>`;
       })
       .join("");

@@ -539,12 +539,24 @@ const payload = {
         const res = await fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({
+            kind: "software",
             productSlug: item.slug,
             planId: plan?.id,
           }),
         });
-        const data = await res.json();
+        const raw = await res.text();
+        let data: { ok?: boolean; url?: string; message?: string; error?: string } = {};
+        try {
+          data = JSON.parse(raw) as typeof data;
+        } catch {
+          throw new Error(
+            res.status === 502
+              ? "Checkout no disponible (502). Revisa STRIPE_SECRET_KEY live en Pages."
+              : `Checkout: respuesta no JSON (${res.status})`,
+          );
+        }
         if (!res.ok || !data.ok || !data.url) {
           throw new Error(data.message || data.error || `Error ${res.status}`);
         }

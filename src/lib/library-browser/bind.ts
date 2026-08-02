@@ -1437,7 +1437,11 @@ export function bindLibraryBrowser() {
           try {
             const res = await fetch("/api/checkout", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              credentials: "same-origin",
               body: JSON.stringify({
                 kind: "music",
                 workSlug: active.slug,
@@ -1456,12 +1460,22 @@ export function bindLibraryBrowser() {
                 moreComposition: fd.get("moreComposition") === "1",
               }),
             });
-            const data = (await res.json()) as {
+            const raw = await res.text();
+            let data: {
               ok?: boolean;
               url?: string;
               error?: string;
               message?: string;
-            };
+            } = {};
+            try {
+              data = JSON.parse(raw) as typeof data;
+            } catch {
+              throw new Error(
+                res.status === 502
+                  ? "Pago no disponible (502). Revisa STRIPE_SECRET_KEY live en Pages."
+                  : `Pago: respuesta no JSON (${res.status})`,
+              );
+            }
             if (!res.ok || !data.ok || !data.url) {
               throw new Error(
                 data.message ||

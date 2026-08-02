@@ -301,13 +301,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
       };
       if (!res.ok || !data.url) {
         console.warn("[checkout/music]", res.status, data);
+        const stripeMsg = data.error?.message || `stripe_${res.status}`;
+        const noPrice = /no such price/i.test(stripeMsg);
+        // 422 (no 502): CF a veces sustituye 502 por HTML en el dominio custom.
         return json(
           {
             ok: false,
-            error: "stripe_session_failed",
-            message: data.error?.message || `stripe_${res.status}`,
+            error: noPrice ? "stripe_price_missing" : "stripe_session_failed",
+            message: noPrice
+              ? "Stripe no reconoce el Price (¿clave test vs prices live en Pages?). Revisa STRIPE_SECRET_KEY live y el price_… del baremo."
+              : stripeMsg,
           },
-          502,
+          noPrice ? 422 : 502,
         );
       }
       void commerceSecret(env);
@@ -390,13 +395,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
     };
     if (!res.ok || !data.url) {
       console.warn("[checkout]", res.status, data);
+      const stripeMsg = data.error?.message || `stripe_${res.status}`;
+      const noPrice = /no such price/i.test(stripeMsg);
+      // 422 (no 502): CF a veces sustituye 502 por HTML en el dominio custom.
       return json(
         {
           ok: false,
-          error: "stripe_session_failed",
-          message: data.error?.message || `stripe_${res.status}`,
+          error: noPrice ? "stripe_price_missing" : "stripe_session_failed",
+          message: noPrice
+            ? "Stripe no reconoce el Price del producto (¿STRIPE_SECRET_KEY de test con prices live?). En Pages pon la secret key live de acct_1Tyyww9hkzoHpGr7."
+            : stripeMsg,
         },
-        502,
+        noPrice ? 422 : 502,
       );
     }
     void commerceSecret(env);

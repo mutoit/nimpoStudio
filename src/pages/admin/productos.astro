@@ -147,11 +147,12 @@ import Layout from "../../components/Layout.astro";
             Demo file (zip, opcional — se publica en demo/)
             <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-demo-file />
           </label>
+          <p class="bin-status" data-demo-status data-state="idle" hidden></p>
           <label>
-            Full build (zip — privado full/, solo post-pago)
+            Full build (zip/exe — privado full/, solo post-pago)
             <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-full-file />
           </label>
-          <p class="lead lead--sm" data-full-status hidden></p>
+          <p class="bin-status" data-full-status data-state="idle" hidden></p>
 
           <label>
             Imágenes / GIF (hasta 8 · al editar se suman, no se borran)
@@ -228,6 +229,8 @@ import Layout from "../../components/Layout.astro";
 
   let editingSlug: string | null = null;
   let items: Product[] = [];
+  /** Snapshot del producto en edición — para reponer status bins si se quita el file local */
+  let editingItem: Product | null = null;
 
   const form = document.querySelector("[data-product-form]") as HTMLFormElement | null;
   const statusEl = document.querySelector("[data-status-msg]");
@@ -247,6 +250,103 @@ import Layout from "../../components/Layout.astro";
     statusEl.textContent = msg;
     statusEl.classList.toggle("is-err", !ok);
   };
+
+  type BinState = "idle" | "none" | "kept" | "pending" | "ok" | "err";
+
+  const formatBinSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const baseName = (path: string) => {
+    const s = String(path || "").trim();
+    if (!s) return "";
+    const clean = s.split("?")[0] || s;
+    const parts = clean.split("/").filter(Boolean);
+    return parts[parts.length - 1] || clean;
+  };
+
+  const setBinStatus = (sel: string, state: BinState, text: string) => {
+    const el = document.querySelector(sel);
+    if (!(el instanceof HTMLElement)) return;
+    if (state === "idle" || !text) {
+      el.hidden = true;
+      el.textContent = "";
+      el.dataset.state = "idle";
+      return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+    el.dataset.state = state;
+  };
+
+  const syncDemoBinFromItem = (item: Product | null) => {
+    const demoFile = form?.querySelector("[data-demo-file]") as HTMLInputElement | null;
+    const local = demoFile?.files?.[0];
+    if (local && local.size > 0) {
+      setBinStatus(
+        "[data-demo-status]",
+        "pending",
+        `Demo listo: ${local.name} (${formatBinSize(local.size)}) · se subirá al guardar`,
+      );
+      return;
+    }
+    const url = item?.demo?.url ? String(item.demo.url) : "";
+    if (url) {
+      setBinStatus(
+        "[data-demo-status]",
+        "kept",
+        `Demo en catálogo: ${baseName(url)} · se mantiene si no subes otro`,
+      );
+      return;
+    }
+    if (item) {
+      setBinStatus("[data-demo-status]", "none", "Demo: sin archivo (opcional)");
+      return;
+    }
+    setBinStatus("[data-demo-status]", "idle", "");
+  };
+
+  const syncFullBinFromItem = (item: Product | null) => {
+    const fullFile = form?.querySelector("[data-full-file]") as HTMLInputElement | null;
+    const local = fullFile?.files?.[0];
+    if (local && local.size > 0) {
+      setBinStatus(
+        "[data-full-status]",
+        "pending",
+        `Full listo: ${local.name} (${formatBinSize(local.size)}) · se subirá al guardar`,
+      );
+      return;
+    }
+    const key = item?.fullKey ? String(item.fullKey) : "";
+    if (key) {
+      setBinStatus(
+        "[data-full-status]",
+        "kept",
+        `Full en R2: ${baseName(key)} · se mantiene si no subes otro`,
+      );
+      return;
+    }
+    if (item) {
+      setBinStatus("[data-full-status]", "none", "Full: sin archivo en R2");
+      return;
+    }
+    setBinStatus("[data-full-status]", "idle", "");
+  };
+
+  const clearBinStatuses = () => {
+    setBinStatus("[data-demo-status]", "idle", "");
+    setBinStatus("[data-full-status]", "idle", "");
+  };
+
+  const bindBinFile = (inputSel: string, sync: () => void) => {
+    const input = document.querySelector(inputSel);
+    if (!(input instanceof HTMLInputElement)) return;
+    input.addEventListener("change", () => sync());
+  };
+  bindBinFile("[data-demo-file]", () => syncDemoBinFromItem(editingItem));
+  bindBinFile("[data-full-file]", () => syncFullBinFromItem(editingItem));
 
   const slugify = (s: string) =>
     s
@@ -348,6 +448,7 @@ import Layout from "../../components/Layout.astro";
 
   const resetForm = () => {
     editingSlug = null;
+    editingItem = null;
     form?.reset();
     clearFileInputs();
     if (slugInput) {
@@ -363,6 +464,7 @@ import Layout from "../../components/Layout.astro";
     clearPreview("[data-video-preview]");
     clearPreview("[data-images-current]");
     clearPreview("[data-video-current]");
+    clearBinStatuses();
     const hint = document.querySelector("[data-media-keep-hint]");
     if (hint instanceof HTMLElement) hint.hidden = true;
   };
@@ -392,6 +494,7 @@ import Layout from "../../components/Layout.astro";
 
   const fillForm = (item: Product) => {
     editingSlug = item.slug;
+    editingItem = item;
     if (editBar instanceof HTMLElement) editBar.hidden = false;
     if (editLabel) editLabel.textContent = `Editando «${item.name}»`;
     if (replaceWrap instanceof HTMLElement) replaceWrap.hidden = false;
@@ -435,18 +538,44 @@ import Layout from "../../components/Layout.astro";
     set("[data-stripe-price]", plan?.stripePriceId || "");
     syncPriceOptional();
     showCurrentMedia(item);
-    const fullSt = document.querySelector("[data-full-status]");
-    if (fullSt instanceof HTMLElement) {
-      if (item.fullKey) {
-        fullSt.hidden = false;
-        fullSt.textContent = `Full en R2: ${item.fullKey.split("/").pop()}`;
-      } else {
-        fullSt.hidden = true;
-        fullSt.textContent = "";
-      }
-    }
+    syncDemoBinFromItem(item);
+    syncFullBinFromItem(item);
 
     form?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const safeThumbUrl = (item: Product) => {
+    const imgs = Array.isArray(item.images) ? item.images : [];
+    const first = imgs.map((u) => String(u || "").trim()).find(Boolean);
+    if (!first) return "/images/admin-thumb.svg";
+    // Solo paths/media conocidos (evita javascript: en thumb)
+    if (
+      first.startsWith("/api/media/") ||
+      first.startsWith("/images/") ||
+      /^https:\/\//i.test(first)
+    ) {
+      return first.replace(/"/g, "%22").replace(/</g, "");
+    }
+    return "/images/admin-thumb.svg";
+  };
+
+  const railBinChips = (item: Product) => {
+    const hasFull = Boolean(item.fullKey && String(item.fullKey).includes("/full/"));
+    const demoUrl = item.demo?.url ? String(item.demo.url) : "";
+    const hasDemo = Boolean(demoUrl && !demoUrl.includes("/full/"));
+    if (!hasFull && !hasDemo) {
+      return `<span class="tile__chip tile__chip--muted" title="Sin binarios">sin bin</span>`;
+    }
+    return [
+      hasFull
+        ? `<span class="tile__chip tile__chip--full" title="Full en R2">full</span>`
+        : "",
+      hasDemo
+        ? `<span class="tile__chip tile__chip--demo" title="Demo en catálogo">demo</span>`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("");
   };
 
   const renderRail = () => {
@@ -460,15 +589,18 @@ import Layout from "../../components/Layout.astro";
       .map((item) => {
         const safeSlug = String(item.slug || "").replace(/"/g, "");
         const safeName = String(item.name || "").replace(/"/g, "");
-        const media = `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+        const thumb = safeThumbUrl(item);
+        const media = `<img src="${thumb}" alt="" width="64" height="64" loading="lazy" />`;
         const name = String(item.name || safeSlug);
         const shortName = name.length > 22 ? `${name.slice(0, 20)}…` : name;
         const safeShort = shortName.replace(/</g, "&lt;").replace(/"/g, "&quot;");
+        const chips = railBinChips(item);
         return `<article class="tile" data-slug="${safeSlug}" title="${safeName}">
           <div class="tile__media" data-edit="${safeSlug}" role="button" tabindex="0" aria-label="Editar ${safeName}">
             ${media}
           </div>
           <p class="tile__title">${safeShort}</p>
+          <div class="tile__bins">${chips}</div>
           <div class="tile__actions">
             <button type="button" class="tile__btn" data-edit="${safeSlug}" title="Editar">✎</button>
             <button type="button" class="tile__btn tile__btn--danger" data-del="${safeSlug}" title="Borrar">🗑</button>
@@ -522,11 +654,74 @@ import Layout from "../../components/Layout.astro";
 
   document.querySelector("[data-refresh]")?.addEventListener("click", () => loadItems());
 
+  /** POST multipart con % de subida (fetch no expone upload progress). */
+  const postFormWithProgress = (
+    url: string,
+    body: FormData,
+    onProgress: (loaded: number, total: number) => void,
+  ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.withCredentials = true;
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable && ev.total > 0) onProgress(ev.loaded, ev.total);
+      };
+      xhr.onload = () => {
+        let data: Record<string, unknown> = {};
+        try {
+          data = JSON.parse(xhr.responseText || "{}") as Record<string, unknown>;
+        } catch {
+          reject(new Error(`Respuesta no JSON (${xhr.status})`));
+          return;
+        }
+        resolve({
+          ok: xhr.status >= 200 && xhr.status < 300,
+          status: xhr.status,
+          data,
+        });
+      };
+      xhr.onerror = () => reject(new Error("Error de red al subir"));
+      xhr.onabort = () => reject(new Error("Subida cancelada"));
+      xhr.send(body);
+    });
+
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = form.querySelector("[data-publish]");
     if (btn instanceof HTMLButtonElement) btn.disabled = true;
-    setStatus(editingSlug ? "Guardando…" : "Publicando…");
+
+    const demoFileEl = form.querySelector("[data-demo-file]") as HTMLInputElement | null;
+    const fullFileEl = form.querySelector("[data-full-file]") as HTMLInputElement | null;
+    const demoLocal = demoFileEl?.files?.[0] || null;
+    const fullLocal = fullFileEl?.files?.[0] || null;
+    const hasDemoUpload = Boolean(demoLocal);
+    const hasFullUpload = Boolean(fullLocal);
+    const uploadHint = [hasFullUpload ? "full" : null, hasDemoUpload ? "demo" : null]
+      .filter(Boolean)
+      .join("+");
+    const verb = editingSlug ? "Guardando" : "Publicando";
+    setStatus(
+      uploadHint
+        ? `${verb}… (subiendo ${uploadHint})`
+        : editingSlug
+          ? "Guardando… (bins sin cambios)"
+          : "Publicando…",
+    );
+    if (hasDemoUpload && demoLocal) {
+      setBinStatus(
+        "[data-demo-status]",
+        "pending",
+        `Demo: subiendo… ${demoLocal.name} (${formatBinSize(demoLocal.size)})`,
+      );
+    }
+    if (hasFullUpload && fullLocal) {
+      setBinStatus(
+        "[data-full-status]",
+        "pending",
+        `Full: subiendo… ${fullLocal.name} (${formatBinSize(fullLocal.size)})`,
+      );
+    }
 
     try {
       const fd = new FormData(form);
@@ -553,10 +748,8 @@ import Layout from "../../components/Layout.astro";
       const replaceCb = form.querySelector("[data-replace]") as HTMLInputElement | null;
       if (replaceCb?.checked) body.set("replaceMedia", "1");
 
-      const demoFile = form.querySelector("[data-demo-file]") as HTMLInputElement | null;
-      if (demoFile?.files?.[0]) body.set("demoFile", demoFile.files[0]);
-      const fullFile = form.querySelector("[data-full-file]") as HTMLInputElement | null;
-      if (fullFile?.files?.[0]) body.set("full", fullFile.files[0]);
+      if (demoLocal) body.set("demoFile", demoLocal);
+      if (fullLocal) body.set("full", fullLocal);
 
       const images = form.querySelector("[data-images]") as HTMLInputElement | null;
       if (images?.files?.length) {
@@ -582,20 +775,53 @@ import Layout from "../../components/Layout.astro";
       const video = form.querySelector("[data-video]") as HTMLInputElement | null;
       if (video?.files?.[0]) body.set("video", video.files[0]);
 
-      const res = await fetch("/admin/products", {
-        method: "POST",
-        credentials: "same-origin",
+      const { ok, status, data } = await postFormWithProgress(
+        "/admin/products",
         body,
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || data.error || `Error ${res.status}`);
+        (loaded, total) => {
+          const pct = Math.min(100, Math.round((loaded / total) * 100));
+          const sizePart = `${formatBinSize(loaded)} / ${formatBinSize(total)}`;
+          setStatus(
+            uploadHint
+              ? `${verb}… ${pct}% · ${sizePart}${uploadHint ? ` · ${uploadHint}` : ""}`
+              : `${verb}… ${pct}%`,
+          );
+          if (hasDemoUpload && demoLocal) {
+            setBinStatus(
+              "[data-demo-status]",
+              "pending",
+              `Demo: subiendo ${pct}% · ${demoLocal.name}`,
+            );
+          }
+          if (hasFullUpload && fullLocal) {
+            setBinStatus(
+              "[data-full-status]",
+              "pending",
+              `Full: subiendo ${pct}% · ${fullLocal.name}`,
+            );
+          }
+        },
+      );
+      if (!ok || !data.ok) {
+        throw new Error(
+          String(data.message || data.error || `Error ${status}`),
+        );
       }
-      setStatus(`✅ ${data.message || "OK"} · «${data.item?.name || ""}»`);
+      setStatus(`✅ ${String(data.message || "OK")} · «${(data.item as { name?: string } | undefined)?.name || ""}»`);
       resetForm();
       await loadItems();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error", false);
+      if (hasDemoUpload) {
+        setBinStatus("[data-demo-status]", "err", "Demo: error al subir");
+      } else {
+        syncDemoBinFromItem(editingItem);
+      }
+      if (hasFullUpload) {
+        setBinStatus("[data-full-status]", "err", "Full: error al subir");
+      } else {
+        syncFullBinFromItem(editingItem);
+      }
     } finally {
       if (btn instanceof HTMLButtonElement) btn.disabled = false;
     }
@@ -801,6 +1027,35 @@ import Layout from "../../components/Layout.astro";
   .status.is-err {
     color: #f0a0a0;
   }
+  .bin-status {
+    margin: -0.35rem 0 0.55rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    border: 1px solid transparent;
+  }
+  .bin-status[data-state="kept"],
+  .bin-status[data-state="ok"] {
+    color: #b8d4a8;
+    background: rgba(120, 180, 100, 0.12);
+    border-color: rgba(120, 180, 100, 0.28);
+  }
+  .bin-status[data-state="pending"] {
+    color: #e0c070;
+    background: rgba(200, 160, 60, 0.12);
+    border-color: rgba(200, 160, 60, 0.3);
+  }
+  .bin-status[data-state="none"] {
+    color: #9a9aa8;
+    background: rgba(140, 140, 160, 0.1);
+    border-color: rgba(140, 140, 160, 0.22);
+  }
+  .bin-status[data-state="err"] {
+    color: #f0a0a0;
+    background: rgba(200, 80, 80, 0.12);
+    border-color: rgba(200, 80, 80, 0.3);
+  }
   .rail {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -900,6 +1155,36 @@ import Layout from "../../components/Layout.astro";
     overflow: hidden;
     word-break: break-word;
     min-height: 1.7em;
+  }
+  .tile__bins {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    padding: 0 0.3rem 0.28rem;
+    min-height: 1.1rem;
+  }
+  .tile__chip {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.08rem 0.28rem;
+    border-radius: 3px;
+    line-height: 1.2;
+  }
+  .tile__chip--full {
+    color: #b8d4a8;
+    background: rgba(120, 180, 100, 0.16);
+  }
+  .tile__chip--demo {
+    color: #c8b87a;
+    background: rgba(200, 170, 80, 0.14);
+  }
+  .tile__chip--muted {
+    color: #8a8a98;
+    background: rgba(140, 140, 160, 0.12);
+    font-weight: 600;
+    text-transform: none;
   }
   .tile__actions {
     display: grid;

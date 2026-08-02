@@ -250,18 +250,22 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     let fullKey: string | null = existing?.fullKey ?? null;
+    let fullUploaded = false;
     const fullFile = form.get("full");
     if (fullFile instanceof File && fullFile.size > 0) {
       fullKey = await putFile(fullFile, "bin", "full", "full");
+      fullUploaded = true;
     }
 
     // Demo binary upload → public media under demo/
     let demoUrlResolved = demoUrl || existing?.demo?.url || "";
+    let demoUploaded = false;
     const demoFile = form.get("demoFile");
     if (demoFile instanceof File && demoFile.size > 0) {
       const demoKey = await putFile(demoFile, "bin", "demo", "demo");
       // putFile for bin returns raw key — expose via /api/media (demo/ allowed)
       demoUrlResolved = `/api/media/${demoKey}`;
+      demoUploaded = true;
     }
 
     const itemRaw: Record<string, unknown> = {
@@ -301,10 +305,34 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     const list = await upsertProduct(bucket, clean);
+    const fullNote = fullUploaded
+      ? "full subido"
+      : fullKey
+        ? existing
+          ? "full sin cambios"
+          : "full en R2"
+        : existing
+          ? "sin full"
+          : null;
+    const demoNote = demoUploaded
+      ? "demo subido"
+      : demoUrlResolved
+        ? existing
+          ? "demo sin cambios"
+          : "demo listo"
+        : existing
+          ? "sin demo"
+          : null;
     const mediaNote = [
       imagesAdded > 0 ? `+${imagesAdded} img` : null,
       videoReplaced ? "vídeo actualizado" : null,
-      replaceMedia ? "media reemplazada" : existing ? "media anterior conservada" : null,
+      fullNote,
+      demoNote,
+      replaceMedia
+        ? "media reemplazada"
+        : existing && imagesAdded === 0 && !videoReplaced
+          ? "media anterior conservada"
+          : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -312,6 +340,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ok: true,
       item: clean,
       count: list.length,
+      bins: {
+        full: fullUploaded ? "uploaded" : fullKey ? "kept" : "none",
+        demo: demoUploaded ? "uploaded" : demoUrlResolved ? "kept" : "none",
+        fullKey: fullKey || null,
+        demoUrl: demoUrlResolved || null,
+      },
       message: existing
         ? `Producto actualizado${mediaNote ? ` (${mediaNote})` : ""}`
         : `Producto publicado${mediaNote ? ` (${mediaNote})` : ""}`,

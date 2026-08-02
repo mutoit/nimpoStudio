@@ -659,22 +659,38 @@ const payload = {
         tagsEl.innerHTML = tg.map((x) => `<span class="pb__tag">${escapeHtml(x)}</span>`).join("");
       }
 
-      // Pricing display (decimales 9.90; beta/demo sin precio = sin forzar compra)
+      // Pricing: mostrar EUR si hay precio real; beta/demo sin precio → etiqueta Beta/demo.
+      // Si hay cobro listo (stripe/checkout) y priceEur>0, el precio gana aunque status=beta.
       const plan = (item.pricing && item.pricing[0]) || null;
-      const skipPrice = item.status === "beta" || item.status === "demo";
+      const priceNum =
+        plan && plan.priceEur != null && Number.isFinite(Number(plan.priceEur))
+          ? Number(plan.priceEur)
+          : null;
+      const hasPricedDisplay = priceNum != null && priceNum > 0;
+      const skipPrice =
+        (item.status === "beta" || item.status === "demo") && !hasPricedDisplay;
       const formatEur = (n: number) => {
         const r = Math.round(Number(n) * 100) / 100;
         return Number.isInteger(r) ? String(r) : r.toFixed(2);
       };
       if (priceEl instanceof HTMLElement) {
-        if (plan && plan.priceEur != null && Number.isFinite(Number(plan.priceEur))) {
+        if (hasPricedDisplay && plan) {
           priceEl.hidden = false;
           const ver = item.version ? ` · ${L.version || "v"} ${escapeHtml(item.version)}` : "";
-          priceEl.innerHTML = `<strong>${escapeHtml(plan.name || "")}</strong> · ${L.priceFrom || ""} ${formatEur(Number(plan.priceEur))} €${ver}`;
+          const betaNote =
+            item.status === "beta" || item.status === "demo"
+              ? ` · ${escapeHtml(String(item.status))}`
+              : "";
+          priceEl.innerHTML = `<strong>${escapeHtml(plan.name || "")}</strong> · ${L.priceFrom || ""} ${formatEur(priceNum)} €${ver}${betaNote}`;
         } else if (skipPrice) {
           priceEl.hidden = false;
           const ver = item.version ? ` · ${L.version || "v"} ${item.version}` : "";
           priceEl.textContent = `${L.freeOrOnRequest || "Beta / demo"}${ver}`;
+        } else if (priceNum === 0 && (plan?.stripePriceId || plan?.checkoutReady)) {
+          // priceEur 0 pero Stripe listo: no fingir “gratis”; pedir alinear admin
+          priceEl.hidden = false;
+          const ver = item.version ? ` · ${L.version || "v"} ${item.version}` : "";
+          priceEl.textContent = `${L.priceFrom || "Desde"} Stripe${ver}`;
         } else if (item.version) {
           priceEl.hidden = false;
           priceEl.textContent = `${L.version || "v"} ${item.version}`;

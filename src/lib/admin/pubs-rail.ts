@@ -67,17 +67,17 @@ export function createPubsRail(opts: {
           : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
         const shortTitle = title.length > 22 ? `${title.slice(0, 20)}…` : title;
         const safeShort = shortTitle.replace(/</g, "&lt;").replace(/"/g, "&quot;");
-        // Acciones DENTRO de media (overlay): en el rail de pubs la barra bajo el título
-        // quedaba fuera de vista / recortada; productos no tiene el mismo clip del frame.
+        // Media (solo cover) + acciones EN FLUJO debajo (no overlay: el overflow del
+        // frame/tile recortaba la barra y solo "se asomaba").
         return `<article class="tile" data-pub-slug="${safeSlug}" title="${safeTitle}">
           <div class="tile__media">
             <button type="button" class="tile__cover" data-pub-edit="${safeSlug}" aria-label="Editar ${safeTitle}">
               ${thumb}
             </button>
-            <div class="tile__actions tile__actions--on-cover">
-              <button type="button" class="tile__btn" data-pub-edit="${safeSlug}" title="Editar" aria-label="Editar ${safeTitle}">Editar</button>
-              <button type="button" class="tile__btn tile__btn--danger" data-pub-del="${safeSlug}" title="Borrar" aria-label="Borrar ${safeTitle}">Borrar</button>
-            </div>
+          </div>
+          <div class="tile__actions">
+            <button type="button" class="tile__btn" data-pub-edit="${safeSlug}" title="Editar" aria-label="Editar ${safeTitle}">Editar</button>
+            <button type="button" class="tile__btn tile__btn--danger" data-pub-del="${safeSlug}" title="Borrar" aria-label="Borrar ${safeTitle}">Borrar</button>
           </div>
           <p class="tile__title">${safeShort}</p>
         </article>`;

@@ -156,25 +156,38 @@
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.45rem;
+    /* max-content: la fila es foto+barra+título; si no, aspect-ratio de la img
+       se transfiere a la celda (cuadrado) y overflow recorta barra en M/L */
+    grid-auto-rows: max-content;
+    align-items: start;
     align-content: start;
+    gap: 0.45rem;
     padding: 0.5rem;
     scrollbar-width: thin;
   }
   /*
-   * Miniatura aburrida y estable:
-   *   img en flujo con aspect-ratio:1  → define el alto
-   *   actions + title son bloques normales debajo
-   * Cero position:absolute para el tamaño (era la pelea con el grid del rail).
+   * S/M/L escalan html{font-size}. En M/L el rem crece → tiles más altos.
+   * Si la celda grid hereda aspect-ratio 1 de la img + overflow:hidden →
+   * solo se ve la miniatura (S a veces “cuela”). Fix: altura = contenido,
+   * aspect-ratio SOLO en la img, barra en px (inmune a ui-scale).
    */
   .tile {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    align-self: start;
     min-width: 0;
     max-width: 100%;
+    width: 100%;
+    height: max-content;
+    max-height: none;
+    aspect-ratio: auto;
     border-radius: 8px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     overflow: hidden;
+    /* chrome del tile no depende de S/M/L */
+    font-size: 16px;
   }
   .tile:hover {
     border-color: rgb(201 169 98 / 0.45);
@@ -182,6 +195,7 @@
   .tile__hit {
     display: block;
     width: 100%;
+    flex: 0 0 auto;
     margin: 0;
     padding: 0;
     border: none;
@@ -202,8 +216,9 @@
   .pub-ph {
     display: grid;
     place-items: center;
+    width: 100%;
     aspect-ratio: 1 / 1;
-    font-size: 0.65rem;
+    font-size: 10px;
     font-weight: 700;
     color: var(--color-muted);
     background: #08080a;
@@ -211,21 +226,27 @@
   .tile__actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    flex: 0 0 auto;
+    flex-shrink: 0;
     gap: 0;
-    height: 2rem;
+    /* px: no se encoge/crece con data-ui-size S/M/L */
+    height: 32px;
+    min-height: 32px;
+    max-height: 32px;
     background: #c9a962;
   }
   .tile__btn {
     margin: 0;
     border: none;
-    padding: 0 0.15rem;
-    height: 2rem;
+    padding: 0 2px;
+    height: 32px;
+    min-height: 32px;
     background: #14141a;
     color: #f5f5f8;
-    font-size: 0.68rem;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    line-height: 2rem;
+    line-height: 32px;
     cursor: pointer;
   }
   .tile__btn + .tile__btn {
@@ -244,8 +265,9 @@
   }
   .tile__title {
     margin: 0;
-    padding: 0.3rem 0.35rem 0.4rem;
-    font-size: 0.62rem;
+    padding: 5px 6px 7px;
+    flex: 0 0 auto;
+    font-size: 10px;
     font-weight: 600;
     line-height: 1.25;
     color: var(--color-fg);
@@ -305,18 +327,22 @@
   .feed-tiles .tile {
     width: 5.75rem;
     max-width: 5.75rem;
+    height: max-content;
   }
   .feed-tiles .tile__title {
-    font-size: 0.58rem;
-    padding: 0.2rem 0.25rem 0.25rem;
+    font-size: 10px;
+    padding: 4px 4px 5px;
   }
   .feed-tiles .tile__actions {
-    height: 1.65rem;
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
   }
   .feed-tiles .tile__btn {
-    font-size: 0.58rem;
-    height: 1.65rem;
-    line-height: 1.65rem;
+    font-size: 10px;
+    height: 28px;
+    min-height: 28px;
+    line-height: 28px;
   }
   .head {
     display: flex;

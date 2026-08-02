@@ -1,5 +1,5 @@
 ---
-status: draft
+status: blocked
 source: producto
 tier: L
 mode: graph-strict

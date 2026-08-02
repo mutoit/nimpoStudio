@@ -1,7 +1,7 @@
 # Tareas — Ventas (prioridad tuya)
 
 **Prioridad #1 del proyecto (ops):** cobrar de verdad (música y software).  
-**Última actualización:** 2026-08-01
+**Última actualización:** 2026-08-03
 
 | Doc | Rol |
 |-----|-----|
@@ -12,11 +12,27 @@
 
 ---
 
+## Bloqueador cobro (2026-08-03)
+
+`POST /api/checkout` con prices live devuelve **`No such price: price_1TzjiE…`**.  
+Stripe MCP (acct live) **sí** ve ese price → la **`STRIPE_SECRET_KEY` en Pages** es casi seguro **test** u otra cuenta.
+
+**Acción tuya (5 min):** Cloudflare Pages → `nimpo-studio` → Settings → Environment variables →  
+`STRIPE_SECRET_KEY` = **secret key live** `sk_live_…` de `acct_1Tyyww9hkzoHpGr7` (no `sk_test_`).  
+Redeploy o empty commit. Verificar:
+
+```text
+POST /api/checkout { kind: software, productSlug: nimpo-glass }
+→ { ok: true, url: "https://checkout.stripe.com/…" }
+```
+
+---
+
 ## Pendiente ahora
 
 ### 1 — Música (smoke)
 
-Código + catálogo Stripe licencias/extras **listos**. Falta probar de punta a punta.
+Código + catálogo Stripe licencias/extras **listos**. Path checkout falla hasta arreglar secret live (arriba).
 
 | # | Tarea |
 |---|--------|
@@ -31,12 +47,12 @@ Código + catálogo Stripe licencias/extras **listos**. Falta probar de punta a 
 | Price one-time | **`price_1TzjiE9hkzoHpGr7BWNn2qNH`** — **9,90 EUR** |
 | (legacy 29 €) | `price_1TyzK89hkzoHpGr7QKVv2SgV` — no usar para Glass |
 
-| # | Tarea |
-|---|--------|
-| 2.1 | `/admin/productos/` → crear **Nimpo Glass** (`nimpo-glass`) · status **published** · `priceEur` **9.90** |
-| 2.2 | Pegar **`stripePriceId`** = `price_1TzjiE9hkzoHpGr7BWNn2qNH` |
-| 2.3 | Subir **full** (exe/zip) a `full/` · demo = mismo binario otra vez si quieres prueba pública |
-| 2.4 | **Smoke:** Comprar → mail con key → `/admin/pedidos/` → cuenta → re-descarga |
+| # | Tarea | Estado |
+|---|--------|--------|
+| 2.1 | status **published** · `priceEur` **9.90** en R2 | **Hecho** 2026-08-03 |
+| 2.2 | `stripePriceId` = `price_1TzjiE9hkzoHpGr7BWNn2qNH` | **Hecho** (R2) |
+| 2.3 | full + demo en R2 | **Hecho** (`hasFullBuild` + demo) |
+| 2.4 | **Smoke:** Comprar → mail key → `/admin/pedidos/` → cuenta → re-descarga | **Bloqueado** por secret live |
 
 ### 3 — Después de la 1.ª venta real
 

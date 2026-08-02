@@ -1,14 +1,14 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-07-21 (UX móvil + stems Ctrl+clic)  
+Última actualización: 2026-08-03 (commerce + checkout Stripe path)  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
 
 ## Resumen en una línea
 
-**Biblioteca de licencias en producción** (preview + cotizador + admin un clic → R2).  
-Catálogo vivo en R2 (no demos del build en pantalla). **Sin checkout/pago automático** aún.
+**Biblioteca + catálogo software en producción** (R2, admin, cotizador, checkout Stripe en código).  
+**Bloqueo cobro:** `STRIPE_SECRET_KEY` en Pages no ve prices live (`No such price`) — ver `docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`.
 
 ---
 

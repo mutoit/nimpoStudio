@@ -38,15 +38,13 @@ export function bindAdminFeed() {
             ? imgRaw.replace(/"/g, "")
             : "";
         const thumb = img
-          ? `<img src="${img}" alt="" width="64" height="64" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
-          : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+          ? `<img class="tile__img" src="${img}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
+          : `<img class="tile__img" src="/images/admin-thumb.svg" alt="" loading="lazy" />`;
         const shortT = title.length > 18 ? `${title.slice(0, 16)}…` : title;
         return `<article class="tile" title="${safeT} · ${date}">
-          <div class="tile__media">
-            <button type="button" class="tile__cover" data-feed-edit="${idx}" aria-label="Editar ${safeT}">
-              ${thumb}
-            </button>
-          </div>
+          <button type="button" class="tile__hit" data-feed-edit="${idx}" aria-label="Editar ${safeT}">
+            ${thumb}
+          </button>
           <div class="tile__actions">
             <button type="button" class="tile__btn" data-feed-edit="${idx}" title="Editar" aria-label="Editar ${safeT}">Editar</button>
             <button type="button" class="tile__btn tile__btn--danger" data-feed-del="${idx}" title="Borrar" aria-label="Borrar ${safeT}">Borrar</button>

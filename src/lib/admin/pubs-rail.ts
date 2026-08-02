@@ -62,19 +62,17 @@ export function createPubsRail(opts: {
           coverRaw.startsWith("/") && !coverRaw.startsWith("//")
             ? coverRaw.replace(/"/g, "")
             : "";
+        // Tamaño 1:1 lo marca la IMG en flujo (no absolute). Barra y título son
+        // hermanos debajo → no pueden quedar clipados por aspect-ratio vacío.
         const thumb = cover
-          ? `<img src="${cover}" alt="" width="64" height="64" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
-          : `<img src="/images/admin-thumb.svg" alt="" width="64" height="64" loading="lazy" />`;
+          ? `<img class="tile__img" src="${cover}" alt="" loading="lazy" onerror="this.onerror=null;this.src='/images/admin-thumb.svg'" />`
+          : `<img class="tile__img" src="/images/admin-thumb.svg" alt="" loading="lazy" />`;
         const shortTitle = title.length > 22 ? `${title.slice(0, 20)}…` : title;
         const safeShort = shortTitle.replace(/</g, "&lt;").replace(/"/g, "&quot;");
-        // Media (solo cover) + acciones EN FLUJO debajo (no overlay: el overflow del
-        // frame/tile recortaba la barra y solo "se asomaba").
         return `<article class="tile" data-pub-slug="${safeSlug}" title="${safeTitle}">
-          <div class="tile__media">
-            <button type="button" class="tile__cover" data-pub-edit="${safeSlug}" aria-label="Editar ${safeTitle}">
-              ${thumb}
-            </button>
-          </div>
+          <button type="button" class="tile__hit" data-pub-edit="${safeSlug}" aria-label="Editar ${safeTitle}">
+            ${thumb}
+          </button>
           <div class="tile__actions">
             <button type="button" class="tile__btn" data-pub-edit="${safeSlug}" title="Editar" aria-label="Editar ${safeTitle}">Editar</button>
             <button type="button" class="tile__btn tile__btn--danger" data-pub-del="${safeSlug}" title="Borrar" aria-label="Borrar ${safeTitle}">Borrar</button>

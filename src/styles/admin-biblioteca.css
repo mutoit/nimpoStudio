@@ -162,12 +162,13 @@
     scrollbar-width: thin;
   }
   /*
-   * Celda: [portada 1:1] → [Editar|Borrar en flujo] → [título]
-   * NO overlay: overflow+radius del tile recortaba la barra y solo se asomaba.
+   * Miniatura aburrida y estable:
+   *   img en flujo con aspect-ratio:1  → define el alto
+   *   actions + title son bloques normales debajo
+   * Cero position:absolute para el tamaño (era la pelea con el grid del rail).
    */
   .tile {
-    display: flex;
-    flex-direction: column;
+    display: block;
     min-width: 0;
     max-width: 100%;
     border-radius: 8px;
@@ -178,71 +179,46 @@
   .tile:hover {
     border-color: rgb(201 169 98 / 0.45);
   }
-  .tile__media {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    padding: 0;
-    margin: 0;
-    border: none;
-    background: #08080a;
-    overflow: hidden;
-    flex: 0 0 auto;
-    /* altura solo del cuadrado; no se come la barra de acciones */
-    height: auto;
-    min-height: 0;
-  }
-  .tile__cover {
-    position: absolute;
-    inset: 0;
+  .tile__hit {
     display: block;
     width: 100%;
-    height: 100%;
     margin: 0;
     padding: 0;
     border: none;
     background: #08080a;
     cursor: pointer;
+    line-height: 0;
   }
-  .tile__cover img,
-  .tile__media > img,
-  .tile__media video {
+  .tile__img {
+    display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     object-position: center;
-    display: block;
     border: 0;
-    pointer-events: none;
+    vertical-align: top;
   }
   .pub-ph {
-    position: absolute;
-    inset: 0;
     display: grid;
     place-items: center;
+    aspect-ratio: 1 / 1;
     font-size: 0.65rem;
     font-weight: 700;
     color: var(--color-muted);
+    background: #08080a;
   }
-  /* Barra COMPLETA bajo la portada (hermano, no hijo del media) */
   .tile__actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    flex: 0 0 auto;
-    flex-shrink: 0;
     gap: 0;
-    min-height: 2rem;
     height: 2rem;
     background: #c9a962;
-    border-top: 1px solid rgb(201 169 98 / 0.8);
-    position: relative;
-    z-index: 1;
   }
   .tile__btn {
     margin: 0;
     border: none;
-    padding: 0;
-    min-height: 2rem;
+    padding: 0 0.15rem;
     height: 2rem;
     background: #14141a;
     color: #f5f5f8;
@@ -268,7 +244,7 @@
   }
   .tile__title {
     margin: 0;
-    padding: 0.28rem 0.3rem 0.4rem;
+    padding: 0.3rem 0.35rem 0.4rem;
     font-size: 0.62rem;
     font-weight: 600;
     line-height: 1.25;
@@ -278,8 +254,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
-    min-height: 1.5em;
-    flex: 0 0 auto;
   }
   .pub-pager {
     display: flex;
@@ -332,24 +306,15 @@
     width: 5.75rem;
     max-width: 5.75rem;
   }
-  .feed-tiles .tile__media {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    height: auto;
-    max-height: 5.75rem;
-  }
   .feed-tiles .tile__title {
     font-size: 0.58rem;
-    padding: 0.2rem 0.25rem 0.1rem;
-    min-height: 1.5em;
+    padding: 0.2rem 0.25rem 0.25rem;
   }
   .feed-tiles .tile__actions {
-    min-height: 1.65rem;
     height: 1.65rem;
   }
   .feed-tiles .tile__btn {
     font-size: 0.58rem;
-    min-height: 1.65rem;
     height: 1.65rem;
     line-height: 1.65rem;
   }

@@ -73,8 +73,8 @@ export function createPubsRail(opts: {
           </div>
           <p class="tile__title">${safeShort}</p>
           <div class="tile__actions">
-            <button type="button" class="tile__btn" data-pub-edit="${safeSlug}" title="Editar">✎</button>
-            <button type="button" class="tile__btn tile__btn--danger" data-pub-del="${safeSlug}" title="Borrar">🗑</button>
+            <button type="button" class="tile__btn" data-pub-edit="${safeSlug}" title="Editar" aria-label="Editar ${safeTitle}">Editar</button>
+            <button type="button" class="tile__btn tile__btn--danger" data-pub-del="${safeSlug}" title="Borrar" aria-label="Borrar ${safeTitle}">Borrar</button>
           </div>
         </article>`;
       })

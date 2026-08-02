@@ -47,8 +47,8 @@ export function bindAdminFeed() {
           </div>
           <p class="tile__title">${shortT.replace(/</g, "&lt;")}</p>
           <div class="tile__actions">
-            <button type="button" class="tile__btn" data-feed-edit="${idx}" title="Editar">✎</button>
-            <button type="button" class="tile__btn tile__btn--danger" data-feed-del="${idx}" title="Borrar">🗑</button>
+            <button type="button" class="tile__btn" data-feed-edit="${idx}" title="Editar" aria-label="Editar ${safeT}">Editar</button>
+            <button type="button" class="tile__btn tile__btn--danger" data-feed-del="${idx}" title="Borrar" aria-label="Borrar ${safeT}">Borrar</button>
           </div>
         </article>`;
       })

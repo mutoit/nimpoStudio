@@ -102,7 +102,7 @@ Sin KV el límite es por isolate (sigue mejor que nada; WAF/Access refuerzan).
 ## Publicar (un solo clic)
 
 1. Login en `/admin/biblioteca/`
-2. Canal vídeo o stems + archivos + tags/moods
+2. Form unificado (vídeo y/o stems + master) + tags/moods
 3. **Publicar en la web** → `POST /admin/publish`
 
 ### Feed Novedades + abonados email

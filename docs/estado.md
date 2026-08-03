@@ -63,7 +63,7 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 ## Flujo diario (publicar obra)
 
 1. Login → https://www.nimpo3dstudio.com/admin/biblioteca/  
-2. Canal vídeo o stems + título + archivos  
+2. Form unificado (vídeo y/o stems + master) + título + archivos  
 3. **Publicar en la web**  
 4. Abrir `/es/biblioteca/` y **recargar**  
 

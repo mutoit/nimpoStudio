@@ -357,6 +357,40 @@ import Layout from "../../components/Layout.astro";
     el.dataset.state = state;
   };
 
+  const DROP_DEFAULTS: Record<string, string> = {
+    demo: "zip / exe / dmg · o clic",
+    full: "zip / exe / dmg · o clic",
+    images: "jpg · png · webp · gif · o clic",
+    video: "mp4 / webm / mov · o clic",
+  };
+  const DROP_TITLES: Record<string, string> = {
+    demo: "Arrastra demo",
+    full: "Arrastra full build",
+    images: "Arrastra imágenes / GIF",
+    video: "Arrastra vídeo",
+  };
+
+  const setDropTitle = (dropSel: string, title: string) => {
+    const t = document.querySelector(`${dropSel} .dropzone__title`);
+    if (t instanceof HTMLElement) t.textContent = title;
+  };
+
+  const setDropFname = (sel: string, text: string) => {
+    const el = document.querySelector(sel);
+    if (el instanceof HTMLElement) el.textContent = text;
+  };
+
+  const resetDropFnames = () => {
+    setDropTitle("[data-demo-drop]", DROP_TITLES.demo);
+    setDropTitle("[data-full-drop]", DROP_TITLES.full);
+    setDropTitle("[data-images-drop]", DROP_TITLES.images);
+    setDropTitle("[data-video-drop]", DROP_TITLES.video);
+    setDropFname("[data-demo-fname]", DROP_DEFAULTS.demo);
+    setDropFname("[data-full-fname]", DROP_DEFAULTS.full);
+    setDropFname("[data-images-fname]", DROP_DEFAULTS.images);
+    setDropFname("[data-video-fname]", DROP_DEFAULTS.video);
+  };
+
   const syncDemoBinFromItem = (item: Product | null) => {
     const demoFile = form?.querySelector("[data-demo-file]") as HTMLInputElement | null;
     const local = demoFile?.files?.[0];
@@ -366,6 +400,8 @@ import Layout from "../../components/Layout.astro";
         "pending",
         `Demo listo: ${local.name} (${formatBinSize(local.size)}) · se subirá al guardar`,
       );
+      setDropTitle("[data-demo-drop]", "Demo listo (PC)");
+      setDropFname("[data-demo-fname]", `${local.name} · ${formatBinSize(local.size)} · se sube al guardar`);
       return;
     }
     const url = item?.demo?.url ? String(item.demo.url) : "";
@@ -375,13 +411,22 @@ import Layout from "../../components/Layout.astro";
         "kept",
         `Demo en catálogo: ${baseName(url)} · se mantiene si no subes otro`,
       );
+      setDropTitle("[data-demo-drop]", "Demo en catálogo");
+      setDropFname(
+        "[data-demo-fname]",
+        `${baseName(url)} · se mantiene · arrastra otro para reemplazar`,
+      );
       return;
     }
     if (item) {
       setBinStatus("[data-demo-status]", "none", "Demo: sin archivo (opcional)");
+      setDropTitle("[data-demo-drop]", "Arrastra demo");
+      setDropFname("[data-demo-fname]", "sin archivo · zip / exe / dmg · o clic");
       return;
     }
     setBinStatus("[data-demo-status]", "idle", "");
+    setDropTitle("[data-demo-drop]", "Arrastra demo");
+    setDropFname("[data-demo-fname]", DROP_DEFAULTS.demo);
   };
 
   const syncFullBinFromItem = (item: Product | null) => {
@@ -393,6 +438,8 @@ import Layout from "../../components/Layout.astro";
         "pending",
         `Full listo: ${local.name} (${formatBinSize(local.size)}) · se subirá al guardar`,
       );
+      setDropTitle("[data-full-drop]", "Full listo (PC)");
+      setDropFname("[data-full-fname]", `${local.name} · ${formatBinSize(local.size)} · se sube al guardar`);
       return;
     }
     const key = item?.fullKey ? String(item.fullKey) : "";
@@ -402,13 +449,22 @@ import Layout from "../../components/Layout.astro";
         "kept",
         `Full en R2: ${baseName(key)} · se mantiene si no subes otro`,
       );
+      setDropTitle("[data-full-drop]", "Full en R2");
+      setDropFname(
+        "[data-full-fname]",
+        `${baseName(key)} · se mantiene · arrastra otro para reemplazar`,
+      );
       return;
     }
     if (item) {
       setBinStatus("[data-full-status]", "none", "Full: sin archivo en R2");
+      setDropTitle("[data-full-drop]", "Arrastra full build");
+      setDropFname("[data-full-fname]", "sin archivo en R2 · zip / exe · o clic");
       return;
     }
     setBinStatus("[data-full-status]", "idle", "");
+    setDropTitle("[data-full-drop]", "Arrastra full build");
+    setDropFname("[data-full-fname]", DROP_DEFAULTS.full);
   };
 
   const clearBinStatuses = () => {
@@ -424,25 +480,6 @@ import Layout from "../../components/Layout.astro";
   bindBinFile("[data-demo-file]", () => syncDemoBinFromItem(editingItem));
   bindBinFile("[data-full-file]", () => syncFullBinFromItem(editingItem));
 
-  const DROP_DEFAULTS: Record<string, string> = {
-    demo: "zip / exe / dmg · o clic",
-    full: "zip / exe / dmg · o clic",
-    images: "jpg · png · webp · gif · o clic",
-    video: "mp4 / webm / mov · o clic",
-  };
-
-  const setDropFname = (sel: string, text: string) => {
-    const el = document.querySelector(sel);
-    if (el instanceof HTMLElement) el.textContent = text;
-  };
-
-  const resetDropFnames = () => {
-    setDropFname("[data-demo-fname]", DROP_DEFAULTS.demo);
-    setDropFname("[data-full-fname]", DROP_DEFAULTS.full);
-    setDropFname("[data-images-fname]", DROP_DEFAULTS.images);
-    setDropFname("[data-video-fname]", DROP_DEFAULTS.video);
-  };
-
   const formatDropNames = (files: File[]) => {
     if (!files.length) return "";
     if (files.length === 1) {
@@ -456,7 +493,7 @@ import Layout from "../../components/Layout.astro";
     dropSel: string,
     inputSel: string,
     fnameSel: string,
-    opts: { multiple?: boolean; maxFiles?: number },
+    opts: { multiple?: boolean; maxFiles?: number; pendingTitle?: string },
   ) => {
     const drop = document.querySelector(dropSel);
     const input = document.querySelector(inputSel);
@@ -467,21 +504,32 @@ import Layout from "../../components/Layout.astro";
       multiple: opts.multiple,
       maxFiles: opts.maxFiles,
       onReject: (reason) => setStatus(reason, false),
-      onAssigned: (files) => setDropFname(fnameSel, formatDropNames(files)),
+      onAssigned: (files) => {
+        if (opts.pendingTitle) setDropTitle(dropSel, opts.pendingTitle);
+        setDropFname(fnameSel, `${formatDropNames(files)} · se sube al guardar`);
+      },
     });
     input.addEventListener("change", () => {
       const files = input.files ? [...input.files] : [];
       if (!files.length) return;
-      setDropFname(fnameSel, formatDropNames(files));
+      if (opts.pendingTitle) setDropTitle(dropSel, opts.pendingTitle);
+      setDropFname(fnameSel, `${formatDropNames(files)} · se sube al guardar`);
     });
   };
-  wireProductDrop("[data-demo-drop]", "[data-demo-file]", "[data-demo-fname]", {});
-  wireProductDrop("[data-full-drop]", "[data-full-file]", "[data-full-fname]", {});
+  wireProductDrop("[data-demo-drop]", "[data-demo-file]", "[data-demo-fname]", {
+    pendingTitle: "Demo listo (PC)",
+  });
+  wireProductDrop("[data-full-drop]", "[data-full-file]", "[data-full-fname]", {
+    pendingTitle: "Full listo (PC)",
+  });
   wireProductDrop("[data-images-drop]", "[data-images]", "[data-images-fname]", {
     multiple: true,
     maxFiles: 8,
+    pendingTitle: "Imágenes listas (PC)",
   });
-  wireProductDrop("[data-video-drop]", "[data-video]", "[data-video-fname]", {});
+  wireProductDrop("[data-video-drop]", "[data-video]", "[data-video-fname]", {
+    pendingTitle: "Vídeo listo (PC)",
+  });
 
   const slugify = (s: string) =>
     s
@@ -551,6 +599,11 @@ import Layout from "../../components/Layout.astro";
     const vids = document.querySelector("[data-video-current]");
     const hint = document.querySelector("[data-media-keep-hint]");
     const list = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+    const localImages = form?.querySelector("[data-images]") as HTMLInputElement | null;
+    const localVideo = form?.querySelector("[data-video]") as HTMLInputElement | null;
+    const hasLocalImg = Boolean(localImages?.files?.length);
+    const hasLocalVid = Boolean(localVideo?.files?.[0]);
+
     if (imgs instanceof HTMLElement) {
       if (list.length) {
         imgs.hidden = false;
@@ -567,6 +620,19 @@ import Layout from "../../components/Layout.astro";
         imgs.innerHTML = "";
       }
     }
+    if (!hasLocalImg) {
+      if (list.length) {
+        setDropTitle("[data-images-drop]", "Imágenes en catálogo");
+        setDropFname(
+          "[data-images-fname]",
+          `${list.length}/8 en catálogo · se conservan · arrastra para sumar`,
+        );
+      } else {
+        setDropTitle("[data-images-drop]", DROP_TITLES.images);
+        setDropFname("[data-images-fname]", DROP_DEFAULTS.images);
+      }
+    }
+
     if (vids instanceof HTMLElement) {
       const v = item.video ? String(item.video) : "";
       if (v) {
@@ -577,6 +643,20 @@ import Layout from "../../components/Layout.astro";
         vids.innerHTML = "";
       }
     }
+    if (!hasLocalVid) {
+      const v = item.video ? String(item.video) : "";
+      if (v) {
+        setDropTitle("[data-video-drop]", "Vídeo en catálogo");
+        setDropFname(
+          "[data-video-fname]",
+          `${baseName(v)} · se mantiene · arrastra otro para reemplazar`,
+        );
+      } else {
+        setDropTitle("[data-video-drop]", DROP_TITLES.video);
+        setDropFname("[data-video-fname]", DROP_DEFAULTS.video);
+      }
+    }
+
     if (hint instanceof HTMLElement) {
       hint.hidden = !(list.length || item.video);
     }

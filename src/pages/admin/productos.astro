@@ -38,8 +38,35 @@ import Layout from "../../components/Layout.astro";
         <span class="stat-pill" data-tot-request title="Solicitar demo">Req <strong>0</strong></span>
         <span class="stat-pill" data-tot-full title="Full con licencia">Full <strong>0</strong></span>
       </div>
-      <div class="table-wrap" data-stats-table>
+      <div class="stats-toolbar" data-stats-toolbar hidden>
+        <input
+          type="search"
+          class="stats-search"
+          data-stats-q
+          placeholder="Buscar producto o slug…"
+          autocomplete="off"
+          aria-label="Filtrar descargas por producto"
+        />
+        <label class="stats-sort-label">
+          Orden
+          <select data-stats-sort aria-label="Ordenar descargas">
+            <option value="sum" selected>Más actividad</option>
+            <option value="demo">Demo</option>
+            <option value="web">Web</option>
+            <option value="request">Req</option>
+            <option value="full">Full</option>
+            <option value="name">Nombre A–Z</option>
+          </select>
+        </label>
+        <p class="stats-count" data-stats-count hidden></p>
+      </div>
+      <div class="table-wrap stats-table-scroll" data-stats-table>
         <p class="rail-empty">Sin datos aún (se rellenan al usar el catálogo).</p>
+      </div>
+      <div class="stats-pager" data-stats-pager hidden>
+        <button type="button" class="btn btn--sm" data-stats-prev disabled>←</button>
+        <span class="stats-page" data-stats-page>1 / 1</span>
+        <button type="button" class="btn btn--sm" data-stats-next disabled>→</button>
       </div>
     </section>
 
@@ -897,6 +924,122 @@ import Layout from "../../components/Layout.astro";
     return chips.join("");
   };
 
+  const STATS_PAGE_SIZE = 12;
+  let statsPage = 0;
+  let statsQ = "";
+  let statsSort: "sum" | "demo" | "web" | "request" | "full" | "name" = "sum";
+  let statsBound = false;
+
+  type StatsRow = {
+    item: { slug: string; name?: string };
+    st: DlRow;
+    sum: number;
+    slug: string;
+  };
+
+  const collectStatsRows = (): StatsRow[] => {
+    const rows: StatsRow[] = items
+      .map((item) => {
+        const slug = item.slug || "";
+        const st = downloadStats.products[slug] || {
+          demo: 0,
+          web: 0,
+          request: 0,
+          full: 0,
+        };
+        const sum =
+          (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
+        return { item, st, sum, slug };
+      })
+      .filter((r) => r.sum > 0);
+
+    for (const [slug, st] of Object.entries(downloadStats.products || {})) {
+      if (items.some((i) => i.slug === slug)) continue;
+      const sum =
+        (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
+      if (sum > 0) {
+        rows.push({
+          item: { slug, name: `${slug} (histórico)` },
+          st,
+          sum,
+          slug,
+        });
+      }
+    }
+    return rows;
+  };
+
+  const buildStatsRows = (): StatsRow[] => {
+    const rows = collectStatsRows();
+    const q = statsQ.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((r) => {
+          const name = String(r.item.name || "").toLowerCase();
+          const slug = String(r.slug || "").toLowerCase();
+          return name.includes(q) || slug.includes(q);
+        })
+      : rows;
+
+    const key = statsSort;
+    filtered.sort((a, b) => {
+      if (key === "name") {
+        return String(a.item.name || a.slug).localeCompare(
+          String(b.item.name || b.slug),
+          "es",
+        );
+      }
+      if (key === "sum") return b.sum - a.sum || String(a.slug).localeCompare(b.slug);
+      const pick = (r: StatsRow) => {
+        if (key === "demo") return r.st.demo || 0;
+        if (key === "web") return r.st.web || 0;
+        if (key === "request") return r.st.request || 0;
+        if (key === "full") return r.st.full || 0;
+        return r.sum;
+      };
+      return pick(b) - pick(a) || b.sum - a.sum;
+    });
+    return filtered;
+  };
+
+  const bindStatsToolbar = () => {
+    if (statsBound) return;
+    statsBound = true;
+    const qEl = document.querySelector("[data-stats-q]");
+    const sortEl = document.querySelector("[data-stats-sort]");
+    let qTimer = 0;
+    qEl?.addEventListener("input", () => {
+      window.clearTimeout(qTimer);
+      qTimer = window.setTimeout(() => {
+        statsQ = (qEl as HTMLInputElement).value || "";
+        statsPage = 0;
+        renderDownloadStats();
+      }, 120);
+    });
+    sortEl?.addEventListener("change", () => {
+      const v = (sortEl as HTMLSelectElement).value;
+      if (
+        v === "sum" ||
+        v === "demo" ||
+        v === "web" ||
+        v === "request" ||
+        v === "full" ||
+        v === "name"
+      ) {
+        statsSort = v;
+      }
+      statsPage = 0;
+      renderDownloadStats();
+    });
+    document.querySelector("[data-stats-prev]")?.addEventListener("click", () => {
+      statsPage = Math.max(0, statsPage - 1);
+      renderDownloadStats();
+    });
+    document.querySelector("[data-stats-next]")?.addEventListener("click", () => {
+      statsPage += 1;
+      renderDownloadStats();
+    });
+  };
+
   const renderDownloadStats = () => {
     const tot = downloadStats.totals || { demo: 0, web: 0, request: 0, full: 0 };
     const setPill = (sel: string, n: number) => {
@@ -921,44 +1064,51 @@ import Layout from "../../components/Layout.astro";
     }
 
     const table = document.querySelector("[data-stats-table]");
+    const toolbar = document.querySelector("[data-stats-toolbar]");
+    const pager = document.querySelector("[data-stats-pager]");
+    const countEl = document.querySelector("[data-stats-count]");
     if (!(table instanceof HTMLElement)) return;
 
-    const rows = items
-      .map((item) => {
-        const slug = item.slug || "";
-        const st = downloadStats.products[slug] || {
-          demo: 0,
-          web: 0,
-          request: 0,
-          full: 0,
-        };
-        const sum =
-          (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
-        return { item, st, sum, slug };
-      })
-      .filter((r) => r.sum > 0)
-      .sort((a, b) => b.sum - a.sum);
+    const baseCount = collectStatsRows().length;
+    const allRows = buildStatsRows();
 
-    // Productos solo en stats (borrados del catálogo pero con histórico)
-    for (const [slug, st] of Object.entries(downloadStats.products || {})) {
-      if (items.some((i) => i.slug === slug)) continue;
-      const sum =
-        (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
-      if (sum > 0) {
-        rows.push({
-          item: { slug, name: `${slug} (histórico)` },
-          st,
-          sum,
-          slug,
-        });
+    if (toolbar instanceof HTMLElement) toolbar.hidden = baseCount === 0;
+    if (baseCount > 0) bindStatsToolbar();
+
+    if (!allRows.length) {
+      if (pager instanceof HTMLElement) pager.hidden = true;
+      if (countEl instanceof HTMLElement) {
+        countEl.hidden = baseCount === 0;
+        if (baseCount > 0) countEl.textContent = "0 coincidencias";
       }
-    }
-    rows.sort((a, b) => b.sum - a.sum);
-
-    if (!rows.length) {
-      table.innerHTML =
-        `<p class="rail-empty">Sin descargas aún. Al pulsar «Probar demo/beta» o descargar full desde cuenta se cuentan aquí.</p>`;
+      table.innerHTML = statsQ.trim()
+        ? `<p class="rail-empty">Ningún producto coincide con «${statsQ.replace(/</g, "")}».</p>`
+        : `<p class="rail-empty">Sin descargas aún. Al pulsar «Probar demo/beta» o descargar full desde cuenta se cuentan aquí.</p>`;
       return;
+    }
+
+    const pages = Math.max(1, Math.ceil(allRows.length / STATS_PAGE_SIZE));
+    if (statsPage >= pages) statsPage = pages - 1;
+    if (statsPage < 0) statsPage = 0;
+    const start = statsPage * STATS_PAGE_SIZE;
+    const pageRows = allRows.slice(start, start + STATS_PAGE_SIZE);
+
+    if (countEl instanceof HTMLElement) {
+      countEl.hidden = false;
+      countEl.textContent = `${allRows.length} con actividad${
+        allRows.length > STATS_PAGE_SIZE ? ` · pág. ${statsPage + 1}/${pages}` : ""
+      }`;
+    }
+
+    if (pager instanceof HTMLElement) {
+      const needPager = allRows.length > STATS_PAGE_SIZE;
+      pager.hidden = !needPager;
+      const prev = pager.querySelector("[data-stats-prev]");
+      const next = pager.querySelector("[data-stats-next]");
+      const pageLab = pager.querySelector("[data-stats-page]");
+      if (prev instanceof HTMLButtonElement) prev.disabled = statsPage <= 0;
+      if (next instanceof HTMLButtonElement) next.disabled = statsPage >= pages - 1;
+      if (pageLab) pageLab.textContent = `${statsPage + 1} / ${pages}`;
     }
 
     const esc = (s: string) =>
@@ -975,19 +1125,24 @@ import Layout from "../../components/Layout.astro";
           <th title="Apertura demo web">Web</th>
           <th title="Solicitar demo">Req</th>
           <th title="Full con licencia">Full</th>
+          <th title="Total">Σ</th>
         </tr>
       </thead>
       <tbody>
-        ${rows
-          .map(({ item, st }) => {
+        ${pageRows
+          .map(({ item, st, sum }) => {
             const name = esc(item.name || item.slug || "—");
             const slug = esc(item.slug || "");
-            return `<tr>
-              <td><strong>${name}</strong><br /><span class="stats-slug">${slug}</span></td>
+            return `<tr title="${slug}">
+              <td class="stats-product">
+                <span class="stats-name">${name}</span>
+                <span class="stats-slug">${slug}</span>
+              </td>
               <td>${st.demo || 0}</td>
               <td>${st.web || 0}</td>
               <td>${st.request || 0}</td>
               <td>${st.full || 0}</td>
+              <td class="stats-sum">${sum}</td>
             </tr>`;
           })
           .join("")}
@@ -1347,7 +1502,7 @@ import Layout from "../../components/Layout.astro";
     display: flex;
     flex-wrap: wrap;
     gap: 0.45rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.65rem;
   }
   .stat-pill {
     display: inline-flex;
@@ -1364,36 +1519,129 @@ import Layout from "../../components/Layout.astro";
     color: var(--color-fg);
     font-variant-numeric: tabular-nums;
   }
+  .stats-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.55rem;
+  }
+  .stats-search {
+    flex: 1 1 12rem;
+    min-width: 10rem;
+    max-width: 22rem;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--color-fg);
+    background: #0c0c10;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.4rem 0.55rem;
+  }
+  .stats-sort-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-muted);
+  }
+  .stats-sort-label select {
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-fg);
+    background: #0c0c10;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.35rem 0.45rem;
+  }
+  .stats-count {
+    margin: 0 0 0 0.15rem;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .stats-table-scroll {
+    max-height: min(18rem, 42vh);
+    overflow: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: #0a0a0c;
+  }
   .stats-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+  }
+  .stats-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #121218;
+    box-shadow: 0 1px 0 var(--color-border);
   }
   .stats-table th,
   .stats-table td {
     text-align: left;
-    padding: 0.4rem 0.5rem;
-    border-bottom: 1px solid var(--color-border);
-    vertical-align: top;
+    padding: 0.32rem 0.5rem;
+    border-bottom: 1px solid rgb(255 255 255 / 0.05);
+    vertical-align: middle;
   }
   .stats-table th {
     color: var(--color-muted);
     font-weight: 600;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .stats-table td:not(:first-child) {
     font-variant-numeric: tabular-nums;
     text-align: right;
-    width: 3.5rem;
+    width: 3.1rem;
   }
   .stats-table th:not(:first-child) {
     text-align: right;
   }
+  .stats-product {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+    max-width: 16rem;
+  }
+  .stats-name {
+    font-weight: 600;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .stats-slug {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--color-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stats-sum {
+    font-weight: 700;
+    color: var(--color-accent, #c9a962);
+  }
+  .stats-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    margin-top: 0.5rem;
+  }
+  .stats-page {
+    font-size: 0.72rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 3.5rem;
+    text-align: center;
   }
   .admin-layout {
     display: grid;

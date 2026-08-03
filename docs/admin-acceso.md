@@ -18,6 +18,24 @@ URLs (no están en el menú público):
 | **Stripe Price ID** | Único campo necesario para cobrar (Checkout). Fallback URL opcional. Glass live: ver `TAREAS-VENTAS-PRIORIDAD.md`. |
 | **Imágenes / vídeo** | Al **editar**, la media anterior **se conserva**. Archivos nuevos se **añaden** (máx. 8 imgs). Un vídeo nuevo **sustituye solo el vídeo**. |
 | **Reemplazar todo** | Casilla opcional: solo entonces se borran imágenes/vídeo previos y quedan los que subas ahora. |
+| **Demo / full / media** | Zonas **drag-and-drop** (o clic): demo zip, full privado, imágenes, vídeo. Al editar, la zona muestra si hay archivo en R2/catálogo (se mantiene sin re-subir). |
+
+### Feed · Productos (misma página)
+
+Bloque **Feed · Productos** bajo el form (no es el feed Novedades de biblioteca/home).
+
+| Campo | Notas |
+|-------|--------|
+| **Producto (cabecera)** | Select de productos **no draft**. El post se muestra con el **nombre del producto** como cabecera. |
+| **Texto** | Cuerpo del post (máx. ~800). |
+| **Etiqueta / fecha** | `update` · nuevo · mejora · fix · próximo + fecha. |
+| **Media** | Imagen/GIF **o** vídeo (mp4/webm, máx. 40&nbsp;MB). No ambos. |
+| **CRUD** | Publicar · editar tile · borrar. Sin aviso newsletter (eso es solo feed home). |
+
+- API: `GET|POST|DELETE /admin/product-feed`  
+- R2: `catalog/product-updates.json` · media `library/product-feed/`  
+- **Público:** rail al lado del catálogo en `/es/catalogo/` (desktop ≥1100px) · `GET /api/product-updates`  
+- Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts`
 
 ### Ficha pública (`/es/catalogo/`)
 
@@ -28,6 +46,7 @@ URLs (no están en el menú público):
 | **Comprar** | Plan con `stripePriceId` (o Payment Link en buyUrl). |
 | **Compartir** | Siempre en ficha activa → Web Share o copiar `/es/catalogo/?p={slug}`. |
 | Feedback / contacto | Siempre. |
+| **Rail feed productos** | Lateral (desktop): posts del feed de productos; cabecera = nombre del producto → deep-link `?p=slug`. |
 
 ### Descargas (contadores)
 
@@ -41,6 +60,8 @@ En la misma página **`/admin/productos/`** hay un bloque **Descargas**:
 | **Full** | Entrega real del binario con licencia (`GET /api/download?token=`) |
 
 Datos en R2 `catalog/stats/downloads.json`. Respetan opt-out estudio (`?nimpo_no_stats=1`) en clics demo; full se cuenta en servidor al descargar.
+
+**UI (escala):** totales arriba · búsqueda por nombre/slug · orden (actividad / demo / web / req / full / A–Z) · tabla con scroll y cabecera fija · **12 filas por página** · columna **Σ**. Solo filas con actividad &gt; 0.
 
 Feedback/soporte público y mailto de estudio: **`contacto@nimpo3dstudio.com`** (`src/config/site.json`).  
 Detalle catálogo/commerce: `docs/estado.md` § admin productos · `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`.
@@ -131,7 +152,7 @@ Form **unificado** por obra (ya no hay «Canal vídeo» / «Canal stems»):
 
 ### Feed Novedades + abonados email
 
-En la **misma página** admin, bloque **Feed · Novedades**:
+En la **misma página** admin, bloque **Feed · Novedades** (home; **no** es el feed de productos):
 
 1. Título + descripción (+ etiqueta, fecha, **enlace** opcional a producto/obra)
 2. Casilla **Avisar abonados por email** (solo si quieres mail; máx. 80 por publicación)
@@ -142,7 +163,12 @@ Panel lateral Novedades = solo feed (sin form; no rompe el rail).
 **Admin listas:** `/admin/abonados/` — abonados (filtro, baja, borrar, CSV) + clientes compra (CSV).  
 Lista R2: `catalog/newsletter.json`. Confirm / baja pública: `GET /api/newsletter?action=confirm|unsubscribe&t=…`
 
-Seed feed opcional:
+| Feed | Admin | R2 | Público |
+|------|-------|-----|---------|
+| **Novedades (home)** | `/admin/biblioteca/` | `catalog/updates.json` | Rail home · `/api/updates` |
+| **Productos** | `/admin/productos/` | `catalog/product-updates.json` | Rail `/es/catalogo/` · `/api/product-updates` |
+
+Seed feed home opcional:
 ```powershell
 npx wrangler r2 object put nimpo-library/catalog/updates.json --file=src/data/updates.json --remote
 ```

@@ -1,6 +1,6 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-08-03 (commerce + checkout Stripe path)  
+Última actualización: 2026-08-03 (feed productos + descargas admin escalables)  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
@@ -46,8 +46,9 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 ### Web base (fase 1, sigue viva)
 - [x] Home, Sobre, Contacto, Privacidad, Términos
 - [x] Música y catálogo digital (rutas existen; no son el foco del nav)
-- [x] Feed Novedades (`updates.json` / R2)
-- [x] Newsletter novedades: abono + confirm email + aviso al publicar feed (opt-in)
+- [x] Feed Novedades (`updates.json` / R2) — home · admin biblioteca
+- [x] Feed productos (`catalog/product-updates.json` / R2) — admin productos + rail catálogo · img|vídeo · cabecera = producto
+- [x] Newsletter novedades: abono + confirm email + aviso al publicar feed home (opt-in)
 - [x] Admin `/admin/abonados/` — lista abonados (filtro/baja/borrar/CSV) + clientes compra (CSV)
 - [x] Diseño carbon + dorado
 - [x] Analíticas first-party + banner cookies; CF Web Analytics; SEO (sitemap, robots, JSON-LD)
@@ -128,10 +129,16 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] **Media al editar:** por defecto **se conservan** imágenes/vídeo; archivos nuevos se **suman** (máx 8 imgs).  
   Solo se borra todo si marcas «Reemplazar todo el media».  
   Admin muestra miniaturas actuales al abrir la ficha.
+- [x] **Dropzones** demo / full / imágenes / vídeo (arrastrar o clic); estado kept en R2 al editar.  
+  Helper: `src/lib/admin/file-dropzone.ts`.
 - [x] Ficha pública: botón **Probar beta** si `status=beta`, si no **Probar demo** (mismo control; hace falta demo URL).
 - [x] Ficha pública: **Compartir** (Web Share / copiar deep-link `?p=slug`) — `src/lib/share.ts` `productSharePath`.
 - [x] **Contadores de descargas** en `/admin/productos/`: demo / web / req (clic) + full (entrega con token). R2 `catalog/stats/downloads.json`.  
+  UI: búsqueda, orden, scroll sticky, 12/página, columna Σ.  
   Código: `functions/lib/download-stats.ts`, `functions/api/track.ts`, `functions/api/download.ts`.
+- [x] **Feed de productos** (aparte de Novedades home): select producto = cabecera · texto · img|vídeo · CRUD.  
+  R2 `catalog/product-updates.json` · `GET|POST|DELETE /admin/product-feed` · `GET /api/product-updates` · rail en `/es/catalogo/`.  
+  Código: `functions/lib/product-updates-catalog.ts`, `functions/admin/product-feed.ts`, `src/lib/admin/product-feed.ts`, `ProductUpdatesPanel.astro`.
 - Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`, `src/components/ProductsBrowser.astro`
 
 ### Admin biblioteca — form unificado (2026-08)

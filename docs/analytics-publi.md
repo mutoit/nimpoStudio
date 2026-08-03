@@ -39,7 +39,7 @@ No son “usuarios registrados”: son estimaciones del navegador/cookie.
 | **Demo / Web / Req** | Clic «Probar demo/beta» o solicitar → evento `product_demo_click` → `POST /api/track` | R2 `catalog/stats/downloads.json` |
 | **Full** | Entrega real `GET /api/download?token=…` (licencia) | Mismo JSON (servidor) |
 
-Ver en **`/admin/productos/`** (bloque Descargas). Opt-out estudio no envía clics demo; full se cuenta al descargar con token.
+Ver en **`/admin/productos/`** (bloque Descargas: totales + tabla con búsqueda/orden/paginación). Opt-out estudio no envía clics demo; full se cuenta al descargar con token.
 
 ---
 
@@ -238,7 +238,8 @@ Con esto tienes **cuantitativo + cualitativo + propio** sin coste.
 |-------|--------|
 | **Search Console** | Verificación + sitemap + monitor impresiones/clics |
 | **Bing Webmaster** | Mismo sitemap; refuerza Bing |
-| **Feed** | `src/data/updates.json` — avisos en panel Novedades |
+| **Feed home** | `src/data/updates.json` / R2 `catalog/updates.json` — panel Novedades |
+| **Feed productos** | R2 `catalog/product-updates.json` — rail en `/es/catalogo/` (admin productos) |
 | **Instagram** | `site.json` → `social.instagram` cuando tengas perfil |
 | **GitHub** | Enlace en bio del repo |
 | **Música** | Previews en `/musica` cuando subas MP3 |

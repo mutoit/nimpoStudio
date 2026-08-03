@@ -39,11 +39,13 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 | Tarea | Archivo(s) |
 |-------|------------|
 | Producto software (vivo) | Admin `/admin/productos/` → R2 `catalog/products.json` · API `functions/admin/products.ts` · schema `functions/lib/products-catalog.ts` |
-| Contadores demo/full software | Admin productos (bloque Descargas) · `functions/lib/download-stats.ts` · R2 `catalog/stats/downloads.json` |
+| Contadores demo/full software | Admin productos (bloque Descargas: búsqueda/orden/paginación) · `functions/lib/download-stats.ts` · R2 `catalog/stats/downloads.json` |
+| Feed productos (rail catálogo) | Admin productos (bloque Feed) · `functions/admin/product-feed.ts` · `functions/api/product-updates.ts` · R2 `catalog/product-updates.json` · `ProductUpdatesPanel.astro` |
+| Dropzones media productos | `src/lib/admin/file-dropzone.ts` · `src/pages/admin/productos.astro` |
 | Producto seed estático (legacy) | `src/data/products.json` (el catálogo real es R2) |
 | Obra biblioteca (vivo) | Admin `/admin/biblioteca/` form unificado · `functions/admin/publish.ts` · R2 catálogo |
 | Música / lanzamiento (seed estático) | `src/data/music.json` + `public/images/music/` + `public/previews/music/` |
-| Aviso / novedad | `src/data/updates.json` |
+| Aviso / novedad (home) | Admin biblioteca feed · R2 `catalog/updates.json` · seed `src/data/updates.json` · `/api/updates` |
 | Marca, email, redes | `src/config/site.json` |
 | Textos legales | `src/content/legal/` o páginas `[lang]/` |
 | Estilos globales | `src/styles/` |

@@ -1,9 +1,14 @@
 /**
  * GET /api/product-updates — feed de productos vivo (R2).
  * Separado de /api/updates (Novedades home).
+ *
+ * Query opcional:
+ *   ?slug=mi-app  (alias ?product=) — solo posts de ese producto
  */
 
 import {
+  filterProductUpdatesBySlug,
+  normalizeProductFeedSlug,
   readProductUpdates,
   type ProductUpdatesBucket,
 } from "../lib/product-updates-catalog";
@@ -38,24 +43,38 @@ export async function onRequest(context: { request: Request; env: Env }) {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
 
+  const url = new URL(request.url);
+  const filteredBy = normalizeProductFeedSlug(
+    url.searchParams.get("slug") || url.searchParams.get("product") || "",
+  );
+
   if (!env.LIBRARY_BUCKET) {
-    return json({ ok: true, source: "none", items: [] });
+    return json({
+      ok: true,
+      source: "none",
+      items: [],
+      ...(filteredBy ? { filteredBy } : {}),
+    });
   }
 
-  const items = await readProductUpdates(env.LIBRARY_BUCKET);
-  if (!items) {
+  const all = await readProductUpdates(env.LIBRARY_BUCKET);
+  if (!all) {
     return json({
       ok: true,
       source: "empty",
       items: [],
+      ...(filteredBy ? { filteredBy } : {}),
       message: "Feed productos vacío — publica desde /admin/productos/",
     });
   }
+
+  const items = filterProductUpdatesBySlug(all, filteredBy);
 
   return json({
     ok: true,
     source: "r2",
     items,
     count: items.length,
+    ...(filteredBy ? { filteredBy } : {}),
   });
 }

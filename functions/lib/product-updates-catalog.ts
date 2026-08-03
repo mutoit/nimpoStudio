@@ -5,6 +5,8 @@
 
 export const PRODUCT_UPDATES_KEY = "catalog/product-updates.json";
 export const PRODUCT_FEED_MEDIA_PREFIX = "library/product-feed/";
+/** Máx. caracteres del cuerpo del post (listas / changelog). */
+export const PRODUCT_FEED_SUMMARY_MAX = 2500;
 
 export type ProductUpdatesBucket = {
   get: (key: string) => Promise<{
@@ -77,7 +79,7 @@ export function sanitizeProductFeedItem(raw: unknown): ProductFeedItem | null {
     .slice(0, 160);
   const summary = String(o.summary || o.description || "")
     .trim()
-    .slice(0, 800);
+    .slice(0, PRODUCT_FEED_SUMMARY_MAX);
   if (!productSlug || !productName || !summary) return null;
 
   let id = String(o.id || "")
@@ -130,6 +132,28 @@ export async function readProductUpdates(
   } catch {
     return null;
   }
+}
+
+/** Normaliza slug de producto (query / admin). */
+export function normalizeProductFeedSlug(raw: unknown): string {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .slice(0, 80);
+}
+
+/**
+ * Filtra posts por productSlug.
+ * slug vacío → sin filtrar (overview / admin).
+ */
+export function filterProductUpdatesBySlug(
+  items: ProductFeedItem[],
+  slug: string | null | undefined,
+): ProductFeedItem[] {
+  const key = normalizeProductFeedSlug(slug);
+  if (!key) return items;
+  return items.filter((x) => x.productSlug === key);
 }
 
 export async function writeProductUpdates(

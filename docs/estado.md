@@ -47,7 +47,7 @@ Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de t
 - [x] Home, Sobre, Contacto, Privacidad, Términos
 - [x] Música y catálogo digital (rutas existen; no son el foco del nav)
 - [x] Feed Novedades (`updates.json` / R2) — home · admin biblioteca
-- [x] Feed productos (`catalog/product-updates.json` / R2) — admin productos + rail catálogo · img|vídeo · cabecera = producto
+- [x] Feed productos (`catalog/product-updates.json` / R2) — admin productos + rail catálogo · img|vídeo · scope por `productSlug` (`?p=` / `?slug=`) · texto 2500 + listas lite
 - [x] Newsletter novedades: abono + confirm email + aviso al publicar feed home (opt-in)
 - [x] Admin `/admin/abonados/` — lista abonados (filtro/baja/borrar/CSV) + clientes compra (CSV)
 - [x] Diseño carbon + dorado
@@ -137,8 +137,8 @@ No editar `library.json` a mano salvo semilla local o fallback.
   UI: búsqueda, orden, scroll sticky, 12/página, columna Σ.  
   Código: `functions/lib/download-stats.ts`, `functions/api/track.ts`, `functions/api/download.ts`.
 - [x] **Feed de productos** (aparte de Novedades home): select producto = cabecera · texto · img|vídeo · CRUD.  
-  R2 `catalog/product-updates.json` · `GET|POST|DELETE /admin/product-feed` · `GET /api/product-updates` · rail en `/es/catalogo/`.  
-  Código: `functions/lib/product-updates-catalog.ts`, `functions/admin/product-feed.ts`, `src/lib/admin/product-feed.ts`, `ProductUpdatesPanel.astro`.
+  R2 `catalog/product-updates.json` · `GET|POST|DELETE /admin/product-feed` · `GET /api/product-updates[?slug=]` · rail en `/es/catalogo/` filtrado por ficha.  
+  Código: `functions/lib/product-updates-catalog.ts`, `functions/admin/product-feed.ts`, `src/lib/admin/product-feed.ts`, `src/lib/product-feed-format.ts`, `ProductUpdatesPanel.astro`.
 - Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`, `src/components/ProductsBrowser.astro`
 
 ### Admin biblioteca — form unificado (2026-08)

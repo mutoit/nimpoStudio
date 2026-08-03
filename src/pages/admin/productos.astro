@@ -324,11 +324,18 @@ import Layout from "../../components/Layout.astro";
               <textarea
                 name="summary"
                 required
-                maxlength="800"
-                rows="4"
-                placeholder="Qué hay de nuevo en este producto…"
+                maxlength="2500"
+                rows="8"
+                placeholder={"Qué hay de nuevo…\n\n- Mejora A\n- Fix B\n\n1. Paso uno\n2. Paso dos\n\n**Importante** opcional."}
                 data-pfeed-summary
               ></textarea>
+              <span class="field-hint"
+                >Hasta 2500 caracteres. Listas: <code>- ítem</code> o <code>1. ítem</code>. Negrita:
+                <code>**texto**</code>. El post solo se muestra en la ficha / API de ese producto (<code
+                  >?p=</code
+                >
+                / <code>?slug=</code>).</span
+              >
             </label>
             <div class="row">
               <label>

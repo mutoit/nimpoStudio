@@ -26,16 +26,17 @@ Bloque **Feed · Productos** bajo el form (no es el feed Novedades de biblioteca
 
 | Campo | Notas |
 |-------|--------|
-| **Producto (cabecera)** | Select de productos **no draft**. El post se muestra con el **nombre del producto** como cabecera. |
-| **Texto** | Cuerpo del post (máx. ~800). |
+| **Producto (cabecera)** | Select de productos **no draft**. El post **pertenece** a ese producto: solo se ve en su ficha (`?p=slug`) y en `GET /api/product-updates?slug=…` (apps/extensiones). |
+| **Texto** | Cuerpo del post (máx. **2500**). Formato lite: saltos de línea, listas `- ítem` / `1. ítem`, negrita `**texto**`. Sin HTML. |
 | **Etiqueta / fecha** | `update` · nuevo · mejora · fix · próximo + fecha. |
 | **Media** | Imagen/GIF **o** vídeo (mp4/webm, máx. 40&nbsp;MB). No ambos. |
 | **CRUD** | Publicar · editar tile · borrar. Sin aviso newsletter (eso es solo feed home). |
 
-- API: `GET|POST|DELETE /admin/product-feed`  
+- API admin: `GET|POST|DELETE /admin/product-feed`  
+- API pública: `GET /api/product-updates` (todos) · `GET /api/product-updates?slug=mi-app` (solo ese producto; alias `?product=`)  
 - R2: `catalog/product-updates.json` · media `library/product-feed/`  
-- **Público:** rail al lado del catálogo en `/es/catalogo/` (desktop ≥1100px) · `GET /api/product-updates`  
-- Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts`
+- **Público:** rail al lado del catálogo en `/es/catalogo/` (desktop ≥1100px); con ficha activa filtra por producto  
+- Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts` · formato: `src/lib/product-feed-format.ts`
 
 ### Ficha pública (`/es/catalogo/`)
 

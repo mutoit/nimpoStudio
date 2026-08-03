@@ -1,6 +1,7 @@
 ---
 /**
  * Rail feed de productos (catálogo). Cabecera = nombre del producto.
+ * Con producto activo (?p= o evento) solo muestra posts de ese slug.
  */
 import type { Locale } from "../i18n/translations";
 import { useTranslations } from "../lib/locale";
@@ -21,6 +22,7 @@ const payload = {
   lang: lang as string,
   labels: {
     empty: t("productFeedEmpty"),
+    emptyForProduct: t("productFeedEmptyForProduct"),
     tags: tagLabels as Record<string, string>,
   },
 };
@@ -44,6 +46,7 @@ const payload = {
 
 <script>
   import { safeMediaUrl } from "../lib/dom-escape";
+  import { formatProductFeedBody } from "../lib/product-feed-format";
 
   function escapeHtml(s: string) {
     return String(s)
@@ -72,6 +75,22 @@ const payload = {
     return "update";
   }
 
+  function normalizeSlug(raw: string): string {
+    return String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 80);
+  }
+
+  function slugFromUrl(): string {
+    try {
+      return normalizeSlug(new URL(window.location.href).searchParams.get("p") || "");
+    } catch {
+      return "";
+    }
+  }
+
   function mediaBlock(item: { image?: string; video?: string }) {
     const video = safeMediaUrl(typeof item.video === "string" ? item.video : "");
     if (video) {
@@ -87,21 +106,79 @@ const payload = {
     if (s) return `/${lang}/catalogo/?p=${encodeURIComponent(s)}`;
     const u = String(link || "").trim();
     if (u.startsWith("/") && !u.startsWith("//")) {
-      // reescribir /es/catalogo → lang actual
       return u.replace(/^\/(es|en|fr)(\/)/, `/${lang}$2`);
     }
     return "";
   }
 
-  async function hydrateProductUpdates() {
+  type Labels = { empty: string; emptyForProduct: string; tags: Record<string, string> };
+
+  async function loadItems(slug: string) {
+    const q = slug ? `?slug=${encodeURIComponent(slug)}` : "";
+    const res = await fetch(`/api/product-updates${q}`, { credentials: "same-origin" });
+    if (!res.ok) throw new Error("fetch_failed");
+    const data = await res.json();
+    if (!data?.ok || !Array.isArray(data.items)) return [];
+    return data.items as Array<{
+      date?: string;
+      productName?: string;
+      productSlug?: string;
+      tag?: string;
+      summary?: string;
+      image?: string;
+      video?: string;
+      link?: string;
+    }>;
+  }
+
+  function renderBody(
+    body: Element,
+    items: Awaited<ReturnType<typeof loadItems>>,
+    opts: { lang: string; labels: Labels; slug: string },
+  ) {
+    const empty = opts.slug
+      ? opts.labels.emptyForProduct || opts.labels.empty || "—"
+      : opts.labels.empty || "—";
+    if (!items.length) {
+      body.innerHTML = `<p class="updates-panel__empty">${escapeHtml(empty)}</p>`;
+      return;
+    }
+
+    const tags = opts.labels.tags || {};
+    const list = items.slice(0, 12);
+    body.innerHTML = `<ul class="updates-panel__list">${list
+      .map((item) => {
+        const tag = safeTag(String(item.tag || "update"));
+        const name = escapeHtml(String(item.productName || item.productSlug || "").slice(0, 160));
+        const summaryHtml = formatProductFeedBody(String(item.summary || "").slice(0, 2500));
+        const date = String(item.date || "").slice(0, 10);
+        const tagLabel = escapeHtml(tags[tag] || tag);
+        const media = mediaBlock(item);
+        const href = productHref(opts.lang, String(item.productSlug || ""), item.link);
+        const titleHtml = href
+          ? `<p class="updates-panel__item-title"><a class="updates-panel__link" href="${escapeHtml(href)}">${name}</a></p>`
+          : `<p class="updates-panel__item-title">${name}</p>`;
+        return `<li class="updates-panel__item">
+                <div class="updates-panel__meta">
+                  <span class="updates-panel__tag updates-panel__tag--${tag}">${tagLabel}</span>
+                  <time class="updates-panel__date" datetime="${escapeHtml(date)}">${escapeHtml(formatDate(date))}</time>
+                </div>
+                ${titleHtml}
+                ${media}
+                <div class="updates-panel__summary">${summaryHtml}</div>
+              </li>`;
+      })
+      .join("")}</ul>`;
+  }
+
+  function hydrateProductUpdates() {
     document.querySelectorAll("[data-product-updates-root]").forEach((root) => {
-      if (!(root instanceof HTMLElement) || root.dataset.bound === "1") return;
-      root.dataset.bound = "1";
+      if (!(root instanceof HTMLElement)) return;
 
       let payload: {
         lang?: string;
-        labels: { empty: string; tags: Record<string, string> };
-      } = { labels: { empty: "", tags: {} } };
+        labels: Labels;
+      } = { labels: { empty: "", emptyForProduct: "", tags: {} } };
       try {
         payload = JSON.parse(root.dataset.productUpdatesPayload || "{}");
       } catch {
@@ -111,58 +188,54 @@ const payload = {
       const body = root.querySelector("[data-product-updates-body]");
       if (!body) return;
       const lang = String(payload.lang || "es");
-      const empty = payload.labels?.empty || "—";
-      const tags = payload.labels?.tags || {};
+      const labels: Labels = {
+        empty: payload.labels?.empty || "",
+        emptyForProduct: payload.labels?.emptyForProduct || payload.labels?.empty || "",
+        tags: payload.labels?.tags || {},
+      };
 
-      void (async () => {
+      let currentSlug = slugFromUrl();
+      let loadSeq = 0;
+
+      const refresh = async (slug: string) => {
+        currentSlug = normalizeSlug(slug);
+        const seq = ++loadSeq;
         try {
-          const res = await fetch("/api/product-updates", { credentials: "same-origin" });
-          if (!res.ok) return;
-          const data = await res.json();
-          if (!data?.ok || !Array.isArray(data.items) || !data.items.length) {
-            body.innerHTML = `<p class="updates-panel__empty">${escapeHtml(empty)}</p>`;
-            return;
-          }
-
-          const items = data.items.slice(0, 12);
-          body.innerHTML = `<ul class="updates-panel__list">${items
-            .map(
-              (item: {
-                date?: string;
-                productName?: string;
-                productSlug?: string;
-                tag?: string;
-                summary?: string;
-                image?: string;
-                video?: string;
-                link?: string;
-              }) => {
-                const tag = safeTag(String(item.tag || "update"));
-                const name = escapeHtml(String(item.productName || item.productSlug || "").slice(0, 160));
-                const summary = escapeHtml(String(item.summary || "").slice(0, 800));
-                const date = String(item.date || "").slice(0, 10);
-                const tagLabel = escapeHtml(tags[tag] || tag);
-                const media = mediaBlock(item);
-                const href = productHref(lang, String(item.productSlug || ""), item.link);
-                const titleHtml = href
-                  ? `<p class="updates-panel__item-title"><a class="updates-panel__link" href="${escapeHtml(href)}">${name}</a></p>`
-                  : `<p class="updates-panel__item-title">${name}</p>`;
-                return `<li class="updates-panel__item">
-                <div class="updates-panel__meta">
-                  <span class="updates-panel__tag updates-panel__tag--${tag}">${tagLabel}</span>
-                  <time class="updates-panel__date" datetime="${escapeHtml(date)}">${escapeHtml(formatDate(date))}</time>
-                </div>
-                ${titleHtml}
-                ${media}
-                <p class="updates-panel__summary">${summary}</p>
-              </li>`;
-              },
-            )
-            .join("")}</ul>`;
+          const items = await loadItems(currentSlug);
+          if (seq !== loadSeq) return;
+          renderBody(body, items, { lang, labels, slug: currentSlug });
         } catch {
-          body.innerHTML = `<p class="updates-panel__empty">${escapeHtml(empty)}</p>`;
+          if (seq !== loadSeq) return;
+          body.innerHTML = `<p class="updates-panel__empty">${escapeHtml(labels.empty || "—")}</p>`;
         }
-      })();
+      };
+
+      if (root.dataset.bound === "1") {
+        void refresh(slugFromUrl());
+        return;
+      }
+      root.dataset.bound = "1";
+
+      void refresh(currentSlug);
+
+      // Solo feed: reacciona a ?p= sin tocar ProductsBrowser (replaceState no dispara popstate)
+      const onUrlMaybeChanged = () => {
+        const next = slugFromUrl();
+        if (next === currentSlug) return;
+        void refresh(next);
+      };
+      window.addEventListener("popstate", onUrlMaybeChanged);
+      // Parche local una vez: cuando el catálogo actualiza ?p= vía history
+      const w = window as Window & { __nimpoPfeedHist?: boolean };
+      if (!w.__nimpoPfeedHist) {
+        w.__nimpoPfeedHist = true;
+        const orig = history.replaceState.bind(history);
+        history.replaceState = (...args: Parameters<History["replaceState"]>) => {
+          orig(...args);
+          window.dispatchEvent(new Event("nimpo:product-url"));
+        };
+      }
+      window.addEventListener("nimpo:product-url", onUrlMaybeChanged);
     });
   }
 
@@ -282,6 +355,24 @@ const payload = {
     font-size: 0.8rem;
     line-height: 1.45;
     color: var(--color-muted);
+  }
+  .product-updates-panel .updates-panel__summary .updates-panel__para {
+    margin: 0 0 0.45rem;
+  }
+  .product-updates-panel .updates-panel__summary .updates-panel__para:last-child {
+    margin-bottom: 0;
+  }
+  .product-updates-panel .updates-panel__summary .updates-panel__list-md {
+    margin: 0.25rem 0 0.5rem;
+    padding-left: 1.15rem;
+    color: var(--color-muted);
+  }
+  .product-updates-panel .updates-panel__summary .updates-panel__list-md li {
+    margin: 0.15rem 0;
+  }
+  .product-updates-panel .updates-panel__summary strong {
+    color: var(--color-text, #e8e6e0);
+    font-weight: 600;
   }
   .product-updates-panel .updates-panel__empty {
     margin: 0.5rem 0;

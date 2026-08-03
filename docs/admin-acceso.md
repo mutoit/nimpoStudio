@@ -29,6 +29,19 @@ URLs (no están en el menú público):
 | **Compartir** | Siempre en ficha activa → Web Share o copiar `/es/catalogo/?p={slug}`. |
 | Feedback / contacto | Siempre. |
 
+### Descargas (contadores)
+
+En la misma página **`/admin/productos/`** hay un bloque **Descargas**:
+
+| Contador | Qué cuenta |
+|----------|------------|
+| **Demo** | Clic en «Probar demo/beta» con demo tipo descarga |
+| **Web** | Clic en demo tipo web |
+| **Req** | Clic en «Solicitar demo» |
+| **Full** | Entrega real del binario con licencia (`GET /api/download?token=`) |
+
+Datos en R2 `catalog/stats/downloads.json`. Respetan opt-out estudio (`?nimpo_no_stats=1`) en clics demo; full se cuenta en servidor al descargar.
+
 Feedback/soporte público y mailto de estudio: **`contacto@nimpo3dstudio.com`** (`src/config/site.json`).  
 Detalle catálogo/commerce: `docs/estado.md` § admin productos · `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`.
 

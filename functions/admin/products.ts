@@ -27,6 +27,7 @@ import {
   type ProductsBucket,
   type SoftwareProduct,
 } from "../lib/products-catalog";
+import { readDownloadStats } from "../lib/download-stats";
 import { adminJson as json, requireAdmin } from "../lib/require-admin";
 import type { AdminEnv } from "../lib/admin-auth";
 
@@ -51,7 +52,17 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   if (request.method === "GET") {
     const items = (await readProducts(bucket)) || [];
-    return json({ ok: true, items, count: items.length });
+    const downloadStats = await readDownloadStats(bucket);
+    return json({
+      ok: true,
+      items,
+      count: items.length,
+      downloadStats: {
+        products: downloadStats.products,
+        totals: downloadStats.totals,
+        updatedAt: downloadStats.updatedAt,
+      },
+    });
   }
 
   if (request.method === "DELETE") {

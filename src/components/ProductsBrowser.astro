@@ -528,7 +528,31 @@ const payload = {
       });
     }
 
-    demoReqEl?.addEventListener("click", () => showFeedback("suggestion"));
+    const trackDemo = (kind: "download" | "web" | "request") => {
+      const item = items.find((x) => x.slug === activeSlug);
+      if (!item?.slug) return;
+      window.nimpoTrack?.({
+        name: "product_demo_click",
+        payload: {
+          slug: item.slug,
+          kind,
+          status: String(item.status || ""),
+        },
+      });
+    };
+
+    if (demoEl instanceof HTMLAnchorElement) {
+      demoEl.addEventListener("click", () => {
+        const item = items.find((x) => x.slug === activeSlug);
+        const k = String(item?.demo?.kind || "download");
+        trackDemo(k === "web" ? "web" : "download");
+      });
+    }
+
+    demoReqEl?.addEventListener("click", () => {
+      trackDemo("request");
+      showFeedback("suggestion");
+    });
 
     checkoutEl?.addEventListener("click", async () => {
       const item = items.find((x) => x.slug === activeSlug);

@@ -22,6 +22,7 @@ import {
 import { findProduct } from "../lib/products-catalog";
 import { findCatalogItem } from "../lib/library-catalog";
 import { checkRateLimitAsync, clientIp, type RateLimitKv } from "../lib/rate-limit";
+import { incrementDownloadStat } from "../lib/download-stats";
 
 type Env = CommerceEnv & { RATE_LIMIT_KV?: RateLimitKv };
 
@@ -192,6 +193,20 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const fileName = key.split("/").pop() || "download.bin";
   const contentType =
     r2obj.httpMetadata?.contentType || "application/octet-stream";
+
+  // Contar solo entrega real (GET), no HEAD de probes.
+  if (request.method === "GET") {
+    const statSlug =
+      payload.slug ||
+      (key.startsWith("library/products/")
+        ? key.split("/")[2] || ""
+        : key.startsWith("library/")
+          ? key.split("/")[1] || ""
+          : "");
+    if (statSlug) {
+      await incrementDownloadStat(env.LIBRARY_BUCKET, statSlug, "full");
+    }
+  }
 
   if (request.method === "HEAD") {
     return new Response(null, {

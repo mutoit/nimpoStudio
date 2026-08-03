@@ -27,6 +27,22 @@ import Layout from "../../components/Layout.astro";
       (panel + ficha). Misma sesión que biblioteca.
     </p>
 
+    <section class="stats-card" data-download-stats>
+      <div class="stats-card__head">
+        <h2 class="subhead">Descargas</h2>
+        <p class="lead lead--sm" data-stats-meta>Demo/beta (clic) · full con licencia (entrega real)</p>
+      </div>
+      <div class="stats-totals" data-stats-totals>
+        <span class="stat-pill" data-tot-demo title="Demo descarga">Demo <strong>0</strong></span>
+        <span class="stat-pill" data-tot-web title="Demo web">Web <strong>0</strong></span>
+        <span class="stat-pill" data-tot-request title="Solicitar demo">Req <strong>0</strong></span>
+        <span class="stat-pill" data-tot-full title="Full con licencia">Full <strong>0</strong></span>
+      </div>
+      <div class="table-wrap" data-stats-table>
+        <p class="rail-empty">Sin datos aún (se rellenan al usar el catálogo).</p>
+      </div>
+    </section>
+
     <div class="admin-layout">
       <div class="workspace">
         <div class="edit-bar" data-edit-bar hidden>
@@ -231,6 +247,16 @@ import Layout from "../../components/Layout.astro";
   let items: Product[] = [];
   /** Snapshot del producto en edición — para reponer status bins si se quita el file local */
   let editingItem: Product | null = null;
+
+  type DlRow = { demo: number; web: number; request: number; full: number; lastDemoAt?: string; lastFullAt?: string };
+  let downloadStats: {
+    products: Record<string, DlRow>;
+    totals: { demo: number; web: number; request: number; full: number };
+    updatedAt?: string;
+  } = {
+    products: {},
+    totals: { demo: 0, web: 0, request: 0, full: 0 },
+  };
 
   const form = document.querySelector("[data-product-form]") as HTMLFormElement | null;
   const statusEl = document.querySelector("[data-status-msg]");
@@ -563,19 +589,130 @@ import Layout from "../../components/Layout.astro";
     const hasFull = Boolean(item.fullKey && String(item.fullKey).includes("/full/"));
     const demoUrl = item.demo?.url ? String(item.demo.url) : "";
     const hasDemo = Boolean(demoUrl && !demoUrl.includes("/full/"));
-    if (!hasFull && !hasDemo) {
-      return `<span class="tile__chip tile__chip--muted" title="Sin binarios">sin bin</span>`;
-    }
-    return [
+    const st = downloadStats.products[item.slug || ""] || {
+      demo: 0,
+      web: 0,
+      request: 0,
+      full: 0,
+    };
+    const demoN = (st.demo || 0) + (st.web || 0) + (st.request || 0);
+    const fullN = st.full || 0;
+    const chips = [
       hasFull
         ? `<span class="tile__chip tile__chip--full" title="Full en R2">full</span>`
         : "",
       hasDemo
         ? `<span class="tile__chip tile__chip--demo" title="Demo en catálogo">demo</span>`
         : "",
-    ]
-      .filter(Boolean)
-      .join("");
+      demoN > 0
+        ? `<span class="tile__chip tile__chip--stat" title="Demo/beta clic: ${demoN}">↓${demoN}</span>`
+        : "",
+      fullN > 0
+        ? `<span class="tile__chip tile__chip--stat-full" title="Full descargado: ${fullN}">F${fullN}</span>`
+        : "",
+    ].filter(Boolean);
+    if (!chips.length) {
+      return `<span class="tile__chip tile__chip--muted" title="Sin binarios">sin bin</span>`;
+    }
+    return chips.join("");
+  };
+
+  const renderDownloadStats = () => {
+    const tot = downloadStats.totals || { demo: 0, web: 0, request: 0, full: 0 };
+    const setPill = (sel: string, n: number) => {
+      const el = document.querySelector(sel);
+      if (el) {
+        const strong = el.querySelector("strong");
+        if (strong) strong.textContent = String(n);
+      }
+    };
+    setPill("[data-tot-demo]", tot.demo || 0);
+    setPill("[data-tot-web]", tot.web || 0);
+    setPill("[data-tot-request]", tot.request || 0);
+    setPill("[data-tot-full]", tot.full || 0);
+
+    const meta = document.querySelector("[data-stats-meta]");
+    if (meta instanceof HTMLElement && downloadStats.updatedAt) {
+      const d = new Date(downloadStats.updatedAt);
+      const label = Number.isNaN(d.getTime())
+        ? downloadStats.updatedAt
+        : d.toLocaleString("es-ES");
+      meta.textContent = `Demo/beta (clic) · full con licencia · actualizado ${label}`;
+    }
+
+    const table = document.querySelector("[data-stats-table]");
+    if (!(table instanceof HTMLElement)) return;
+
+    const rows = items
+      .map((item) => {
+        const slug = item.slug || "";
+        const st = downloadStats.products[slug] || {
+          demo: 0,
+          web: 0,
+          request: 0,
+          full: 0,
+        };
+        const sum =
+          (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
+        return { item, st, sum, slug };
+      })
+      .filter((r) => r.sum > 0)
+      .sort((a, b) => b.sum - a.sum);
+
+    // Productos solo en stats (borrados del catálogo pero con histórico)
+    for (const [slug, st] of Object.entries(downloadStats.products || {})) {
+      if (items.some((i) => i.slug === slug)) continue;
+      const sum =
+        (st.demo || 0) + (st.web || 0) + (st.request || 0) + (st.full || 0);
+      if (sum > 0) {
+        rows.push({
+          item: { slug, name: `${slug} (histórico)` },
+          st,
+          sum,
+          slug,
+        });
+      }
+    }
+    rows.sort((a, b) => b.sum - a.sum);
+
+    if (!rows.length) {
+      table.innerHTML =
+        `<p class="rail-empty">Sin descargas aún. Al pulsar «Probar demo/beta» o descargar full desde cuenta se cuentan aquí.</p>`;
+      return;
+    }
+
+    const esc = (s: string) =>
+      String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+
+    table.innerHTML = `<table class="stats-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th title="Clic Probar demo/beta (descarga)">Demo</th>
+          <th title="Apertura demo web">Web</th>
+          <th title="Solicitar demo">Req</th>
+          <th title="Full con licencia">Full</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(({ item, st }) => {
+            const name = esc(item.name || item.slug || "—");
+            const slug = esc(item.slug || "");
+            return `<tr>
+              <td><strong>${name}</strong><br /><span class="stats-slug">${slug}</span></td>
+              <td>${st.demo || 0}</td>
+              <td>${st.web || 0}</td>
+              <td>${st.request || 0}</td>
+              <td>${st.full || 0}</td>
+            </tr>`;
+          })
+          .join("")}
+      </tbody>
+    </table>`;
   };
 
   const renderRail = () => {
@@ -644,6 +781,19 @@ import Layout from "../../components/Layout.astro";
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || res.status);
       items = Array.isArray(data.items) ? data.items : [];
+      if (data.downloadStats && typeof data.downloadStats === "object") {
+        downloadStats = {
+          products: data.downloadStats.products || {},
+          totals: data.downloadStats.totals || {
+            demo: 0,
+            web: 0,
+            request: 0,
+            full: 0,
+          },
+          updatedAt: data.downloadStats.updatedAt,
+        };
+      }
+      renderDownloadStats();
       renderRail();
     } catch (e) {
       if (rail instanceof HTMLElement) {
@@ -881,6 +1031,79 @@ import Layout from "../../components/Layout.astro";
   .lead--sm {
     margin-bottom: 0.75rem;
     font-size: 0.78rem;
+  }
+  .stats-card {
+    margin: 0 0 1.25rem;
+    padding: 1rem 1.1rem 1.15rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+  .stats-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.65rem;
+  }
+  .stats-card__head .subhead {
+    margin: 0;
+  }
+  .stats-card__head .lead--sm {
+    margin: 0;
+  }
+  .stats-totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+  }
+  .stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: #0c0c10;
+    font-size: 0.72rem;
+    color: var(--color-muted);
+  }
+  .stat-pill strong {
+    color: var(--color-fg);
+    font-variant-numeric: tabular-nums;
+  }
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .stats-table th,
+  .stats-table td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+  .stats-table th {
+    color: var(--color-muted);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .stats-table td:not(:first-child) {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    width: 3.5rem;
+  }
+  .stats-table th:not(:first-child) {
+    text-align: right;
+  }
+  .stats-slug {
+    font-size: 0.7rem;
+    color: var(--color-muted);
   }
   .admin-layout {
     display: grid;
@@ -1179,6 +1402,14 @@ import Layout from "../../components/Layout.astro";
   .tile__chip--demo {
     color: #c8b87a;
     background: rgba(200, 170, 80, 0.14);
+  }
+  .tile__chip--stat {
+    color: #c9a962;
+    background: rgba(201, 169, 98, 0.16);
+  }
+  .tile__chip--stat-full {
+    color: #9fdfb0;
+    background: rgba(100, 180, 120, 0.14);
   }
   .tile__chip--muted {
     color: #8a8a98;

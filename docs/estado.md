@@ -130,7 +130,15 @@ No editar `library.json` a mano salvo semilla local o fallback.
   Admin muestra miniaturas actuales al abrir la ficha.
 - [x] Ficha pública: botón **Probar beta** si `status=beta`, si no **Probar demo** (mismo control; hace falta demo URL).
 - [x] Ficha pública: **Compartir** (Web Share / copiar deep-link `?p=slug`) — `src/lib/share.ts` `productSharePath`.
+- [x] **Contadores de descargas** en `/admin/productos/`: demo / web / req (clic) + full (entrega con token). R2 `catalog/stats/downloads.json`.  
+  Código: `functions/lib/download-stats.ts`, `functions/api/track.ts`, `functions/api/download.ts`.
 - Código: `functions/lib/products-catalog.ts`, `functions/admin/products.ts`, `src/pages/admin/productos.astro`, `src/components/ProductsBrowser.astro`
+
+### Admin biblioteca — form unificado (2026-08)
+- [x] **Un solo form** por obra: vídeo + stems + master (sin chips «Canal vídeo / stems»)
+- [x] **Sin precios Stripe por obra** en UI (baremo global de licencias)
+- [x] `kind` inferido: stems presentes → `stems`, si no → `video`
+- Docs: `docs/admin-acceso.md` · `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
 
 ### Fase D — Clientes / tickets / recovery (plan 2026-07-30) — hecha
 Canon: `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`  

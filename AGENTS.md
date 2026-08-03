@@ -39,16 +39,19 @@ Deploy principal: **Pages Git** (push dispara build). No ejecutar deploy manual 
 | Tarea | Archivo(s) |
 |-------|------------|
 | Producto software (vivo) | Admin `/admin/productos/` → R2 `catalog/products.json` · API `functions/admin/products.ts` · schema `functions/lib/products-catalog.ts` |
+| Contadores demo/full software | Admin productos (bloque Descargas) · `functions/lib/download-stats.ts` · R2 `catalog/stats/downloads.json` |
 | Producto seed estático (legacy) | `src/data/products.json` (el catálogo real es R2) |
-| Música / lanzamiento | `src/data/music.json` + `public/images/music/` + `public/previews/music/` |
+| Obra biblioteca (vivo) | Admin `/admin/biblioteca/` form unificado · `functions/admin/publish.ts` · R2 catálogo |
+| Música / lanzamiento (seed estático) | `src/data/music.json` + `public/images/music/` + `public/previews/music/` |
 | Aviso / novedad | `src/data/updates.json` |
 | Marca, email, redes | `src/config/site.json` |
 | Textos legales | `src/content/legal/` o páginas `[lang]/` |
 | Estilos globales | `src/styles/` |
 | UX biblioteca (stems Ctrl+clic, form licencias) | `docs/estado.md` § UX biblioteca · `src/lib/library-browser/bind.ts` |
 | API biblioteca list/detail | `functions/api/library.ts` · `functions/lib/library-query.ts` · plan `docs/plans/2026-07-26-biblioteca-catalog-scale.md` |
-| SEO / meta / analíticas | `src/lib/analytics/`, variables `PUBLIC_*` |
-| API analíticas | `functions/api/track.ts` |
+| Precios licencia música | Baremo global `functions/lib/stripe-license-prices.json` (no por obra en admin) |
+| SEO / meta / analíticas | `src/lib/analytics/`, variables `PUBLIC_*` · `docs/analytics-publi.md` |
+| API analíticas | `functions/api/track.ts` (logs + contadores demo) |
 | Redirects | `astro.config.mjs` + `public/_redirects` |
 | Deploy / infra | `wrangler.toml`, `DEPLOY.md`, `SETUP-PAGES.md` |
 

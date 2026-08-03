@@ -9,7 +9,8 @@ Estrategia y guía de configuración. El código ya está montado; algunos servi
 | Área | Estado | Notas |
 |------|--------|-------|
 | Cloudflare Web Analytics | **Activo** | Panel CF; visitas + Core Web Vitals |
-| First-party collector (`/api/track`) | **Activo** | Plays/stems/etc.; **respeta opt-out del estudio** |
+| First-party collector (`/api/track`) | **Activo** | Plays/stems + **demo/beta clics** (persistidos); **respeta opt-out del estudio** |
+| Contadores producto (admin) | **Activo** | `/admin/productos/` · R2 `catalog/stats/downloads.json` |
 | Opt-out estudio | **Hecho** | `?nimpo_no_stats=1` una vez por navegador; `/admin/` siempre fuera |
 | SEO técnico (sitemap, robots, meta) | **Hecho** | En producción |
 | Google Search Console | **Pendiente** | Verificar propiedad + enviar sitemap |
@@ -30,6 +31,15 @@ Estrategia y guía de configuración. El código ya está montado; algunos servi
 | **Si vistas ≈ visitantes** | Entran y se van en 1 página. |
 
 No son “usuarios registrados”: son estimaciones del navegador/cookie.
+
+### Descargas software (contadores propios)
+
+| Contador | Origen | Persistencia |
+|----------|--------|--------------|
+| **Demo / Web / Req** | Clic «Probar demo/beta» o solicitar → evento `product_demo_click` → `POST /api/track` | R2 `catalog/stats/downloads.json` |
+| **Full** | Entrega real `GET /api/download?token=…` (licencia) | Mismo JSON (servidor) |
+
+Ver en **`/admin/productos/`** (bloque Descargas). Opt-out estudio no envía clics demo; full se cuenta al descargar con token.
 
 ---
 

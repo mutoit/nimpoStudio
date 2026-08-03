@@ -99,11 +99,35 @@ id = "<tu-namespace-id>"
 
 Sin KV el límite es por isolate (sigue mejor que nada; WAF/Access refuerzan).
 
-## Publicar (un solo clic)
+## Admin biblioteca (`/admin/biblioteca/`)
+
+Form **unificado** por obra (ya no hay «Canal vídeo» / «Canal stems»):
+
+| Campo | Notas |
+|-------|--------|
+| **Vídeo / visual** | Opcional si hay stems; recomendado para la tarjeta |
+| **Cover** | Opcional (poster) |
+| **Stems HQ** | Opcional si hay vídeo; van a R2 `full/stems/` (privados) |
+| **Master HQ** | Opcional; necesario para **Pagar** en público (`checkoutReady`) |
+| **Licencia habilitada** | Si off → sin cotización ni Checkout en la ficha |
+| **Precios / Stripe** | **No se editan por obra.** Baremo global: `functions/lib/stripe-license-prices.json` |
+
+`kind` se infiere solo: **hay stems → `stems`**, si no → `video`.
+
+### Publicar (un clic)
 
 1. Login en `/admin/biblioteca/`
-2. Form unificado (vídeo y/o stems + master) + tags/moods
-3. **Publicar en la web** → `POST /admin/publish`
+2. Título + media (vídeo y/o stems ± master) + moods
+3. **Publicar en la web** → `POST /admin/publish`  
+   - Ext allowlist: vídeo `mp4/webm/mov`, audio `mp3/wav/…`, imagen `jpg/png/webp`  
+   - Máx **100 MB** / archivo, **250 MB** total, **24 stems**  
+   - Media → R2 + upsert catálogo (`catalog/library.json` / ítems)
+
+**No hace falta** copiar JSON ni redeploy.  
+`POST /admin/upload` está **retirado** (410).
+
+- Bucket: **`nimpo-library`** · Binding: **`LIBRARY_BUCKET`**
+- Solo **previews** públicos vía `/api/media` (nunca HQ en `full/`)
 
 ### Feed Novedades + abonados email
 
@@ -122,19 +146,6 @@ Seed feed opcional:
 ```powershell
 npx wrangler r2 object put nimpo-library/catalog/updates.json --file=src/data/updates.json --remote
 ```
-   - Solo ext allowlist: vídeo `mp4/webm/mov`, audio `mp3/wav/m4a/ogg/aac`, imagen `jpg/png/webp`
-   - Máx **100 MB** / archivo, **250 MB** total, **24 stems**
-   - Content-Type canónico (no se fía del cliente)
-   - Sube media a R2 + upsert `catalog/library.json`
-4. Abre `/es/biblioteca/` y **recarga**
-
-**No hace falta** copiar JSON ni redeploy.  
-`POST /admin/upload` está **retirado** (410).
-
-- Bucket: **`nimpo-library`**
-- Binding: **`LIBRARY_BUCKET`**
-- Público media: `https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev/...`
-- Solo **previews** (nunca masters de entrega en r2.dev público).
 
 ## Capa extra recomendada — Cloudflare Access
 

@@ -1,7 +1,7 @@
 # Política — Biblioteca de música (preview, entrega, pago)
 
 **SSoT del modelo actual** (web + R2 + Stripe).  
-**Última revisión:** 2026-07-31  
+**Última revisión:** 2026-08-03  
 **Estado código:** implementado · **Ops:** smoke pago + publicar software (ver TAREAS-VENTAS)
 
 Relacionado:
@@ -35,15 +35,22 @@ Relacionado:
 
 ## 2. Admin (`/admin/biblioteca/`)
 
-### Subida
+### Form unificado (una obra)
+
+Sin canales separados. En el mismo formulario:
 
 | Campo | Comportamiento |
 |-------|----------------|
-| **Stems HQ** | Drop → R2 `full/stems/` sin bake |
-| **Master HQ** | Drop → R2 `full/` sin bake |
-| **Preview web** | Generado al publicar (mix desde stems locales o desde R2 privado) |
+| **Vídeo / visual** | Tarjeta / fondo; opcional si hay stems |
+| **Cover** | Poster opcional |
+| **Stems HQ** | Drop → R2 `full/stems/` sin bake; opcional si hay vídeo |
+| **Master HQ** | Drop → R2 `full/` sin bake; hace falta para Pagar |
+| **Preview web** | Generado al publicar si hay stems (mix + ruido) |
 | **Slider ruido** | Solo afecta al **preview**, no a los HQ |
-| **Meta-only** | Guarda tags/moods/precios sin tocar audio |
+| **Licencia habilitada** | Si false → sin cotización ni checkout |
+| **Meta-only** | Guarda title/moods/description/notes/año/licencia **sin** tocar media ni precios |
+
+`kind` canónico: **hay stems → `stems`**, si no → `video` (servidor también fuerza `stems` si hay capas).
 
 ### Status (criterio UI)
 
@@ -59,9 +66,8 @@ Textos cortos de **estado real**, no tutoriales:
 | `functions/lib/stripe-license-prices.json` | Mapa `código cotizador` → `price_…` (live) |
 | Products Stripe | Una licencia o extra = un Product + Price one-time EUR |
 | `special_quote` | Producto sin Price fijo → cobro **Invoice / Payment Link** a mano |
-| Ficha obra `stripePriceId` / `priceEur` | **Legacy** — no se editan en admin (baremo global) |
+| Ficha obra `stripePriceId` / `priceEur` | **Legacy en R2** — **no hay UI** en admin; no se pisan al guardar |
 | `licenseEnabled` | Si false, no cotización ni checkout |
-| Admin biblioteca | Form **unificado** (vídeo + stems + master); sin canales separados |
 
 `checkoutReady` (API) = hay **master en R2** + licencia habilitada.  
 Checkout = line items del baremo (uso + extras) + metadata `workSlug`.

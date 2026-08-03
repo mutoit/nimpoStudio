@@ -20,8 +20,8 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `GET/POST /admin/newsletter` | `admin/newsletter.ts` | Lista abonados, baja, borrar |
 | `POST /admin/feed` | `admin/feed.ts` | Publicar feed (+ avisar abonados opcional) |
 | `GET /api/products` | `api/products.ts` | Catálogo productos software (R2) |
-| `GET|POST|DELETE /admin/products` | `admin/products.ts` | CRUD productos software |
-| `POST /api/track` | `api/track.ts` | Analíticas first-party |
+| `GET|POST|DELETE /admin/products` | `admin/products.ts` | CRUD productos software (+ `downloadStats` en GET) |
+| `POST /api/track` | `api/track.ts` | Analíticas first-party; `product_demo_click` → contadores R2 |
 | `POST /api/quote` | `api/quote.ts` | Presupuesto licencia → email estudio |
 | `GET /api/quote` | `api/quote.ts` | Health mínimo |
 | `POST /api/feedback` | `api/feedback.ts` | Ticket bug/sug/support → R2 + mail |

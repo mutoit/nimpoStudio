@@ -204,10 +204,10 @@ Nota visible bajo el mixer en biblioteca y en `StemPlayer`. Implementación: `bi
 
 ## 9. Admin / subida (no olvidar en la misma ola o siguiente)
 
-- [ ] Canal vídeo vs canal stems (ya esbozado)  
-- [ ] Campos: moods, tags, notes, description, licenseEnabled, provisional  
-- [ ] v1: genera JSON (actual)  
-- [ ] v2 (opcional): subida real a R2 + escritura de ítem  
+- [x] Form unificado obra (vídeo + stems + master; sin canales) — 2026-08  
+- [x] Campos: moods, tags, notes, description, licenseEnabled (precios por obra = legacy, sin UI)  
+- [x] Subida real a R2 + escritura de ítem (`POST /admin/publish`)  
+- [ ] Estados catálogo post-exclusiva / badges (si aplica)
 
 ---
 

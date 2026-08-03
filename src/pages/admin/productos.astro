@@ -159,36 +159,85 @@ import Layout from "../../components/Layout.astro";
             Stripe Price ID (price_… → Checkout)
             <input name="stripePriceId" data-stripe-price maxlength="80" placeholder="price_…" />
           </label>
-          <label>
-            Demo file (zip, opcional — se publica en demo/)
-            <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-demo-file />
-          </label>
+          <p class="field-label">Demo file (zip, opcional — se publica en demo/)</p>
+          <div
+            class="dropzone"
+            data-demo-drop
+            tabindex="0"
+            role="button"
+            aria-label="Arrastra demo file o haz clic"
+          >
+            <input
+              type="file"
+              accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip"
+              hidden
+              data-demo-file
+            />
+            <p class="dropzone__title">Arrastra demo</p>
+            <p class="dropzone__sub" data-demo-fname>zip / exe / dmg · o clic</p>
+          </div>
           <p class="bin-status" data-demo-status data-state="idle" hidden></p>
-          <label>
-            Full build (zip/exe — privado full/, solo post-pago)
-            <input type="file" accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip" data-full-file />
-          </label>
+
+          <p class="field-label">Full build (zip/exe — privado full/, solo post-pago)</p>
+          <div
+            class="dropzone"
+            data-full-drop
+            tabindex="0"
+            role="button"
+            aria-label="Arrastra full build o haz clic"
+          >
+            <input
+              type="file"
+              accept=".zip,.7z,.msi,.exe,.dmg,.pkg,application/zip"
+              hidden
+              data-full-file
+            />
+            <p class="dropzone__title">Arrastra full build</p>
+            <p class="dropzone__sub" data-full-fname>zip / exe / dmg · o clic</p>
+          </div>
           <p class="bin-status" data-full-status data-state="idle" hidden></p>
 
-          <label>
-            Imágenes / GIF (hasta 8 · al editar se suman, no se borran)
+          <p class="field-label">Imágenes / GIF (hasta 8 · al editar se suman, no se borran)</p>
+          <div
+            class="dropzone"
+            data-images-drop
+            tabindex="0"
+            role="button"
+            aria-label="Arrastra imágenes o haz clic"
+          >
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
               multiple
+              hidden
               data-images
             />
-          </label>
+            <p class="dropzone__title">Arrastra imágenes / GIF</p>
+            <p class="dropzone__sub" data-images-fname>jpg · png · webp · gif · o clic</p>
+          </div>
           <p class="lead lead--sm" data-media-keep-hint hidden>
             Media actual se conserva al guardar. Solo se borra si marcas «Reemplazar todo» abajo.
           </p>
           <div class="preview preview--row" data-images-current hidden></div>
           <div class="preview preview--row" data-images-preview hidden></div>
 
-          <label>
-            Vídeo (opcional, mp4/webm · sin archivo nuevo = se mantiene)
-            <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" data-video />
-          </label>
+          <p class="field-label">Vídeo (opcional, mp4/webm · sin archivo nuevo = se mantiene)</p>
+          <div
+            class="dropzone"
+            data-video-drop
+            tabindex="0"
+            role="button"
+            aria-label="Arrastra vídeo o haz clic"
+          >
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+              hidden
+              data-video
+            />
+            <p class="dropzone__title">Arrastra vídeo</p>
+            <p class="dropzone__sub" data-video-fname>mp4 / webm / mov · o clic</p>
+          </div>
           <div class="preview preview--video" data-video-current hidden></div>
           <div class="preview preview--video" data-video-preview hidden></div>
 
@@ -218,6 +267,7 @@ import Layout from "../../components/Layout.astro";
 
 <script>
   import { compressImageForUpload, compressImagesForUpload } from "../../lib/admin-image-compress";
+  import { bindFileDropzone } from "../../lib/admin/file-dropzone";
 
   type Product = {
     slug: string;
@@ -374,6 +424,65 @@ import Layout from "../../components/Layout.astro";
   bindBinFile("[data-demo-file]", () => syncDemoBinFromItem(editingItem));
   bindBinFile("[data-full-file]", () => syncFullBinFromItem(editingItem));
 
+  const DROP_DEFAULTS: Record<string, string> = {
+    demo: "zip / exe / dmg · o clic",
+    full: "zip / exe / dmg · o clic",
+    images: "jpg · png · webp · gif · o clic",
+    video: "mp4 / webm / mov · o clic",
+  };
+
+  const setDropFname = (sel: string, text: string) => {
+    const el = document.querySelector(sel);
+    if (el instanceof HTMLElement) el.textContent = text;
+  };
+
+  const resetDropFnames = () => {
+    setDropFname("[data-demo-fname]", DROP_DEFAULTS.demo);
+    setDropFname("[data-full-fname]", DROP_DEFAULTS.full);
+    setDropFname("[data-images-fname]", DROP_DEFAULTS.images);
+    setDropFname("[data-video-fname]", DROP_DEFAULTS.video);
+  };
+
+  const formatDropNames = (files: File[]) => {
+    if (!files.length) return "";
+    if (files.length === 1) {
+      const f = files[0]!;
+      return `${f.name} · ${formatBinSize(f.size)}`;
+    }
+    return `${files.length} archivos · ${files.map((f) => f.name).slice(0, 3).join(", ")}${files.length > 3 ? "…" : ""}`;
+  };
+
+  const wireProductDrop = (
+    dropSel: string,
+    inputSel: string,
+    fnameSel: string,
+    opts: { multiple?: boolean; maxFiles?: number },
+  ) => {
+    const drop = document.querySelector(dropSel);
+    const input = document.querySelector(inputSel);
+    if (!(drop instanceof HTMLElement) || !(input instanceof HTMLInputElement)) return;
+    bindFileDropzone({
+      drop,
+      input,
+      multiple: opts.multiple,
+      maxFiles: opts.maxFiles,
+      onReject: (reason) => setStatus(reason, false),
+      onAssigned: (files) => setDropFname(fnameSel, formatDropNames(files)),
+    });
+    input.addEventListener("change", () => {
+      const files = input.files ? [...input.files] : [];
+      if (!files.length) return;
+      setDropFname(fnameSel, formatDropNames(files));
+    });
+  };
+  wireProductDrop("[data-demo-drop]", "[data-demo-file]", "[data-demo-fname]", {});
+  wireProductDrop("[data-full-drop]", "[data-full-file]", "[data-full-fname]", {});
+  wireProductDrop("[data-images-drop]", "[data-images]", "[data-images-fname]", {
+    multiple: true,
+    maxFiles: 8,
+  });
+  wireProductDrop("[data-video-drop]", "[data-video]", "[data-video-fname]", {});
+
   const slugify = (s: string) =>
     s
       .toLowerCase()
@@ -426,6 +535,7 @@ import Layout from "../../components/Layout.astro";
     form?.querySelectorAll('input[type="file"]').forEach((el) => {
       if (el instanceof HTMLInputElement) el.value = "";
     });
+    resetDropFnames();
   };
 
   const clearPreview = (sel: string) => {
@@ -1250,8 +1360,51 @@ import Layout from "../../components/Layout.astro";
   .status.is-err {
     color: #f0a0a0;
   }
+  .field-label {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgb(180 180 190);
+  }
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 5.5rem;
+    margin-bottom: 0.55rem;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: 2px dashed rgb(201 169 98 / 0.4);
+    background: rgb(201 169 98 / 0.05);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover,
+  .dropzone.is-drag {
+    border-color: #c9a962;
+    background: rgb(201 169 98 / 0.12);
+  }
+  .dropzone:focus-visible {
+    outline: 2px solid rgb(201 169 98 / 0.65);
+    outline-offset: 2px;
+  }
+  .dropzone__title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .dropzone__sub {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    word-break: break-word;
+  }
   .bin-status {
-    margin: -0.35rem 0 0.55rem;
+    margin: -0.15rem 0 0.55rem;
     padding: 0.35rem 0.55rem;
     border-radius: 6px;
     font-size: 0.78rem;

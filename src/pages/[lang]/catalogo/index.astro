@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../components/Layout.astro";
 import ProductsBrowser from "../../../components/ProductsBrowser.astro";
+import ProductUpdatesPanel from "../../../components/ProductUpdatesPanel.astro";
 import type { Locale } from "../../../i18n/translations";
 import { useTranslations } from "../../../lib/locale";
 
@@ -13,17 +14,24 @@ const t = useTranslations(lang);
 ---
 
 <Layout title={t("catalogTitle")} description={t("catalogDesc")} lang={lang}>
-  <div class="container">
-    <header class="hero">
-      <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
-      <div class="hero__title-row">
-        <h1 class="hero__title">{t("catalogTitle")}</h1>
-        <span class="hero__soon">{t("catalogComingSoon")}</span>
-      </div>
-      <p class="hero__desc">{t("catalogDesc")}</p>
-    </header>
+  <div class="page-with-feed">
+    <div>
+      <div class="container">
+        <header class="hero">
+          <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
+          <div class="hero__title-row">
+            <h1 class="hero__title">{t("catalogTitle")}</h1>
+            <span class="hero__soon">{t("catalogComingSoon")}</span>
+          </div>
+          <p class="hero__desc">{t("catalogDesc")}</p>
+        </header>
 
-    <ProductsBrowser items={[]} lang={lang} />
+        <ProductsBrowser items={[]} lang={lang} />
+      </div>
+    </div>
+    <aside class="page-with-feed__rail" aria-label={t("productFeedTitle")}>
+      <ProductUpdatesPanel lang={lang} />
+    </aside>
   </div>
 </Layout>
 
@@ -78,6 +86,5 @@ const t = useTranslations(lang);
   .hero__desc {
     margin: 0.85rem 0 0;
     color: var(--color-muted);
-    font-size: 1rem;
   }
 </style>

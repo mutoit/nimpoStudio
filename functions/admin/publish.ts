@@ -185,9 +185,9 @@ export async function onRequest(context: {
   if (!title) return json({ ok: false, error: "missing_title" }, 400);
 
   const slug = safeSlug(String(form.get("slug") || ""), title);
-  // Canal admin o presencia de stems → siempre clasificar como stems
-  const kindFromForm = String(form.get("kind") || "video") === "stems" ? "stems" : "video";
-  let kind: "stems" | "video" = kindFromForm;
+  // kind se recalcula al final por presencia de stems (form unificado vídeo+stems)
+  let kind: "stems" | "video" =
+    String(form.get("kind") || "video") === "stems" ? "stems" : "video";
   const aspect = safeAspect(String(form.get("aspect") || "1:1"));
   const publicBase = "/api/media";
 
@@ -327,43 +327,36 @@ export async function onRequest(context: {
     const previewFile = form.get("preview");
     const hasNewPreview = previewFile instanceof File && previewFile.size > 0;
 
-    if (kind === "video") {
-      if (hasNewVideo) {
-        video = await putFile("video", videoFile as File, "video", slug);
-      } else if (!video) {
-        return json({ ok: false, error: "missing_video" }, 400);
-      }
-      if (hasNewCover) {
-        cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
-      }
-    } else {
-      if (hasNewVideo) {
-        video = await putFile("video", videoFile as File, "video", slug);
-      }
-      if (hasNewCover) {
-        cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
-      }
+    // Form unificado: vídeo, cover y stems en el mismo POST
+    if (hasNewVideo) {
+      video = await putFile("video", videoFile as File, "video", slug);
+    }
+    if (hasNewCover) {
+      cover = await putFile("cover", coverFile as File, "image", `${slug}-cover`);
+    }
 
-      // stem_i_file = HQ original intacto → full/stems/ (NO bake)
-      const stemItems: StemItem[] = [];
-      for (let i = 0; i < MAX_STEMS; i++) {
-        const f = form.get(`stem_${i}_file`);
-        if (!(f instanceof File) || !f.size) continue;
-        if (stemItems.length >= MAX_STEMS) throw new Error("too_many_stems");
-        const label = clipText(
-          form.get(`stem_${i}_label`) || f.name.replace(/\.[^.]+$/, "") || `Stem ${i + 1}`,
-          80,
-        );
-        const id = safeSlug(label, `stem-${i + 1}`);
-        const put = await putPrivateAudio("stem", f as File, "full/stems", `${id}`);
-        stemItems.push({ id, label, key: put.key });
-      }
-      if (stemItems.length) {
-        stems = stemItems;
-      } else if (!stems?.length) {
-        return json({ ok: false, error: "missing_stems" }, 400);
-      }
-      // sin stems nuevos: se conservan keys previas (HQ)
+    // stem_i_file = HQ original intacto → full/stems/ (NO bake)
+    const stemItems: StemItem[] = [];
+    for (let i = 0; i < MAX_STEMS; i++) {
+      const f = form.get(`stem_${i}_file`);
+      if (!(f instanceof File) || !f.size) continue;
+      if (stemItems.length >= MAX_STEMS) throw new Error("too_many_stems");
+      const label = clipText(
+        form.get(`stem_${i}_label`) || f.name.replace(/\.[^.]+$/, "") || `Stem ${i + 1}`,
+        80,
+      );
+      const id = safeSlug(label, `stem-${i + 1}`);
+      const put = await putPrivateAudio("stem", f as File, "full/stems", `${id}`);
+      stemItems.push({ id, label, key: put.key });
+    }
+    if (stemItems.length) {
+      stems = stemItems;
+    }
+    // sin stems nuevos: se conservan keys previas (HQ)
+
+    // Al menos un asset visible: vídeo o stems
+    if (!video && !(Array.isArray(stems) && stems.length > 0)) {
+      return json({ ok: false, error: "missing_media" }, 400);
     }
 
     // Único audio público de biblioteca: mix preview (generado en cliente)
@@ -410,25 +403,13 @@ export async function onRequest(context: {
       year: Number(form.get("year") || new Date().getFullYear()) || new Date().getFullYear(),
       provisional: false,
       licenseEnabled: String(form.get("licenseEnabled") || "1") !== "0",
-      // Checkout música (Stripe): rellenar cuando tengas price_… en Dashboard
-      priceEur: (() => {
-        const raw = form.get("priceEur");
-        if (raw == null || String(raw).trim() === "") {
-          return existing?.priceEur != null ? Number(existing.priceEur) : null;
-        }
-        const n = Number(raw);
-        return Number.isFinite(n) && n > 0 ? n : null;
-      })(),
-      stripePriceId: (() => {
-        const raw = String(form.get("stripePriceId") || "").trim();
-        if (raw) return /^price_[a-zA-Z0-9]+$/.test(raw) ? raw : "";
-        return String(existing?.stripePriceId || "").trim() || null;
-      })(),
-      stemsStripePriceId: (() => {
-        const raw = String(form.get("stemsStripePriceId") || "").trim();
-        if (raw) return /^price_[a-zA-Z0-9]+$/.test(raw) ? raw : "";
-        return String(existing?.stemsStripePriceId || "").trim() || null;
-      })(),
+      // Precios por obra = legacy. Baremo global; no se editan en el form unificado.
+      priceEur:
+        existing?.priceEur != null && Number(existing.priceEur) > 0
+          ? Number(existing.priceEur)
+          : null,
+      stripePriceId: String(existing?.stripePriceId || "").trim() || null,
+      stemsStripePriceId: String(existing?.stemsStripePriceId || "").trim() || null,
       availability: (existing?.availability as string) || "available",
       /** ready | processing — escala: upload async futuro */
       mediaStatus: "ready" as const,

@@ -1,5 +1,6 @@
 /**
  * Submit admin biblioteca: meta-only o publish.
+ * Una obra unificada: vídeo + stems + master (todo opcional salvo validación de contenido).
  * Stems HQ intactos → R2 full/stems. Preview = 1 mix generado (copia de trabajo).
  */
 
@@ -11,6 +12,7 @@ import { normalizeMood } from "./moods";
 export type StemRow = { label: string; file: File | null };
 
 export type PublishDeps = {
+  /** Inferido: stems si hay capas, si no video */
   getChannel: () => "video" | "stems";
   getEditingSlug: () => string | null;
   getEditingItem: () => Record<string, unknown> | null;
@@ -51,7 +53,6 @@ export function bindAdminPublish(deps: PublishDeps) {
     const btn = form.querySelector("[data-publish]");
     if (btn instanceof HTMLButtonElement) btn.disabled = true;
 
-    const channel = deps.getChannel();
     const editingSlug = deps.getEditingSlug();
     const editingItem = deps.getEditingItem();
     const stemRows = deps.getStemRows();
@@ -97,14 +98,10 @@ export function bindAdminPublish(deps: PublishDeps) {
       const filterTags: string[] = [];
       for (const m of moods) deps.rememberMood(m);
 
-      const hasVideoFile =
-        channel === "video"
-          ? !!(form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0]
-          : !!(form.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
-      const hasCoverFile =
-        channel === "video"
-          ? !!(form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0]
-          : !!(form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+      const hasVideoFile = !!(form.querySelector("[data-video-file]") as HTMLInputElement)
+        ?.files?.[0];
+      const hasCoverFile = !!(form.querySelector("[data-cover-file]") as HTMLInputElement)
+        ?.files?.[0];
       const hasStemFiles = stemRows.some((r) => r.file);
       const masterFile =
         (form.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0] || null;
@@ -116,17 +113,19 @@ export function bindAdminPublish(deps: PublishDeps) {
       const serverStemKeys = serverStems
         .map((s) => String(s.key || "").trim())
         .filter((k) => k.startsWith("library/"));
+      const hasServerStems = serverStemKeys.length > 0;
+      const hasServerVideo = Boolean(editingItem?.video);
 
       // Solo rehacer preview (ruido) sin re-subir stems HQ
       const wantsNewPreviewOnly =
-        !!editingSlug &&
-        channel === "stems" &&
-        !hasStemFiles &&
-        mixDirty &&
-        serverStemKeys.length > 0;
+        !!editingSlug && !hasStemFiles && mixDirty && hasServerStems;
 
       const hasAnyNewMedia =
         hasVideoFile || hasCoverFile || hasStemFiles || hasMasterFile || wantsNewPreviewOnly;
+
+      // kind canónico: hay stems (nuevos o en servidor) → stems
+      const kind: "video" | "stems" =
+        hasStemFiles || hasServerStems || wantsNewPreviewOnly ? "stems" : "video";
 
       if (editingSlug && !hasAnyNewMedia) {
         deps.setLight("upload", "loading", "Guardando meta…");
@@ -149,9 +148,7 @@ export function bindAdminPublish(deps: PublishDeps) {
             year: Number(fd.get("year") || 2026),
             provisional: false,
             licenseEnabled: fd.get("licenseEnabled") === "on",
-            priceEur: fd.get("priceEur") ? Number(fd.get("priceEur")) : null,
-            stripePriceId: String(fd.get("stripePriceId") || "").trim() || null,
-            stemsStripePriceId: String(fd.get("stemsStripePriceId") || "").trim() || null,
+            // Precios: baremo global — no se editan por obra (no enviar → conservar R2)
           }),
         });
         let data: {
@@ -184,10 +181,27 @@ export function bindAdminPublish(deps: PublishDeps) {
         return;
       }
 
+      // Alta nueva: al menos vídeo o stems
+      if (!editingSlug && !hasVideoFile && !hasStemFiles) {
+        throw new Error("Sube un vídeo y/o al menos un stem HQ.");
+      }
+      // Edición con media nueva pero sin base: necesita algo público
+      if (
+        editingSlug &&
+        hasAnyNewMedia &&
+        !hasVideoFile &&
+        !hasStemFiles &&
+        !hasServerVideo &&
+        !hasServerStems &&
+        !wantsNewPreviewOnly
+      ) {
+        throw new Error("La obra necesita vídeo o stems (en servidor o nuevos).");
+      }
+
       const body = new FormData();
       body.set("title", title);
       body.set("slug", slug);
-      body.set("kind", channel);
+      body.set("kind", kind);
       body.set("aspect", String(fd.get("aspect") || "1:1"));
       body.set("moods", JSON.stringify(moods));
       body.set("tags", JSON.stringify(tags));
@@ -198,80 +212,65 @@ export function bindAdminPublish(deps: PublishDeps) {
       body.set("year", String(fd.get("year") || "2026"));
       body.set("provisional", "0");
       body.set("licenseEnabled", fd.get("licenseEnabled") === "on" ? "1" : "0");
-      body.set("priceEur", String(fd.get("priceEur") || ""));
-      body.set("stripePriceId", String(fd.get("stripePriceId") || "").trim());
-      body.set("stemsStripePriceId", String(fd.get("stemsStripePriceId") || "").trim());
 
       if (hasMasterFile && masterFile) {
         deps.setLight("master", "loading", "Master…");
         body.set("master", masterFile, masterFile.name);
       }
 
-      if (channel === "video") {
-        const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
-        if (!v && !editingSlug) throw new Error("Elige un vídeo.");
-        if (v) body.set("video", v, v.name);
-        const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
-        if (c) {
-          const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
-          body.set("cover", small, small.name);
-        }
-      } else {
-        const v = (form.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
-        if (v) body.set("video", v, v.name);
-        const c = (form.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
-        if (c) {
-          const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
-          body.set("cover", small, small.name);
-        }
+      const v = (form.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0];
+      if (v) body.set("video", v, v.name);
+      const c = (form.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0];
+      if (c) {
+        const small = await compressImageForUpload(c, { maxEdge: 360, quality: 0.72 });
+        body.set("cover", small, small.name);
+      }
 
-        const { music01, noise01 } = deps.readMixGains();
-        const withFile = stemRows.filter((r) => r.file);
-        if (!withFile.length && !editingSlug) {
-          throw new Error("Añade al menos un stem HQ.");
-        }
+      const { music01, noise01 } = deps.readMixGains();
+      const withFile = stemRows.filter((r) => r.file);
 
-        // HQ intactos → servidor (sin bake por capa)
+      // HQ intactos → servidor (sin bake por capa)
+      if (withFile.length) {
+        deps.setLight("stems", "loading", `HQ ${withFile.length}…`);
+        let n = 0;
+        for (const row of withFile) {
+          if (!row.file) continue;
+          body.set(`stem_${n}_file`, row.file, row.file.name);
+          body.set(`stem_${n}_label`, row.label || row.file.name);
+          n++;
+        }
+      }
+
+      // Preview biblioteca = 1 mix (copia de trabajo mono/MP3 + ruido) cuando hay stems
+      const needPreview =
+        withFile.length > 0 ||
+        wantsNewPreviewOnly ||
+        (editingSlug && hasServerStems && !editingItem?.preview);
+
+      if (needPreview) {
+        deps.mixPreview.stop();
+        deps.setLight("upload", "loading", "Mix preview…");
+        deps.setStatus(
+          withFile.length
+            ? `Generando preview web (mix + ruido ${Math.round(noise01 * 100)}%) — originales intactos…`
+            : `Rehaciendo preview desde stems HQ en R2 (ruido ${Math.round(noise01 * 100)}%)…`,
+        );
+
+        let mix: File;
         if (withFile.length) {
-          deps.setLight("stems", "loading", `HQ ${withFile.length}…`);
-          let n = 0;
-          for (const row of withFile) {
-            if (!row.file) continue;
-            body.set(`stem_${n}_file`, row.file, row.file.name);
-            body.set(`stem_${n}_label`, row.label || row.file.name);
-            n++;
-          }
+          const originals = withFile.map((r) => r.file!).filter(Boolean);
+          mix = await bakeLibraryPreview(originals, noise01, music01);
+        } else {
+          const urls = serverStemKeys.map(adminMediaUrl);
+          mix = await bakeLibraryPreviewFromUrls(urls, {
+            noise01,
+            music01,
+            fetchInit: { credentials: "same-origin", cache: "reload" },
+          });
         }
-
-        // Preview biblioteca = 1 mix (copia de trabajo mono/MP3 + ruido)
-        const needPreview =
-          withFile.length > 0 || wantsNewPreviewOnly || (editingSlug && !editingItem?.preview);
-
-        if (needPreview) {
-          deps.mixPreview.stop();
-          deps.setLight("upload", "loading", "Mix preview…");
-          deps.setStatus(
-            withFile.length
-              ? `Generando preview web (mix + ruido ${Math.round(noise01 * 100)}%) — originales intactos…`
-              : `Rehaciendo preview desde stems HQ en R2 (ruido ${Math.round(noise01 * 100)}%)…`,
-          );
-
-          let mix: File;
-          if (withFile.length) {
-            const originals = withFile.map((r) => r.file!).filter(Boolean);
-            mix = await bakeLibraryPreview(originals, noise01, music01);
-          } else {
-            const urls = serverStemKeys.map(adminMediaUrl);
-            mix = await bakeLibraryPreviewFromUrls(urls, {
-              noise01,
-              music01,
-              fetchInit: { credentials: "same-origin", cache: "reload" },
-            });
-          }
-          const ext =
-            mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
-          body.set("preview", mix, `${slug}-preview.${ext}`);
-        }
+        const ext =
+          mix.type.includes("mpeg") || mix.name.endsWith(".mp3") ? "mp3" : "wav";
+        body.set("preview", mix, `${slug}-preview.${ext}`);
       }
 
       deps.mixPreview.stop();
@@ -313,6 +312,9 @@ export function bindAdminPublish(deps: PublishDeps) {
         }
         if (err === "missing_video") {
           throw new Error("Falta vídeo y no hay vídeo previo que conservar.");
+        }
+        if (err === "missing_media") {
+          throw new Error("Sube un vídeo y/o stems HQ.");
         }
         throw new Error(data.message || data.error || `Error ${res.status}`);
       }

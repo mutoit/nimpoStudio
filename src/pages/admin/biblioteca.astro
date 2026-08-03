@@ -35,13 +35,6 @@ import "../../styles/admin-biblioteca.css";
         <button type="button" class="btn btn--sm" data-edit-cancel>Cancelar</button>
       </div>
 
-      <div class="channels">
-        <button type="button" class="chip is-active" data-channel="video">
-          Canal vídeo
-        </button>
-        <button type="button" class="chip" data-channel="stems">Canal stems</button>
-      </div>
-
       <form class="form" data-admin-form>
         <label>
           Título *
@@ -60,6 +53,11 @@ import "../../styles/admin-biblioteca.css";
             <option value="16:9">16:9</option>
           </select>
         </label>
+
+        <p class="hint">
+          Una obra: vídeo y/o stems + master HQ. El tipo se infiere solo (con stems → stems;
+          solo vídeo → vídeo). Precios de licencia = baremo global, no por ficha.
+        </p>
 
         <div class="media-lights" data-media-lights aria-label="Estado de archivos">
           <div class="ml" data-ml="video" data-state="idle">
@@ -89,10 +87,10 @@ import "../../styles/admin-biblioteca.css";
           </div>
         </div>
 
-        <div data-video-fields>
+        <div data-media-fields>
           <div class="media-status" data-status-video hidden role="status"></div>
           <label class="file-label">
-            Vídeo (mp4 / webm) *
+            Vídeo / visual (mp4 / webm)
             <input type="file" accept="video/mp4,video/webm,video/*" data-video-file />
           </label>
           <div class="preview" data-video-preview hidden></div>
@@ -101,31 +99,14 @@ import "../../styles/admin-biblioteca.css";
             <input type="file" accept="image/*" data-cover-file />
           </label>
           <p class="hint">
-            No hace falta si subes vídeo: la tarjeta usa el vídeo (primer fotograma). La imagen solo
-            ayuda a cargar más rápido o si quieres un still fijo.
+            Con vídeo basta para la tarjeta. La imagen es opcional (poster / carga más ligera).
+            Si hay stems, el vídeo es el visual de fondo.
           </p>
           <div class="preview preview--img" data-cover-preview hidden></div>
-        </div>
 
-        <div data-stems-fields hidden>
-          <div class="media-status" data-status-stems-visual hidden role="status"></div>
-          <label class="file-label">
-            Vídeo de fondo / visual (opcional)
-            <input type="file" accept="video/mp4,video/webm,video/*" data-stems-video />
-          </label>
-          <div class="preview" data-stems-video-preview hidden></div>
-          <label class="file-label">
-            Miniatura imagen (opcional)
-            <input type="file" accept="image/*" data-stems-cover />
-          </label>
-          <p class="hint">
-            Con vídeo basta para la miniatura. La imagen es opcional (poster / carga más ligera).
-            Lo obligatorio son las capas de audio.
-          </p>
-          <div class="preview preview--img" data-stems-cover-preview hidden></div>
           <div class="stems-box">
             <div class="stems-head">
-              <span>Stems HQ *</span>
+              <span>Stems HQ (opcional)</span>
               <button type="button" class="btn btn--sm" data-add-stem>+ Fila</button>
             </div>
             <div class="media-status" data-status-stems hidden role="status"></div>
@@ -148,7 +129,6 @@ import "../../styles/admin-biblioteca.css";
             </div>
             <div class="stems-list" data-stems-list></div>
           </div>
-
         </div>
 
         <!-- Master HQ: drop + status real en R2 -->
@@ -240,39 +220,10 @@ import "../../styles/admin-biblioteca.css";
         <label class="check">
           <input type="checkbox" name="licenseEnabled" checked /> Licencia habilitada
         </label>
-        <fieldset class="price-fields">
-          <legend>Pago Stripe (música)</legend>
-          <label>
-            Precio mostrado (€)
-            <input name="priceEur" type="number" min="0" step="0.01" inputmode="decimal" placeholder="p.ej. 9.90" data-price-eur />
-          </label>
-          <label>
-            Stripe Price master <code>price_…</code>
-            <input
-              name="stripePriceId"
-              type="text"
-              maxlength="80"
-              placeholder="price_…"
-              data-stripe-price
-              autocomplete="off"
-            />
-          </label>
-          <label>
-            Stripe Price stems (opcional)
-            <input
-              name="stemsStripePriceId"
-              type="text"
-              maxlength="80"
-              placeholder="price_… o vacío = pack en el de master"
-              data-stems-stripe-price
-              autocomplete="off"
-            />
-          </label>
-          <p class="hint">
-            Cuando tengas el Price en Stripe, pégalo aquí. Sin <code>price_…</code> el botón Comprar
-            no se activa (cotización sigue disponible).
-          </p>
-        </fieldset>
+        <p class="hint">
+          Precios y Stripe = baremo global de licencias (no se editan por obra). Sin licencia
+          habilitada no hay cotización ni Pagar en la ficha pública.
+        </p>
         <label>
           Año
           <input name="year" type="number" value="2026" />
@@ -429,18 +380,11 @@ import "../../styles/admin-biblioteca.css";
 
   bindAdminFeed();
 
-  let channel: "video" | "stems" = "video";
   // stemRows se sincroniza con stemsUi (dropzone + filas)
   let stemRows: StemRow[] = [];
   /** null = alta nueva; string = editando slug */
   let editingSlug: string | null = null;
   let editingItem: Record<string, unknown> | null = null;
-
-  document.querySelectorAll("[data-channel]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setChannel(((btn as HTMLElement).dataset.channel as "video" | "stems") || "video");
-    });
-  });
 
   const bindPreview = (inputSel: string, previewSel: string, kind: "video" | "img") => {
     const input = document.querySelector(inputSel);
@@ -463,18 +407,18 @@ import "../../styles/admin-biblioteca.css";
   };
   bindPreview("[data-video-file]", "[data-video-preview]", "video");
   bindPreview("[data-cover-file]", "[data-cover-preview]", "img");
-  bindPreview("[data-stems-video]", "[data-stems-video-preview]", "video");
-  bindPreview("[data-stems-cover]", "[data-stems-cover-preview]", "img");
   bindPreview("[data-feed-image]", "[data-feed-image-preview]", "img");
-  for (const sel of [
-    "[data-video-file]",
-    "[data-cover-file]",
-    "[data-stems-video]",
-    "[data-stems-cover]",
-    "[data-master-file]",
-  ]) {
+  for (const sel of ["[data-video-file]", "[data-cover-file]", "[data-master-file]"]) {
     document.querySelector(sel)?.addEventListener("change", () => refreshLocalPendingLights());
   }
+
+  /** kind de obra: con stems (local o R2) → stems; si no → video */
+  const deriveKind = (): "video" | "stems" => {
+    if (stemRows.some((r) => r.file)) return "stems";
+    const server = Array.isArray(editingItem?.stems) ? editingItem!.stems : [];
+    if (server.length) return "stems";
+    return "video";
+  };
 
   const formatMb = (bytes: number) =>
     Number.isFinite(bytes) && bytes > 0 ? `${(bytes / (1024 * 1024)).toFixed(2)} MB` : "?";
@@ -648,12 +592,10 @@ import "../../styles/admin-biblioteca.css";
   };
 
   const refreshLocalPendingLights = () => {
-    const localVideo =
-      !!(document.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0] ||
-      !!(document.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
-    const localCover =
-      !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
-      !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+    const localVideo = !!(document.querySelector("[data-video-file]") as HTMLInputElement)
+      ?.files?.[0];
+    const localCover = !!(document.querySelector("[data-cover-file]") as HTMLInputElement)
+      ?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
     const masterInp = document.querySelector("[data-master-file]") as HTMLInputElement | null;
     const localMaster = !!masterInp?.files?.[0];
@@ -732,66 +674,64 @@ import "../../styles/admin-biblioteca.css";
     mixPreview.setGains(music01, noise01);
     setMixMsg("Cargando…");
     try {
-      if (channel === "stems") {
-        const files = stemRows.map((r) => r.file).filter((f): f is File => !!f);
-        if (files.length) {
-          await mixPreview.playStems(files);
-          setMixMsg(
-            `Stems HQ (local) · ${files.length} · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% · al publicar se genera 1 preview`,
-          );
-          return;
-        }
-        type ServerStem = { key?: string; src?: string; cleanSrc?: string };
-        const serverStems = Array.isArray(editingItem?.stems)
-          ? (editingItem!.stems as ServerStem[])
-          : [];
-        const urls = serverStems
-          .map((s) => {
-            const key = String(s.key || "").trim();
-            if (key.startsWith("library/")) {
-              return `/admin/media?key=${encodeURIComponent(key)}`;
-            }
-            return String(s.cleanSrc || s.src || "").trim();
-          })
-          .filter(Boolean);
-        if (!urls.length) {
-          setMixMsg("No hay stems locales ni en servidor. Arrastra HQ o elige otra ficha.", true);
-          return;
-        }
+      // Preferir stems si hay; si no, vídeo
+      const files = stemRows.map((r) => r.file).filter((f): f is File => !!f);
+      if (files.length) {
+        await mixPreview.playStems(files);
+        setMixMsg(
+          `Stems HQ (local) · ${files.length} · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}% · al publicar se genera 1 preview`,
+        );
+        return;
+      }
+      type ServerStem = { key?: string; src?: string; cleanSrc?: string };
+      const serverStems = Array.isArray(editingItem?.stems)
+        ? (editingItem!.stems as ServerStem[])
+        : [];
+      const urls = serverStems
+        .map((s) => {
+          const key = String(s.key || "").trim();
+          if (key.startsWith("library/")) {
+            return `/admin/media?key=${encodeURIComponent(key)}`;
+          }
+          return String(s.cleanSrc || s.src || "").trim();
+        })
+        .filter(Boolean);
+      if (urls.length) {
         await mixPreview.playStemUrls(urls);
         setMixMsg(
           `Stems HQ (R2 privado) · ${urls.length} · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
         );
-      } else {
-        const vInput = document.querySelector<HTMLInputElement>("[data-video-file]");
-        const file = vInput?.files?.[0];
-        const previewBox = document.querySelector("[data-video-preview]");
-        let videoEl = previewBox?.querySelector("video") as HTMLVideoElement | null;
-        if (!videoEl && file) {
-          const url = URL.createObjectURL(file);
-          if (previewBox instanceof HTMLElement) {
-            previewBox.hidden = false;
-            previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">${file.name}</p>`;
-            videoEl = previewBox.querySelector("video");
-          }
-        }
-        if (!videoEl && editingItem?.video) {
-          const url = String(editingItem.video);
-          if (previewBox instanceof HTMLElement) {
-            previewBox.hidden = false;
-            previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">servidor</p>`;
-            videoEl = previewBox.querySelector("video");
-          }
-        }
-        if (!videoEl) {
-          setMixMsg("No hay vídeo local ni en servidor.", true);
-          return;
-        }
-        await mixPreview.playMediaElement(videoEl);
-        setMixMsg(
-          `Vídeo + ruido · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
-        );
+        return;
       }
+
+      const vInput = document.querySelector<HTMLInputElement>("[data-video-file]");
+      const file = vInput?.files?.[0];
+      const previewBox = document.querySelector("[data-video-preview]");
+      let videoEl = previewBox?.querySelector("video") as HTMLVideoElement | null;
+      if (!videoEl && file) {
+        const url = URL.createObjectURL(file);
+        if (previewBox instanceof HTMLElement) {
+          previewBox.hidden = false;
+          previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">${file.name}</p>`;
+          videoEl = previewBox.querySelector("video");
+        }
+      }
+      if (!videoEl && editingItem?.video) {
+        const url = String(editingItem.video);
+        if (previewBox instanceof HTMLElement) {
+          previewBox.hidden = false;
+          previewBox.innerHTML = `<video src="${url}" controls playsinline></video><p class="fname">servidor</p>`;
+          videoEl = previewBox.querySelector("video");
+        }
+      }
+      if (!videoEl) {
+        setMixMsg("Sube stems o un vídeo para escuchar la mezcla.", true);
+        return;
+      }
+      await mixPreview.playMediaElement(videoEl);
+      setMixMsg(
+        `Vídeo + ruido · audio ${Math.round(music01 * 100)}% · ruido ${Math.round(noise01 * 100)}%`,
+      );
     } catch (e) {
       setMixMsg(e instanceof Error ? e.message : "No se pudo reproducir", true);
     }
@@ -807,21 +747,6 @@ import "../../styles/admin-biblioteca.css";
   const rememberMood = moodsApi.rememberMood;
   const readSelectedMoods = moodsApi.readSelectedMoods;
   const rebuildMoodPick = moodsApi.rebuildMoodPick;
-
-  const setChannel = (ch: "video" | "stems") => {
-    channel = ch;
-    document.querySelectorAll("[data-channel]").forEach((b) => {
-      b.classList.toggle("is-active", (b as HTMLElement).dataset.channel === ch);
-    });
-    const vf = document.querySelector("[data-video-fields]");
-    const sf = document.querySelector("[data-stems-fields]");
-    if (vf instanceof HTMLElement) vf.hidden = ch !== "video";
-    if (sf instanceof HTMLElement) sf.hidden = ch !== "stems";
-    const videoInput = document.querySelector("[data-video-file]");
-    if (videoInput instanceof HTMLInputElement) {
-      videoInput.required = ch === "video" && !editingSlug;
-    }
-  };
 
   const setMediaBanner = (
     sel: string,
@@ -855,7 +780,6 @@ import "../../styles/admin-biblioteca.css";
     if (!item) {
       setMediaBanner("[data-status-video]", true, "", false);
       setMediaBanner("[data-status-stems]", true, "", false);
-      setMediaBanner("[data-status-stems-visual]", true, "", false);
       setMediaBanner("[data-status-master]", true, "", false);
       setMasterVerifyBtn(false);
       setMasterFname("wav / flac / aiff · o clic");
@@ -882,19 +806,17 @@ import "../../styles/admin-biblioteca.css";
     const masterName = item.masterName ? String(item.masterName) : "";
     const masterBytes = Number(item.masterBytes || 0);
 
-    const localVideo =
-      !!(document.querySelector("[data-video-file]") as HTMLInputElement)?.files?.[0] ||
-      !!(document.querySelector("[data-stems-video]") as HTMLInputElement)?.files?.[0];
-    const localCover =
-      !!(document.querySelector("[data-cover-file]") as HTMLInputElement)?.files?.[0] ||
-      !!(document.querySelector("[data-stems-cover]") as HTMLInputElement)?.files?.[0];
+    const localVideo = !!(document.querySelector("[data-video-file]") as HTMLInputElement)
+      ?.files?.[0];
+    const localCover = !!(document.querySelector("[data-cover-file]") as HTMLInputElement)
+      ?.files?.[0];
     const localStems = stemRows.filter((r) => r.file).length;
     const localMaster = !!(document.querySelector("[data-master-file]") as HTMLInputElement)
       ?.files?.[0];
 
     if (localVideo) setLight("video", "pending", "En PC · falta publicar");
     else if (videoUrl) setLight("video", "ok", videoName.slice(0, 28));
-    else setLight("video", "err", "Sin vídeo");
+    else setLight("video", "idle", "Opcional");
 
     if (localCover) setLight("cover", "pending", "En PC · falta publicar");
     else if (coverUrl) setLight("cover", "ok", coverName.slice(0, 28));
@@ -902,7 +824,7 @@ import "../../styles/admin-biblioteca.css";
 
     if (localStems) setLight("stems", "pending", `${localStems} en PC · falta publicar`);
     else if (stemNames.length) setLight("stems", "ok", `${stemNames.length} en servidor`);
-    else setLight("stems", channel === "stems" ? "err" : "idle", channel === "stems" ? "Faltan" : "—");
+    else setLight("stems", "idle", "Opcional");
 
     if (localMaster) {
       const f = (document.querySelector("[data-master-file]") as HTMLInputElement)?.files?.[0];
@@ -917,45 +839,25 @@ import "../../styles/admin-biblioteca.css";
       setLight("upload", "pending", "→ Dale a Publicar");
     else setLight("upload", "ok", "En catálogo");
 
-    // Canal vídeo
-    if (videoUrl) {
-      setMediaBanner(
-        "[data-status-video]",
-        "ok",
-        `<strong>✓ Vídeo en servidor</strong><br/><span>${videoName}</span>` +
-          (coverName ? `<br/><span>Cover: ${coverName}</span>` : "") +
-          `<br/><span class="media-status__note">Cada re-subida crea URL nueva (no reutiliza caché del audio/vídeo viejo).</span>`,
-        true,
-      );
-    } else {
-      setMediaBanner(
-        "[data-status-video]",
-        "bad",
-        `<strong>✗ No hay vídeo en servidor</strong><br/><span>Elige un archivo mp4/webm o la ficha no tendrá vídeo.</span>`,
-        true,
-      );
-    }
-
-    // Canal stems — visual
     if (videoUrl || coverName) {
       setMediaBanner(
-        "[data-status-stems-visual]",
+        "[data-status-video]",
         "ok",
         `<strong>✓ Visual en servidor</strong><br/><span>${
           videoName ? `Vídeo: ${videoName}` : ""
-        }${videoName && coverName ? " · " : ""}${coverName ? `Cover: ${coverName}` : ""}</span>`,
+        }${videoName && coverName ? " · " : ""}${coverName ? `Cover: ${coverName}` : ""}</span>` +
+          `<br/><span class="media-status__note">Cada re-subida crea URL nueva (no reutiliza caché vieja).</span>`,
         true,
       );
     } else {
       setMediaBanner(
-        "[data-status-stems-visual]",
+        "[data-status-video]",
         "bad",
-        `<strong>Sin vídeo/cover en servidor</strong><br/><span>Opcional: puedes subir visual ahora o dejarlo vacío.</span>`,
+        `<strong>Sin vídeo/cover</strong><br/><span>Opcional si hay stems; recomendado para la tarjeta.</span>`,
         true,
       );
     }
 
-    // Stems: solo estado de subida
     if (localStems) {
       setMediaBanner(
         "[data-status-stems]",
@@ -976,7 +878,7 @@ import "../../styles/admin-biblioteca.css";
       setMediaBanner(
         "[data-status-stems]",
         "bad",
-        `<strong>Sin stems</strong>`,
+        `<strong>Sin stems</strong> — opcional si hay vídeo`,
         true,
       );
     }
@@ -1029,18 +931,12 @@ import "../../styles/admin-biblioteca.css";
       slugInput.readOnly = !!item;
       slugInput.style.opacity = item ? "0.7" : "1";
     }
-    // En edición el vídeo no es obligatorio en el input
-    const videoInput = document.querySelector("[data-video-file]");
-    if (videoInput instanceof HTMLInputElement) {
-      videoInput.required = !item && channel === "video";
-    }
     if (!item) {
       const form = document.querySelector("[data-admin-form]");
       if (form instanceof HTMLFormElement) form.reset();
       stemsUi.clear();
       stemRows = stemsUi.getRows();
       paintMediaStatus(null);
-      setChannel("video");
       rebuildMoodPick({ selected: [], filters: [] });
       return;
     }
@@ -1066,20 +962,6 @@ import "../../styles/admin-biblioteca.css";
     if (year) year.value = String(item.year || new Date().getFullYear());
     const lic = form.querySelector("[name=licenseEnabled]") as HTMLInputElement | null;
     if (lic) lic.checked = item.licenseEnabled !== false;
-    const priceEur = form.querySelector("[name=priceEur]") as HTMLInputElement | null;
-    if (priceEur)
-      priceEur.value =
-        item.priceEur != null && Number(item.priceEur) > 0 ? String(item.priceEur) : "";
-    const sp = form.querySelector("[name=stripePriceId]") as HTMLInputElement | null;
-    if (sp) sp.value = item.stripePriceId ? String(item.stripePriceId) : "";
-    const ssp = form.querySelector("[name=stemsStripePriceId]") as HTMLInputElement | null;
-    if (ssp) ssp.value = item.stemsStripePriceId ? String(item.stemsStripePriceId) : "";
-
-
-    const kind = item.kind === "stems" || (Array.isArray(item.stems) && item.stems.length)
-      ? "stems"
-      : "video";
-    setChannel(kind);
 
     // Unificar moods + tags legacy en una sola lista
     const selectedMoods = [
@@ -1137,7 +1019,7 @@ import "../../styles/admin-biblioteca.css";
   void loadPubs();
 
   bindAdminPublish({
-    getChannel: () => channel,
+    getChannel: () => deriveKind(),
     getEditingSlug: () => editingSlug,
     getEditingItem: () => editingItem,
     getStemRows: () => stemRows,

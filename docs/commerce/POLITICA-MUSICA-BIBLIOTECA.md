@@ -59,8 +59,9 @@ Textos cortos de **estado real**, no tutoriales:
 | `functions/lib/stripe-license-prices.json` | Mapa `código cotizador` → `price_…` (live) |
 | Products Stripe | Una licencia o extra = un Product + Price one-time EUR |
 | `special_quote` | Producto sin Price fijo → cobro **Invoice / Payment Link** a mano |
-| Ficha obra `stripePriceId` | **Legacy** (ya no hace falta para Pagar) |
+| Ficha obra `stripePriceId` / `priceEur` | **Legacy** — no se editan en admin (baremo global) |
 | `licenseEnabled` | Si false, no cotización ni checkout |
+| Admin biblioteca | Form **unificado** (vídeo + stems + master); sin canales separados |
 
 `checkoutReady` (API) = hay **master en R2** + licencia habilitada.  
 Checkout = line items del baremo (uso + extras) + metadata `workSlug`.

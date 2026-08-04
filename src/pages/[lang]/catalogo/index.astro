@@ -15,24 +15,27 @@ const t = useTranslations(lang);
 
 <Layout title={t("catalogTitle")} description={t("catalogDesc")} lang={lang}>
   <!--
-    Layout pre-feed (9cbb13c): container completo + ProductsBrowser.
-    El rail page-with-feed (38/56rem) aplastaba la ficha; el feed va debajo a ancho normal.
+    Shell propio: main 1fr + rail 17.5rem.
+    No usar page-with-feed (col 38rem del home aplasta la ficha).
   -->
-  <div class="container">
-    <header class="hero">
-      <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
-      <div class="hero__title-row">
-        <h1 class="hero__title">{t("catalogTitle")}</h1>
-        <span class="hero__soon">{t("catalogComingSoon")}</span>
+  <div class="catalog-shell">
+    <div class="catalog-shell__main">
+      <div class="container">
+        <header class="hero">
+          <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
+          <div class="hero__title-row">
+            <h1 class="hero__title">{t("catalogTitle")}</h1>
+            <span class="hero__soon">{t("catalogComingSoon")}</span>
+          </div>
+          <p class="hero__desc">{t("catalogDesc")}</p>
+        </header>
+
+        <ProductsBrowser items={[]} lang={lang} />
       </div>
-      <p class="hero__desc">{t("catalogDesc")}</p>
-    </header>
-
-    <ProductsBrowser items={[]} lang={lang} />
-
-    <section class="catalog-feed" aria-label={t("productFeedTitle")}>
+    </div>
+    <aside class="catalog-shell__rail" aria-label={t("productFeedTitle")}>
       <ProductUpdatesPanel lang={lang} />
-    </section>
+    </aside>
   </div>
 </Layout>
 
@@ -90,14 +93,51 @@ const t = useTranslations(lang);
     font-size: 1rem;
   }
 
-  .catalog-feed {
-    margin-top: 2.5rem;
-    max-width: 36rem;
+  .catalog-shell {
+    width: 100%;
   }
 
-  @media (min-width: 860px) {
-    .catalog-feed {
-      max-width: 28rem;
+  .catalog-shell__rail {
+    margin-top: 2rem;
+    max-width: 28rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 1100px) {
+    .catalog-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 17.5rem;
+      column-gap: 1.75rem;
+      align-items: start;
+      width: min(100% - 2rem, calc(var(--max-width) + 17.5rem + 1.75rem));
+      margin-inline: auto;
+    }
+
+    .catalog-shell__main {
+      min-width: 0;
+    }
+
+    .catalog-shell__main .container {
+      max-width: none;
+      padding-inline: 0;
+    }
+
+    .catalog-shell__rail {
+      margin: 0;
+      max-width: none;
+      padding-inline: 0;
+      position: sticky;
+      top: 5.5rem;
+      max-height: calc(100dvh - 7rem);
+      overflow: hidden;
+      padding-block: 0.25rem 2rem;
+      box-sizing: border-box;
+    }
+
+    .catalog-shell__rail :global(.product-updates-panel) {
+      max-height: 100%;
+      min-height: 0;
     }
   }
 </style>

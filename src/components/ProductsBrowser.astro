@@ -880,6 +880,8 @@ const payload = {
       }
       renderList();
       renderDetail();
+      // Sync feed rail: ?p=slug (ProductUpdatesPanel filtra por producto)
+      setDeepLink(activeSlug);
     };
 
     apply();

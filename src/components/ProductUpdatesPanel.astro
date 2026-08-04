@@ -1,7 +1,8 @@
 ---
 /**
- * Rail feed de productos (catálogo). Cabecera = nombre del producto.
- * Con producto activo (?p= o evento) solo muestra posts de ese slug.
+ * Rail feed de productos (catálogo).
+ * Scope estricto: solo posts del producto activo (?p= → API ?slug=).
+ * Sin producto en URL → vacío (no feed multi-producto).
  */
 import type { Locale } from "../i18n/translations";
 import { useTranslations } from "../lib/locale";
@@ -113,33 +114,39 @@ const payload = {
 
   type Labels = { empty: string; emptyForProduct: string; tags: Record<string, string> };
 
-  async function loadItems(slug: string) {
-    const q = slug ? `?slug=${encodeURIComponent(slug)}` : "";
-    const res = await fetch(`/api/product-updates${q}`, { credentials: "same-origin" });
+  type FeedItem = {
+    date?: string;
+    productName?: string;
+    productSlug?: string;
+    tag?: string;
+    summary?: string;
+    image?: string;
+    video?: string;
+    link?: string;
+  };
+
+  /** Solo con slug: extensión web de un producto. Sin slug → no fetch multi. */
+  async function loadItems(slug: string): Promise<FeedItem[]> {
+    const key = normalizeSlug(slug);
+    if (!key) return [];
+    const res = await fetch(`/api/product-updates?slug=${encodeURIComponent(key)}`, {
+      credentials: "same-origin",
+    });
     if (!res.ok) throw new Error("fetch_failed");
     const data = await res.json();
     if (!data?.ok || !Array.isArray(data.items)) return [];
-    return data.items as Array<{
-      date?: string;
-      productName?: string;
-      productSlug?: string;
-      tag?: string;
-      summary?: string;
-      image?: string;
-      video?: string;
-      link?: string;
-    }>;
+    return data.items as FeedItem[];
   }
 
   function renderBody(
     body: Element,
-    items: Awaited<ReturnType<typeof loadItems>>,
+    items: FeedItem[],
     opts: { lang: string; labels: Labels; slug: string },
   ) {
-    const empty = opts.slug
-      ? opts.labels.emptyForProduct || opts.labels.empty || "—"
-      : opts.labels.empty || "—";
-    if (!items.length) {
+    // Sin producto activo o sin posts de ese producto
+    const empty =
+      opts.labels.emptyForProduct || opts.labels.empty || "—";
+    if (!opts.slug || !items.length) {
       body.innerHTML = `<p class="updates-panel__empty">${escapeHtml(empty)}</p>`;
       return;
     }

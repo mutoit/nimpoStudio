@@ -82,11 +82,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
   const stripeKey = String(env.STRIPE_SECRET_KEY || "").trim();
   if (!stripeKey) {
+    console.error("[checkout] missing stripe secret");
     return json(
       {
         ok: false,
         error: "stripe_not_configured",
-        message: "Falta STRIPE_SECRET_KEY en Pages. Puedes configurar Prices y reintentar.",
+        message: "El pago no está disponible ahora. Inténtalo más tarde o contacta con el estudio.",
       },
       503,
     );
@@ -142,11 +143,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (!workSlug) return json({ ok: false, error: "missing_work" }, 400);
 
     if (!isMusicCatalogCheckoutReady()) {
+      console.error("[checkout/music] stripe catalog map missing");
       return json(
         {
           ok: false,
           error: "stripe_catalog_missing",
-          message: "Falta mapa de precios de licencia en el servidor.",
+          message: "El pago no está disponible ahora. Inténtalo más tarde o contacta con el estudio.",
         },
         503,
       );
@@ -213,12 +215,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
 
     const priced = stripePricesForQuoteLines(quote.lineItems);
     if (!priced.ok) {
+      console.error("[checkout/music] price map missing", priced.missing);
       return json(
         {
           ok: false,
           error: "stripe_price_map",
-          message: `Faltan Prices Stripe para: ${priced.missing.join(", ")}`,
-          missing: priced.missing,
+          message: "No se pudo iniciar el pago. Inténtalo de nuevo o contacta con el estudio.",
         },
         500,
       );
@@ -300,6 +302,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         error?: { message?: string };
       };
       if (!res.ok || !data.url) {
+        // Detalle Stripe solo en logs — nunca al cliente (evita filtrar ops/env/cuenta).
         console.warn("[checkout/music]", res.status, data);
         const stripeMsg = data.error?.message || `stripe_${res.status}`;
         const noPrice = /no such price/i.test(stripeMsg);
@@ -308,9 +311,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
           {
             ok: false,
             error: noPrice ? "stripe_price_missing" : "stripe_session_failed",
-            message: noPrice
-              ? "Stripe no reconoce el Price (¿clave test vs prices live en Pages?). Revisa STRIPE_SECRET_KEY live y el price_… del baremo."
-              : stripeMsg,
+            message:
+              "No se pudo iniciar el pago. Inténtalo de nuevo en unos minutos o contacta con el estudio.",
           },
           noPrice ? 422 : 502,
         );
@@ -394,6 +396,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
       error?: { message?: string };
     };
     if (!res.ok || !data.url) {
+      // Detalle Stripe solo en logs — nunca al cliente (evita filtrar ops/env/cuenta).
       console.warn("[checkout]", res.status, data);
       const stripeMsg = data.error?.message || `stripe_${res.status}`;
       const noPrice = /no such price/i.test(stripeMsg);
@@ -402,9 +405,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
         {
           ok: false,
           error: noPrice ? "stripe_price_missing" : "stripe_session_failed",
-          message: noPrice
-            ? "Stripe no reconoce el Price del producto (¿STRIPE_SECRET_KEY de test con prices live?). En Pages pon la secret key live de acct_1Tyyww9hkzoHpGr7."
-            : stripeMsg,
+          message:
+            "No se pudo iniciar el pago. Inténtalo de nuevo en unos minutos o contacta con el estudio.",
         },
         noPrice ? 422 : 502,
       );

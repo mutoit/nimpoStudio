@@ -1471,8 +1471,8 @@ export function bindLibraryBrowser() {
               data = JSON.parse(raw) as typeof data;
             } catch {
               throw new Error(
-                res.status === 502
-                  ? "Pago no disponible (502). Revisa STRIPE_SECRET_KEY live en Pages."
+                res.status === 502 || res.status === 422
+                  ? "No se pudo iniciar el pago. Inténtalo de nuevo o contacta con el estudio."
                   : `Pago: respuesta no JSON (${res.status})`,
               );
             }

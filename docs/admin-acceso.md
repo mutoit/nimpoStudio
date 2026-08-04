@@ -35,7 +35,8 @@ Bloque **Feed · Productos** bajo el form (no es el feed Novedades de biblioteca
 - API admin: `GET|POST|DELETE /admin/product-feed`  
 - API pública: `GET /api/product-updates` (todos) · `GET /api/product-updates?slug=mi-app` (solo ese producto; alias `?product=`)  
 - R2: `catalog/product-updates.json` · media `library/product-feed/`  
-- **Público:** rail al lado del catálogo en `/es/catalogo/` (desktop ≥1100px); con ficha activa filtra por producto  
+- **Público:** bloque feed bajo el catálogo en `/es/catalogo/`; con ficha activa (`?p=`) filtra por producto  
+
 - Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts` · formato: `src/lib/product-feed-format.ts`
 
 ### Ficha pública (`/es/catalogo/`)

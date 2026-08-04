@@ -14,24 +14,25 @@ const t = useTranslations(lang);
 ---
 
 <Layout title={t("catalogTitle")} description={t("catalogDesc")} lang={lang}>
-  <div class="page-with-feed page-with-feed--catalog">
-    <div>
-      <div class="container">
-        <header class="hero">
-          <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
-          <div class="hero__title-row">
-            <h1 class="hero__title">{t("catalogTitle")}</h1>
-            <span class="hero__soon">{t("catalogComingSoon")}</span>
-          </div>
-          <p class="hero__desc">{t("catalogDesc")}</p>
-        </header>
-
-        <ProductsBrowser items={[]} lang={lang} />
+  <!--
+    Layout pre-feed (9cbb13c): container completo + ProductsBrowser.
+    El rail page-with-feed (38/56rem) aplastaba la ficha; el feed va debajo a ancho normal.
+  -->
+  <div class="container">
+    <header class="hero">
+      <p class="hero__eyebrow">{t("catalogSubtitle")}</p>
+      <div class="hero__title-row">
+        <h1 class="hero__title">{t("catalogTitle")}</h1>
+        <span class="hero__soon">{t("catalogComingSoon")}</span>
       </div>
-    </div>
-    <aside class="page-with-feed__rail" aria-label={t("productFeedTitle")}>
+      <p class="hero__desc">{t("catalogDesc")}</p>
+    </header>
+
+    <ProductsBrowser items={[]} lang={lang} />
+
+    <section class="catalog-feed" aria-label={t("productFeedTitle")}>
       <ProductUpdatesPanel lang={lang} />
-    </aside>
+    </section>
   </div>
 </Layout>
 
@@ -86,5 +87,17 @@ const t = useTranslations(lang);
   .hero__desc {
     margin: 0.85rem 0 0;
     color: var(--color-muted);
+    font-size: 1rem;
+  }
+
+  .catalog-feed {
+    margin-top: 2.5rem;
+    max-width: 36rem;
+  }
+
+  @media (min-width: 860px) {
+    .catalog-feed {
+      max-width: 28rem;
+    }
   }
 </style>

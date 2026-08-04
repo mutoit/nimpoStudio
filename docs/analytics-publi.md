@@ -239,7 +239,7 @@ Con esto tienes **cuantitativo + cualitativo + propio** sin coste.
 | **Search Console** | Verificación + sitemap + monitor impresiones/clics |
 | **Bing Webmaster** | Mismo sitemap; refuerza Bing |
 | **Feed home** | `src/data/updates.json` / R2 `catalog/updates.json` — panel Novedades |
-| **Feed productos** | R2 `catalog/product-updates.json` — rail en `/es/catalogo/` (admin productos) |
+| **Feed productos** | R2 `catalog/product-updates.json` — rail derecha en `/es/catalogo/` (scope por producto; admin productos) |
 | **Instagram** | `site.json` → `social.instagram` cuando tengas perfil |
 | **GitHub** | Enlace en bio del repo |
 | **Música** | Previews en `/musica` cuando subas MP3 |

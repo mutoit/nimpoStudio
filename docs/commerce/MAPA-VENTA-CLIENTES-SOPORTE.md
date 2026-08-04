@@ -411,7 +411,7 @@ ticket:    id, email, buyer, productSlug?, channel, subtype, message, nick?, sta
 
 | Vista | Estado | Qué haces ahí |
 |-------|--------|----------------|
-| `/admin/productos/` | ✅ | Demo, full, stripePriceId, **contadores Descargas** (búsqueda/orden/paginación), **feed productos** (rail catálogo) |
+| `/admin/productos/` | ✅ | Demo, full, stripePriceId, **contadores Descargas** (búsqueda/orden/paginación), **feed productos** (rail derecha catálogo, scope por producto) |
 | `/admin/pedidos/` | ✅ | Pedidos, clientes, reenviar, revocar, **transfer**, **rotate**, **reset seats** |
 | `/admin/abonados/` | ✅ | Abonados novedades (filtro, baja, borrar, CSV) + clientes compra (CSV) |
 | `/admin/tickets/` | ✅ | Bandeja feedback/recovery, cambiar status |

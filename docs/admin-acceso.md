@@ -33,14 +33,25 @@ Bloque **Feed · Productos** bajo el form (no es el feed Novedades de biblioteca
 | **CRUD** | Publicar · editar tile · borrar. Sin aviso newsletter (eso es solo feed home). |
 
 - API admin: `GET|POST|DELETE /admin/product-feed`  
-- API pública: `GET /api/product-updates` (todos) · `GET /api/product-updates?slug=mi-app` (solo ese producto; alias `?product=`)  
+- API pública: `GET /api/product-updates` (lista completa, p. ej. admin) · `GET /api/product-updates?slug=mi-app` (solo ese producto; alias `?product=`) — **apps / extensión** usan siempre `?slug=`  
 - R2: `catalog/product-updates.json` · media `library/product-feed/`  
-- **Público:** rail **derecha** en `/es/catalogo/` (desktop ≥1100px). Scope estricto: solo posts del producto activo en la lista (`?p=slug` · API `?slug=`). Sin producto → vacío.  
-
-
-- Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts` · formato: `src/lib/product-feed-format.ts`
+- Componente: `ProductUpdatesPanel.astro` · cliente admin: `src/lib/admin/product-feed.ts` · formato: `src/lib/product-feed-format.ts`  
+- Página: `src/pages/[lang]/catalogo/index.astro` (`.catalog-page` / `.catalog-shell`)
 
 ### Ficha pública (`/es/catalogo/`)
+
+Layout desktop (≥1100px):
+
+1. **Hero** (título) a ancho de página.  
+2. Fila **ProductsBrowser | feed** (tops alineados): lista + ficha a la izquierda, rail de novedades a la **derecha** (sticky).  
+3. **No** reutilizar `page-with-feed` del home (columna 38rem; aplasta la ficha).
+
+Scope del feed en catálogo (estricto):
+
+| Estado | Rail |
+|--------|------|
+| Producto activo en lista (`?p=slug`, lo escribe el browser al elegir) | Solo posts de ese `productSlug` vía `GET /api/product-updates?slug=` |
+| Sin `?p=` | Vacío (“Sin updates de este producto”) — no mezcla multi-producto |
 
 | CTA | Cuándo |
 |-----|--------|
@@ -49,7 +60,7 @@ Bloque **Feed · Productos** bajo el form (no es el feed Novedades de biblioteca
 | **Comprar** | Plan con `stripePriceId` (o Payment Link en buyUrl). |
 | **Compartir** | Siempre en ficha activa → Web Share o copiar `/es/catalogo/?p={slug}`. |
 | Feedback / contacto | Siempre. |
-| **Rail feed productos** | Lateral (desktop): posts del feed de productos; cabecera = nombre del producto → deep-link `?p=slug`. |
+| **Rail feed productos** | Derecha (desktop), alineado con la ficha; posts solo del producto de la lista. |
 
 ### Descargas (contadores)
 
@@ -169,7 +180,7 @@ Lista R2: `catalog/newsletter.json`. Confirm / baja pública: `GET /api/newslett
 | Feed | Admin | R2 | Público |
 |------|-------|-----|---------|
 | **Novedades (home)** | `/admin/biblioteca/` | `catalog/updates.json` | Rail home · `/api/updates` |
-| **Productos** | `/admin/productos/` | `catalog/product-updates.json` | Rail `/es/catalogo/` · `/api/product-updates` |
+| **Productos** | `/admin/productos/` | `catalog/product-updates.json` | Rail derecha `/es/catalogo/` (scope `?p=` / `?slug=`) · `/api/product-updates` |
 
 Seed feed home opcional:
 ```powershell

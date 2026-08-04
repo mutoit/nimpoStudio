@@ -15,7 +15,7 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `POST /admin/upload` | `admin/upload.ts` | **410 Gone** — usar publish |
 | `GET /api/library` | `api/library.ts` | Catálogo R2 sanitizado |
 | `GET /api/updates` | `api/updates.ts` | Feed Novedades R2 |
-| `GET /api/product-updates` | `api/product-updates.ts` | Feed productos R2; `?slug=` / `?product=` filtra por producto |
+| `GET /api/product-updates` | `api/product-updates.ts` | Feed productos R2; catálogo/apps: `?slug=` / `?product=` (scope por producto) |
 | `POST /api/newsletter` | `api/newsletter.ts` | Abono novedades (doble opt-in) |
 | `GET /api/newsletter` | `api/newsletter.ts` | confirm / unsubscribe |
 | `GET/POST /admin/newsletter` | `admin/newsletter.ts` | Lista abonados, baja, borrar |

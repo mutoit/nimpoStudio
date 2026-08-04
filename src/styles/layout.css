@@ -85,6 +85,15 @@
     justify-items: stretch;
   }
 
+  /* Catálogo: ficha lista+media+info necesita más aire (pre-feed ~container); home se queda en 38rem */
+  .page-with-feed.page-with-feed--catalog {
+    grid-template-columns:
+      minmax(1rem, 1fr)
+      minmax(0, 56rem)
+      17.5rem
+      minmax(1rem, 1fr);
+  }
+
   .page-with-feed > :first-child {
     grid-column: 2;
     min-width: 0;

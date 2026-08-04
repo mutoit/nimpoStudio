@@ -1,14 +1,14 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-08-03 (feed productos + descargas admin escalables)  
+Última actualización: 2026-08-04 (Stripe live + tax_code + checkout OK)  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
 
 ## Resumen en una línea
 
-**Biblioteca + catálogo software en producción** (R2, admin, cotizador, checkout Stripe en código).  
-**Bloqueo cobro:** `STRIPE_SECRET_KEY` en Pages no ve prices live (`No such price`) — ver `docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`.
+**Biblioteca + catálogo software en producción** (R2, admin, cotizador, checkout Stripe **live**).  
+**Cobro API listo:** secret live + tax_code productos; falta **smoke humano** (pago real → mail → cuenta) — `docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`.
 
 ---
 
@@ -162,18 +162,20 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 ### 🔥 PRIORIDAD — Tus tareas de ventas
 **Lista única (solo pendientes):** **`docs/commerce/TAREAS-VENTAS-PRIORIDAD.md`**
 
-1. Smoke música (Pagar → cuenta → descarga)  
-2. Publicar **Nimpo Glass** + smoke software  
+1. Smoke software Glass (Comprar → mail → cuenta → descarga)  
+2. Smoke música (Pagar → cuenta → descarga)  
 
-### Música biblioteca + pago (código listo)
+### Música biblioteca + pago (código + Stripe live listos)
 **Política:** `docs/commerce/POLITICA-MUSICA-BIBLIOTECA.md`
 - [x] Master/stems HQ · preview · baremo Stripe licencias/extras · checkout multi-línea · cuenta
-- [ ] → smoke en **TAREAS-VENTAS-PRIORIDAD.md**
+- [x] Secret live + tax_code baremo (2026-08-04)
+- [ ] → smoke humano en **TAREAS-VENTAS-PRIORIDAD.md** §1.1
 
-### Software commerce (código listo)
+### Software commerce (código + Stripe live listos)
 **Mapa:** `docs/commerce/MAPA-VENTA-CLIENTES-SOPORTE.md`
-- [x] Secrets Stripe + webhook + Price 29 € + cuenta live
-- [ ] → Nimpo Glass published en **TAREAS-VENTAS-PRIORIDAD.md**
+- [x] Secrets Stripe live + webhook + Glass 9,90 € + cuenta live
+- [x] Nimpo Glass published + `POST /api/checkout` → Checkout live OK
+- [ ] → smoke humano 2.4 en **TAREAS-VENTAS-PRIORIDAD.md**
 
 ### Limpieza infra
 - [ ] Worker legacy `nimpostudioweb` — desconectar Git / borrar si ya no se usa

@@ -1,7 +1,7 @@
 # Tareas — Ventas (prioridad tuya)
 
-**Prioridad #1 del proyecto (ops):** cobrar de verdad (música y software).  
-**Última actualización:** 2026-08-03
+**Prioridad #1 del proyecto (ops):** smokes de venta real (música y software).  
+**Última actualización:** 2026-08-04
 
 | Doc | Rol |
 |-----|-----|
@@ -12,27 +12,32 @@
 
 ---
 
-## Bloqueador cobro (2026-08-03)
+## Infra cobro (cerrado 2026-08-04)
 
-`POST /api/checkout` con prices live devuelve **`No such price: price_1TzjiE…`**.  
-Stripe MCP (acct live) **sí** ve ese price → la **`STRIPE_SECRET_KEY` en Pages** es casi seguro **test** u otra cuenta.
-
-**Acción tuya (5 min):** Cloudflare Pages → `nimpo-studio` → Settings → Environment variables →  
-`STRIPE_SECRET_KEY` = **secret key live** `sk_live_…` de `acct_1Tyyww9hkzoHpGr7` (no `sk_test_`).  
-Redeploy o empty commit. Verificar:
+| Ítem | Estado |
+|------|--------|
+| `STRIPE_SECRET_KEY` **live** en Pages `nimpo-studio` | **Hecho** (`sk_live_…` acct_1Tyyww9hkzoHpGr7) |
+| `tax_code` = `txcd_10000000` en **30 productos** Stripe (Glass + baremo licencias/extras) | **Hecho** (Managed Payments lo exige) |
+| Errores checkout al cliente genéricos (sin filtrar ops/env) | **Hecho** (`checkout.ts` + UI) |
+| Probe `POST /api/checkout` Glass | **OK** → `url` `checkout.stripe.com` sesión **live** |
 
 ```text
-POST /api/checkout { kind: software, productSlug: nimpo-glass }
-→ { ok: true, url: "https://checkout.stripe.com/…" }
+POST https://nimpo3dstudio.com/api/checkout
+{ "kind": "software", "productSlug": "nimpo-glass" }
+→ { ok: true, mode: "checkout", url: "https://checkout.stripe.com/…" }
 ```
+
+**Rec. seguridad:** la live key pasó por chat una vez → rotar en Dashboard Stripe cuando puedas y `wrangler pages secret put STRIPE_SECRET_KEY --project-name=nimpo-studio`.
+
+**Otros productos software:** solo Glass en catálogo público. Música = baremo compartido (ya con tax_code). Nuevo software = Price Stripe + `stripePriceId` en admin + full en R2.
 
 ---
 
 ## Pendiente ahora
 
-### 1 — Música (smoke)
+### 1 — Música (smoke humano)
 
-Código + catálogo Stripe licencias/extras **listos**. Path checkout falla hasta arreglar secret live (arriba).
+Código + secret live + tax_code **listos**.
 
 | # | Tarea |
 |---|--------|
@@ -49,10 +54,10 @@ Código + catálogo Stripe licencias/extras **listos**. Path checkout falla hast
 
 | # | Tarea | Estado |
 |---|--------|--------|
-| 2.1 | status **published** · `priceEur` **9.90** en R2 | **Hecho** 2026-08-03 |
-| 2.2 | `stripePriceId` = `price_1TzjiE9hkzoHpGr7BWNn2qNH` | **Hecho** (R2) |
-| 2.3 | full + demo en R2 | **Hecho** (`hasFullBuild` + demo) |
-| 2.4 | **Smoke:** Comprar → mail key → `/admin/pedidos/` → cuenta → re-descarga | **Bloqueado** por secret live |
+| 2.1 | status **published** · `priceEur` **9.90** en R2 | **Hecho** |
+| 2.2 | `stripePriceId` = `price_1TzjiE9hkzoHpGr7BWNn2qNH` | **Hecho** |
+| 2.3 | full + demo en R2 | **Hecho** |
+| 2.4 | **Smoke:** Comprar → mail key → `/admin/pedidos/` → cuenta → re-descarga | **Pendiente humano** (API checkout OK) |
 
 ### 3 — Después de la 1.ª venta real
 
@@ -72,25 +77,26 @@ Código + catálogo Stripe licencias/extras **listos**. Path checkout falla hast
 
 ---
 
-## Orden recomendado (hoy)
+## Orden recomendado
 
-1. Smoke música (1.1).  
-2. Publicar Nimpo Glass + smoke (2.1–2.4).  
+1. Smoke software 2.4 (tarjeta real o de prueba live según Dashboard).  
+2. Smoke música 1.1.  
 3. Especial / legal cuando toque.
 
-Probe: `GET https://www.nimpo3dstudio.com/api/checkout` → `stripeConfigured: true`, `musicCatalogPrices: true`.
+Probe: `GET https://nimpo3dstudio.com/api/checkout` → `stripeConfigured: true`, `musicCatalogPrices: true`.
 
 ---
 
 ## Hecho (no reabrir)
 
 - Stripe live activo: verificación, banco, descriptor `NIMPO3DSTUDIO` / `NIMPO`, payouts, no copiar test  
-- Secrets Pages + webhook `checkout.session.completed`  
+- Secrets Pages live + webhook `checkout.session.completed`  
+- tax_code productos Stripe (Managed Payments)  
 - Catálogo Stripe **licencias + extras** + mapa `stripe-license-prices.json`  
 - Checkout música multi-línea (uso + extras); obra = metadata/entrega  
 - UI biblioteca: Total + **Pagar** abajo; presupuesto solo en especial  
 - Producto Stripe *Presupuesto especial* (Invoice a mano)  
 - Commerce software en código: checkout, webhook, key, cuenta, admin pedidos/tickets  
-- Price ejemplo software 29 € live  
+- Mensajes de error de checkout no filtran secret/cuenta al cliente  
 
-Si falla un smoke, anota el error; si es “no hay full / no published”, es ops de §2.
+Si falla un smoke, anota el error; si es “no hay full / no published”, es ops de catálogo/admin.

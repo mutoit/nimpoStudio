@@ -6,7 +6,7 @@ import Layout from "../../components/Layout.astro";
 ---
 
 <Layout title="Admin pedidos" description="Pedidos y licencias" lang="es">
-  <div class="container admin">
+  <div class="admin admin--wide">
     <header class="head">
       <div>
         <p class="eyebrow">Privado · commerce</p>
@@ -164,32 +164,19 @@ import Layout from "../../components/Layout.astro";
         return tb - ta;
       });
 
-      regEl.innerHTML = `<table class="tbl tbl--registry">
-        <colgroup>
-          <col class="col-date" />
-          <col class="col-client" />
-          <col class="col-product" />
-          <col class="col-plan" />
-          <col class="col-eur" />
-          <col class="col-key" />
-          <col class="col-seats" />
-          <col class="col-state" />
-          <col class="col-actions" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Cliente</th>
-            <th>Producto</th>
-            <th>Plan</th>
-            <th>€</th>
-            <th>Key</th>
-            <th>Seats</th>
-            <th>Estado</th>
-            <th class="th-actions">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
+      regEl.innerHTML = `<div class="reg">
+        <div class="reg-head" aria-hidden="true">
+          <div class="reg-main">
+            <span>Fecha</span>
+            <span>Cliente</span>
+            <span>Producto</span>
+            <span>Plan</span>
+            <span>€</span>
+            <span>Seats</span>
+            <span>Estado</span>
+          </div>
+          <div class="reg-side">Acciones</div>
+        </div>
         ${sorted
           .map((o) => {
             const d = (o.paidAt || o.createdAt || "").slice(0, 10);
@@ -220,27 +207,27 @@ import Layout from "../../components/Layout.astro";
                     revoked
                       ? ""
                       : `<button type="button" class="ibtn" data-act="reset_activations" data-order-id="${oid}" title="Reset seats" aria-label="Reset seats">${ICO.seat}</button>
-                         <button type="button" class="ibtn" data-act="rotate_key" data-order-id="${oid}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
+                         <button type="button" class="ibtn" data-act="rotate_key" data-order-id="${oid}" title="Nueva key" aria-label="Rotar key">${ICO.rotate}</button>
                          <button type="button" class="ibtn ibtn--red" data-act="revoke" data-order-id="${oid}" title="Revocar" aria-label="Revocar">${ICO.x}</button>`
                   }
                 </div>`
               : `<span class="muted-dash">—</span>`;
 
-            return `<tr class="${revoked ? "is-revoked" : ""}">
-              <td class="td-date">${esc(d)}</td>
-              <td class="td-email">${esc(o.emailMasked || "—")}</td>
-              <td class="td-product">${esc(productLabel)}</td>
-              <td class="td-plan">${esc(planLabel)}</td>
-              <td class="td-eur">${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
-              <td class="td-key"><span class="key-mask" title="Solo en servidor">${hasKey ? "••••••••" : "—"}</span></td>
-              <td class="td-seats">${esc(seats)}</td>
-              <td class="td-state"><span class="pill">${esc(statusBits)}</span></td>
-              <td class="td-actions">${actions}</td>
-            </tr>`;
+            return `<div class="reg-row${revoked ? " is-revoked" : ""}">
+              <div class="reg-main">
+                <span class="cell cell-date">${esc(d)}</span>
+                <span class="cell cell-email" title="${esc(o.emailMasked || "")}">${esc(o.emailMasked || "—")}</span>
+                <span class="cell cell-product" title="${esc(productLabel)}">${esc(productLabel)}</span>
+                <span class="cell cell-plan">${esc(planLabel)}</span>
+                <span class="cell cell-eur">${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</span>
+                <span class="cell cell-seats">${esc(seats)}</span>
+                <span class="cell cell-state"><span class="pill">${esc(statusBits)}</span></span>
+              </div>
+              <div class="reg-side">${actions}</div>
+            </div>`;
           })
           .join("")}
-        </tbody>
-      </table>`;
+      </div>`;
 
       const postByOrder = async (action: string, orderId: string, confirmMsg?: string) => {
         if (confirmMsg && !confirm(confirmMsg)) return;
@@ -407,8 +394,13 @@ import Layout from "../../components/Layout.astro";
 
 <style>
   .admin {
-    padding-block: 2.25rem 5rem;
-    max-width: min(96rem, 100%);
+    padding: 2.25rem 1.5rem 5rem;
+    max-width: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .admin--wide {
+    padding-inline: clamp(1rem, 3vw, 2.5rem);
   }
   .head {
     display: flex;
@@ -552,124 +544,127 @@ import Layout from "../../components/Layout.astro";
     align-items: flex-start;
     margin-bottom: 1rem;
   }
+  .registry-card {
+    padding: 1.25rem 0 0.5rem;
+  }
+  .registry-card .registry-head {
+    padding-inline: 1.4rem;
+  }
+  /* Lista: texto a la IZQUIERDA (holgado) · botones al BORDE DERECHO */
   .table-wrap {
     overflow-x: auto;
-    border: 1px solid var(--color-border, #2a2a32);
-    border-radius: 12px;
-    background: rgb(0 0 0 / 0.2);
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
-  .tbl--registry {
+  .reg {
     width: 100%;
-    min-width: 58rem;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 0.9rem;
-    table-layout: fixed;
+    min-width: 52rem;
   }
-  .col-date { width: 6.5rem; }
-  .col-client { width: 16%; }
-  .col-product { width: 16%; }
-  .col-plan { width: 7rem; }
-  .col-eur { width: 3.5rem; }
-  .col-key { width: 5.5rem; }
-  .col-seats { width: 4rem; }
-  .col-state { width: 11rem; }
-  .col-actions { width: 9.5rem; }
-  .tbl th,
-  .tbl td {
-    padding: 0.85rem 0.9rem;
+  .reg-head,
+  .reg-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10.5rem;
+    column-gap: 2.5rem;
+    align-items: center;
+    padding: 0.95rem 1.4rem;
+  }
+  .reg-head {
     border-bottom: 1px solid var(--color-border, #2a2a32);
-    text-align: left;
-    vertical-align: middle;
-  }
-  .tbl th {
     color: var(--color-muted, #9a9aa6);
+    font-size: 0.68rem;
     font-weight: 600;
-    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    white-space: nowrap;
-    background: rgb(12 12 16 / 0.95);
+    letter-spacing: 0.08em;
   }
-  .tbl tbody tr:hover td {
-    background: rgb(201 169 98 / 0.04);
+  .reg-row {
+    border-bottom: 1px solid rgb(42 42 50 / 0.9);
   }
-  .tbl tr.is-revoked {
+  .reg-row:hover {
+    background: rgb(201 169 98 / 0.05);
+  }
+  .reg-row.is-revoked {
     opacity: 0.5;
   }
-  .td-date {
-    white-space: nowrap;
-    color: var(--color-muted, #9a9aa6);
-    font-size: 0.84rem;
+  /* Zona de texto: mucho aire entre columnas */
+  .reg-main {
+    display: grid;
+    grid-template-columns:
+      6.75rem
+      minmax(10rem, 1.35fr)
+      minmax(9rem, 1.15fr)
+      5.5rem
+      3rem
+      3.5rem
+      minmax(7rem, 0.9fr);
+    column-gap: 1.75rem;
+    align-items: center;
+    min-width: 0;
   }
-  .td-email,
-  .td-product {
-    font-weight: 500;
+  .reg-head .reg-main span {
+    white-space: nowrap;
+  }
+  .cell {
+    min-width: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+  .cell-date {
+    color: var(--color-muted, #9a9aa6);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .cell-email,
+  .cell-product {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .td-product {
+  .cell-email {
+    font-weight: 500;
+  }
+  .cell-product {
     font-weight: 600;
   }
-  .td-plan,
-  .td-eur,
-  .td-seats {
+  .cell-plan,
+  .cell-eur,
+  .cell-seats {
     white-space: nowrap;
-    font-size: 0.88rem;
   }
-  .key-mask {
-    font-family: ui-monospace, monospace;
-    font-size: 0.78rem;
-    letter-spacing: 0.06em;
-    color: var(--color-muted, #9a9aa6);
-    user-select: none;
-  }
-  .pill {
+  .cell-state .pill {
     display: inline-block;
-    font-size: 0.74rem;
-    line-height: 1.35;
+    font-size: 0.78rem;
     color: var(--color-accent, #c9a962);
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
   }
-  /* Columna de acciones: fija a la DERECHA, no pegada al texto */
-  .th-actions,
-  .td-actions {
-    position: sticky;
-    right: 0;
-    z-index: 2;
+  /* Botones: solo a la derecha, separados del texto */
+  .reg-side {
+    justify-self: end;
+    width: 10.5rem;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding-left: 0.5rem;
+    border-left: 1px solid rgb(42 42 50 / 0.85);
+    margin-left: 0;
+  }
+  .reg-head .reg-side {
     text-align: right;
-    width: 9.5rem;
-    min-width: 9.5rem;
-    padding-left: 1rem !important;
-    padding-right: 0.75rem !important;
-    background: #0e0e14;
-    box-shadow: -10px 0 14px rgb(0 0 0 / 0.35);
-    white-space: nowrap;
-  }
-  .th-actions {
-    z-index: 3;
-    background: #101018;
-  }
-  .tbl tbody tr:hover .td-actions {
-    background: #14141c;
+    border-left: 1px solid transparent;
   }
   .icon-actions {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.4rem;
+    gap: 0.45rem;
   }
   .ibtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    min-width: 2rem;
+    width: 2.05rem;
+    height: 2.05rem;
+    min-width: 2.05rem;
     padding: 0;
     border-radius: 8px;
     border: 1px solid #3a3a44;
@@ -687,7 +682,6 @@ import Layout from "../../components/Layout.astro";
   }
   .ibtn .ico {
     display: block;
-    flex-shrink: 0;
     pointer-events: none;
   }
   .muted-dash {

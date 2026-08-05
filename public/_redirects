@@ -1,10 +1,11 @@
 # Solo la raíz exacta → español (NO usar /* o se rompen assets)
 / /es/ 301
 
-# API y admin en www: NO redirigir a apex (el 301 rompía fetch de stems/JSON
-# y el AudioContext tras await). Primera regla gana.
-https://www.nimpo3dstudio.com/api/* https://www.nimpo3dstudio.com/api/:splat 200
-https://www.nimpo3dstudio.com/admin/* https://www.nimpo3dstudio.com/admin/:splat 200
+# API y admin: www → apex con 308 (conserva POST/body).
+# El 301 clásico convierte POST en GET → 405 en /api/license/activate etc.
+# Las reglas 200 "self" en www no impedían el 301 catch-all en la práctica.
+https://www.nimpo3dstudio.com/api/* https://nimpo3dstudio.com/api/:splat 308
+https://www.nimpo3dstudio.com/admin/* https://nimpo3dstudio.com/admin/:splat 308
 
-# Un solo origen canónico para HTML (site.url = https://nimpo3dstudio.com)
+# HTML y resto: un solo origen canónico (site.url = https://nimpo3dstudio.com)
 https://www.nimpo3dstudio.com/* https://nimpo3dstudio.com/:splat 301

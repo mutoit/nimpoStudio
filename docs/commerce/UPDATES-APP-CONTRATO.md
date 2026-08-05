@@ -114,14 +114,18 @@ Si no queréis complicar la app: **solo opción A**.
 
 ## Activación (recordatorio; ya existe)
 
+**Base API canónica (sin www):** `https://nimpo3dstudio.com`  
+`www` redirige con **308** (conserva POST). Preferid apex en la app para evitar un hop.
+
 ```http
-POST https://www.nimpo3dstudio.com/api/license/activate
+POST https://nimpo3dstudio.com/api/license/activate
 Content-Type: application/json
 
 { "key": "NIMPO-…", "machineId": "…", "productSlug": "mi-app" }
 ```
 
-Respuesta: `ok`, `seats`, `nick`, errores `invalid_key` / `revoked` / `seats_exhausted` / `product_mismatch`.
+Respuesta: `ok`, `seats`, `nick`, errores `invalid_key` / `revoked` / `seats_exhausted` / `product_mismatch`.  
+**No** es 405: si ves 405, la app está haciendo GET (p. ej. tras un 301 antiguo a www).
 
 El check de update **no sustituye** la activación; va **después** de tener key válida en el panel.
 
@@ -154,8 +158,10 @@ Al arrancar (solo si hay licencia activa):
     Aceptar → abrir https://www.nimpo3dstudio.com/es/cuenta/
     (el usuario instala el archivo que baje)
 
-Base URL producción: https://www.nimpo3dstudio.com
+Base URL API: https://nimpo3dstudio.com   (preferir sin www)
+POST /api/license/activate  { key, machineId, productSlug }
 ```
+
 
 ---
 

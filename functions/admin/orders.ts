@@ -195,6 +195,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
     }
 
     const accountUrl = `${base}/es/cuenta/`;
+    const downloadLine = downloadUrl
+      ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
+      : fullKey
+        ? `Descarga: entra en tu cuenta y usa Re-descargar (el build full ya está en el estudio).\n${accountUrl}`
+        : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.";
+
     const mail = await sendStudioMail(env, {
       to: [email],
       subject: `Licencia Founder ${order.productName} — ${licenseKey}`,
@@ -207,9 +213,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         "",
         `Tu licencia: ${licenseKey}`,
         "",
-        downloadUrl
-          ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
-          : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.",
+        downloadLine,
         "",
         `Cuenta (sin contraseña): ${accountUrl}`,
         "Introduce este email; te enviamos un enlace mágico para ver pedidos, la key y re-descargar.",
@@ -221,30 +225,41 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ].join("\n"),
     });
 
-    await sendStudioMail(env, {
-      to: [String(env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com").trim()],
-      subject: `[Founder] ${order.productName} — ${email}`,
-      text: [
-        `Pedido ${orderId}`,
-        `Kind: software (admin issue)`,
-        `Email: ${email}`,
-        `Producto: ${order.productName} (${product.slug})`,
-        `Plan: ${planName} (${planId})`,
-        `Key: ${licenseKey}`,
-        `Full: ${fullKey || "—"}`,
-        `Mail cliente: ${mail.ok ? "ok" : mail.error}`,
-      ].join("\n"),
-    });
+    // Aviso interno al estudio (no al cliente). Si es el mismo buzón, no duplicar.
+    const studioTo = String(env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com")
+      .trim()
+      .toLowerCase();
+    let studioMailed: boolean | "skipped" = "skipped";
+    if (studioTo && studioTo !== email) {
+      const studioMail = await sendStudioMail(env, {
+        to: [studioTo],
+        subject: `[Founder · interno] ${order.productName} — ${email}`,
+        text: [
+          `Aviso interno (no es el mail del cliente).`,
+          "",
+          `Pedido ${orderId}`,
+          `Kind: software (admin issue)`,
+          `Email: ${email}`,
+          `Producto: ${order.productName} (${product.slug})`,
+          `Plan: ${planName} (${planId})`,
+          `Key: ${licenseKey}`,
+          `Full: ${fullKey || "—"}`,
+          `Mail cliente: ${mail.ok ? "ok" : mail.error}`,
+        ].join("\n"),
+      });
+      studioMailed = studioMail.ok;
+    }
 
     return json({
       ok: true,
       order,
       license,
       mailed: mail.ok,
+      studioMailed,
       downloadUrl: downloadUrl || null,
       message: mail.ok
-        ? `Founder emitida: ${licenseKey} → ${email}`
-        : `Key creada ${licenseKey}; mail falló: ${mail.error || "unknown"}`,
+        ? `OK · Founder enviada a ${email} · key ${licenseKey}`
+        : `Key creada ${licenseKey}; mail cliente falló: ${mail.error || "unknown"}`,
     });
   }
 

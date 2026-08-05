@@ -24,23 +24,23 @@ import Layout from "../../components/Layout.astro";
       Stripe → pedido paid + key. También <strong>Emitir Founder</strong> (0 €, cualquier producto software) sin Checkout.
       Reenvía, revoca, transfer, rotate. <span data-stripe-flag></span>
     </p>
-    <p class="status" data-status hidden></p>
     <div class="toolbar">
       <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
     </div>
     <section class="card-tools">
       <h2 class="subhead">Emitir Founder</h2>
       <p class="tool-hint">
-        Crea order paid 0 € + license key + mail. El cliente activa en la app y ve key/descarga en
-        <a href="/es/cuenta/">/es/cuenta/</a> (magic link, sin password).
+        Crea un pedido y una licencia <strong>permanentes</strong> (listas de abajo: crecen, no se borran al salir).
+        El cliente recibe un mail con la key; tú ves la fila en Pedidos/Licencias/Clientes.
       </p>
       <form class="inline-form" data-issue-form>
         <input type="email" name="email" placeholder="cliente@…" required data-issue-email autocomplete="email" />
         <select name="productSlug" required data-issue-product>
           <option value="">Producto…</option>
         </select>
-        <button type="submit" class="btn btn--sm btn--gold">Emitir Founder</button>
+        <button type="submit" class="btn btn--sm btn--gold" data-issue-submit>Emitir Founder</button>
       </form>
+      <p class="status status--inline" data-status hidden role="status" aria-live="polite"></p>
     </section>
     <section class="card-tools">
       <h2 class="subhead">Transfer email</h2>
@@ -72,6 +72,12 @@ import Layout from "../../components/Layout.astro";
     statusEl.hidden = false;
     statusEl.textContent = msg;
     statusEl.classList.toggle("is-err", !ok);
+    statusEl.classList.toggle("is-ok", ok);
+    try {
+      statusEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } catch {
+      /* */
+    }
   };
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
@@ -314,17 +320,21 @@ import Layout from "../../components/Layout.astro";
 
   document.querySelector("[data-issue-form]")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = String(
-      (document.querySelector("[data-issue-email]") as HTMLInputElement | null)?.value || "",
-    ).trim();
-    const productSlug = String(
-      (document.querySelector("[data-issue-product]") as HTMLSelectElement | null)?.value || "",
-    ).trim();
+    const emailInput = document.querySelector("[data-issue-email]") as HTMLInputElement | null;
+    const productSel = document.querySelector("[data-issue-product]") as HTMLSelectElement | null;
+    const submitBtn = document.querySelector("[data-issue-submit]") as HTMLButtonElement | null;
+    const email = String(emailInput?.value || "").trim();
+    const productSlug = String(productSel?.value || "").trim();
     if (!email || !productSlug) {
       setStatus("Email y producto obligatorios", false);
       return;
     }
     if (!confirm(`¿Emitir Founder de ${productSlug} → ${email}?`)) return;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Enviando…";
+    }
+    setStatus("Emitiendo y enviando mail…", true);
     try {
       const r = await fetch("/admin/orders", {
         method: "POST",
@@ -340,10 +350,22 @@ import Layout from "../../components/Layout.astro";
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.message || j.error || "issue_failed");
-      setStatus(j.message || "Founder emitida");
+      const key = j.license?.key || j.order?.licenseKey || "";
+      setStatus(
+        j.mailed
+          ? `OK · mail enviado a ${email}${key ? ` · ${key}` : ""}`
+          : j.message || `Key creada${key ? `: ${key}` : ""} (revisa mail)`,
+        Boolean(j.mailed || j.ok),
+      );
+      if (emailInput) emailInput.value = "";
       await load();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error", false);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Emitir Founder";
+      }
     }
   });
 
@@ -433,8 +455,25 @@ import Layout from "../../components/Layout.astro";
   .status {
     color: var(--color-accent);
   }
+  .status--inline {
+    margin: 0.75rem 0 0;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .status--inline.is-ok {
+    color: #b8e0b8;
+    background: rgb(40 120 60 / 0.18);
+    border: 1px solid rgb(80 160 90 / 0.35);
+  }
   .status.is-err {
     color: #f0a0a0;
+  }
+  .status--inline.is-err {
+    background: rgb(120 40 40 / 0.2);
+    border: 1px solid rgb(200 80 80 / 0.35);
   }
   .empty {
     color: var(--color-muted);

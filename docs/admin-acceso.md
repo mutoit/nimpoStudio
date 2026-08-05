@@ -13,16 +13,22 @@ URLs (no están en el menú público):
 - Nav: **Mi cuenta** → `/es/cuenta/` (también en/fr).
 - Sin password: email de compra/regalo → magic link → pedidos, **key** y **re-descarga**.
 - Tras Stripe o tras **Emitir Founder** en admin es el mismo panel.
+- Listas admin (Clientes / Pedidos / Licencias) son **permanentes** en R2: cada emit/compra **añade filas**, no se borran solas.
 
 ## Emitir Founder (`/admin/pedidos/`)
 
 Cualquier **producto software** no draft:
 
 1. Email del cliente + producto en el select → **Emitir Founder**.
-2. Crea order `paid` 0 € + license key (`planId: founder`) + mail (key, descarga si hay full, link cuenta).
-3. Cliente: app → pegar key → Activar; web → Mi cuenta → magic link.
+2. Feedback UI: «Enviando…» → banner **OK · mail enviado · key…** y se limpia el email del form.
+3. Crea order `paid` 0 € + license key (`planId: founder`) + filas en las tres tablas.
+4. **Mails:**
+   - **Cliente:** «Licencia Founder…» (key + cuenta + activar). Es el único que debe usar el usuario.
+   - **Estudio:** `[Founder · interno]` a `QUOTE_TO_EMAIL` (resumen ops). **No** se envía si es el mismo email que el cliente (evita duplicado en pruebas).
+5. Cliente: app → key → Activar (`POST https://nimpo3dstudio.com/api/license/activate`, **sin www**); web → Mi cuenta → magic link.
 
-No usa Stripe. El botón **Comprar** público sigue cobrando el Price normal.
+No usa Stripe. El botón **Comprar** público sigue cobrando el Price normal.  
+Founder y pago: **misma** comprobación de licencia en la app.
 
 ## Admin productos (`/admin/productos/`)
 

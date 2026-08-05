@@ -1,8 +1,11 @@
 # Mapa — Venta, clientes, tickets y soporte
 
-**Estado del sistema:** software A–D **implementado** · música preview/HQ/checkout baremo **implementado** · Stripe **live activo** (banco + catálogo licencias) · falta **ops** (smoke + publicar Nimpo Glass)  
-**Última revisión:** 2026-08-01  
+**Estado del sistema:** software A–D **implementado** · Founder admin **implementado** · cuenta en nav · música preview/HQ/checkout baremo **implementado** · Stripe **live activo**  
+**Última revisión:** 2026-08-05  
 **Ámbito:** software **y** música (checkout compartido, datos en `catalog/commerce/*`).
+
+**Base API canónica (apps y scripts):** `https://nimpo3dstudio.com` (**sin www**).  
+`www` redirige API con **308** (conserva POST). Preferir apex en Glass y cualquier cliente nativo.
 
 | Doc | Para qué |
 |-----|----------|
@@ -44,11 +47,13 @@ COMPRA (pago)
 
 FOUNDER (regalo, cualquier producto software)
   /admin/pedidos/ → Emitir Founder (email + productSlug)
-    → order paid 0 € + key plan founder + customer
-    → mail user + mail tú [Founder]
+    → order paid 0 € + key plan founder + customer (listas R2 permanentes)
+    → mail **cliente** (key + cuenta + activar)
+    → mail **estudio** solo si QUOTE_TO_EMAIL ≠ email cliente (`[Founder · interno]`)
   Sin Stripe / sin botón Comprar a 0 €
+  Misma key y mismo activate que un pago
 
-CUENTA  nav «Mi cuenta» → /es/cuenta/
+CUENTA  nav «Mi cuenta» → /es/cuenta/ (es/en/fr)
   email → magic link → ver pedidos, key, re-descarga, nick
   recovery (email perdido) → ticket para ti (sin decir si el mail existe)
 
@@ -232,11 +237,35 @@ Un número solo en la web **sin** `price_…` **no cobra**.
 | Demo | Gratis download/web/request | schema producto |
 | Full | R2 `full/` privado | media bloquea `/full/` |
 | Tras pagar | order + license + **customer** + mails | webhook Stripe |
-| Activación | key + machineId + seats | `POST /api/license/activate` |
-| Identidad web | email compra + magic link | `/cuenta/`, cookie sesión |
+| Activación | key + machineId + seats | `POST https://nimpo3dstudio.com/api/license/activate` |
+| Founder | grant admin 0 €, cualquier producto | `POST /admin/orders` `{ action: "issue", … }` |
+| Identidad web | email compra + magic link | nav **Mi cuenta** → `/cuenta/` |
 
 **Flujo venta:**  
 Demo → Checkout → webhook `checkout.session.completed` → order + license + **customer** → mail comprador (key, descarga, cuenta) + mail estudio `[Venta]`.
+
+**Flujo Founder:**  
+Admin Emitir → order paid 0 € + key → mail cliente → app `activate` (igual que pago).
+
+### Activación (apps) — contrato corto
+
+```http
+POST https://nimpo3dstudio.com/api/license/activate
+Content-Type: application/json
+
+{ "key": "NIMPO-…", "machineId": "…", "productSlug": "nimpo-glass" }
+```
+
+| Resultado | Significado |
+|-----------|------------|
+| `200` `{ ok: true, … }` | Key válida; seat registrada (o mismo PC re-activado) |
+| `404` `invalid_key` | Key no existe |
+| `403` `revoked` / `seats_exhausted` / `product_mismatch` | Negocio |
+| **`405`** | Cliente mandó **GET** o perdió el POST (típico: URL con **www** + redirect 301 antiguo). **No** es key inválida. |
+
+Keys viven en R2 `catalog/commerce/licenses.json` (creadas por Stripe webhook o admin `issue`). Founder = misma fila, `planId: founder`.
+
+Detalle app/updates: `docs/commerce/UPDATES-APP-CONTRATO.md`.
 
 ---
 
@@ -251,7 +280,8 @@ Demo → Checkout → webhook `checkout.session.completed` → order + license +
 - [x] Download token firmado
 - [x] `/[lang]/cuenta/` magic + pedidos
 - [x] `POST /api/license/activate`
-- [x] Admin `/admin/pedidos/` reenviar / revocar
+- [x] Admin `/admin/pedidos/` reenviar / revocar / **Emitir Founder** (`issue`)
+- [x] Nav pública **Mi cuenta** + magic link
 - [x] Store R2 `orders.json` + `licenses.json`
 
 ### Fase D — Clientes / tickets / recovery ✅

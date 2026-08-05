@@ -117,8 +117,9 @@ No editar `library.json` a mano salvo semilla local o fallback.
 - [x] GET/POST `/api/download` (token firmado; `/full/` bloqueado en media)
 - [x] Commerce store R2 `catalog/commerce/*` (D1 schema opcional en migrations/)
 - [x] `/es/cuenta/` magic link + re-descarga
-- [x] POST `/api/license/activate` (seats + machineId)
-- [x] Admin `/admin/pedidos/` listar / revocar / reenviar
+- [x] POST `/api/license/activate` (seats + machineId) — **API apex** `https://nimpo3dstudio.com` (sin www; 405 = POST perdido)
+- [x] Admin `/admin/pedidos/` listar / revocar / reenviar / **Emitir Founder** (`issue`, cualquier producto software)
+- [x] Nav **Mi cuenta** + `/es/cuenta/` magic (key + re-descarga)
 - [x] Admin `/admin/abonados/` abonados newsletter + vista clientes
 
 ### Admin productos — estados / precios / media (2026-08)
@@ -201,7 +202,8 @@ Plan: `docs/plans/2026-07-30-commerce-clientes-tickets-recovery.md`
 | Home | https://www.nimpo3dstudio.com |
 | Biblioteca | https://www.nimpo3dstudio.com/es/biblioteca/ |
 | Admin publicar | https://www.nimpo3dstudio.com/admin/biblioteca/ |
-| API catálogo | https://www.nimpo3dstudio.com/api/library |
+| API catálogo | https://nimpo3dstudio.com/api/library (preferir sin www) |
+| Activate app | `POST https://nimpo3dstudio.com/api/license/activate` |
 | Contacto | https://www.nimpo3dstudio.com/es/contacto/ |
 | Música (secundaria) | https://www.nimpo3dstudio.com/es/musica/ |
 

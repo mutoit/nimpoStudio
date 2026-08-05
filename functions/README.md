@@ -2,6 +2,10 @@
 
 API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 
+**Base API canónica:** `https://nimpo3dstudio.com` (**sin www**).  
+`public/_redirects`: `www` → apex en `/api/*` y `/admin/*` con **308** (conserva POST). HTML www → apex **301**.  
+Si un cliente ve **405** en `POST /api/license/activate`, casi seguro usó `www` y el redirect se reescribió a GET.
+
 ## Rutas
 
 | Ruta | Archivo | Qué hace |
@@ -32,6 +36,10 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `POST /api/account/profile` | `api/account/profile.ts` | Nick cliente |
 | `POST /api/account/recovery` | `api/account/recovery.ts` | Recuperación (genérico) |
 | `GET/POST /admin/orders` | `admin/orders.ts` | Pedidos, **issue Founder**, transfer, rotate, revoke |
+| `POST /api/license/activate` | `api/license/activate.ts` | App: key + machineId → seats (Founder = pago) |
+| `POST /api/checkout` | `api/checkout.ts` | Stripe Checkout software/música |
+| `POST /api/webhooks/stripe` | `api/webhooks/stripe.ts` | order paid + key + mail |
+| `GET/POST /api/download` | `api/download.ts` | Token / re-descarga full (cuenta) |
 | `GET/POST /admin/tickets` | `admin/tickets.ts` | Bandeja tickets |
 
 ## Secrets / vars (Pages)

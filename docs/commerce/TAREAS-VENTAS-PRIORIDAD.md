@@ -58,6 +58,8 @@ Código + secret live + tax_code **listos**.
 | 2.2 | `stripePriceId` = `price_1TzjiE9hkzoHpGr7BWNn2qNH` | **Hecho** |
 | 2.3 | full + demo en R2 | **Hecho** |
 | 2.4 | **Smoke:** Comprar → mail key → `/admin/pedidos/` → cuenta → re-descarga | **Pendiente humano** (API checkout OK) |
+| 2.5 | **Founder:** admin Emitir → mail cliente → app `POST https://nimpo3dstudio.com/api/license/activate` (**sin www**) | **Código hecho**; smoke app con key real |
+| 2.6 | App Glass: base URL API **sin www** (evitar 405 por redirect) | **Doc actualizada** · dev app |
 
 ### 3 — Después de la 1.ª venta real
 

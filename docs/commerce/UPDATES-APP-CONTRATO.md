@@ -3,8 +3,8 @@
 **Modelo:** aviso al arrancar (si hay licencia) → usuario acepta → **navegador o descarga del instalador** → **el usuario instala el setup**.  
 Sin auto-instalación silenciosa en la app.
 
-**Última revisión:** 2026-07-31  
-**Sitio:** https://www.nimpo3dstudio.com  
+**Última revisión:** 2026-08-05  
+**Sitio (HTML):** https://www.nimpo3dstudio.com · **API (apps):** https://nimpo3dstudio.com (**sin www**)
 
 ---
 
@@ -29,14 +29,15 @@ No hace falta un CDN aparte ni un “servidor de updates” extra.
 |-------|---------|--------|
 | `productSlug` | `mi-app` | Fijo en la app. Es el slug del producto en el catálogo. **No cambiar** si las keys deben seguir valiendo |
 | `version` local | `1.0.0` | Compilada en el binario (semver recomendado: `MAJOR.MINOR.PATCH`) |
-| License key | `NIMPO-XXXX-…` | Ya la tenéis tras compra / activate |
+| License key | `NIMPO-XXXX-…` | Tras compra Stripe **o** Founder admin; misma activate |
+| Base API | `https://nimpo3dstudio.com` | **Sin www.** Founder y pago idénticos en activate |
 
 ---
 
 ## Comprobar si hay update (API ya existente)
 
 ```http
-GET https://www.nimpo3dstudio.com/api/products?slug={productSlug}
+GET https://nimpo3dstudio.com/api/products?slug={productSlug}
 Accept: application/json
 ```
 
@@ -94,8 +95,8 @@ Abrir una de estas URLs (HTTPS):
 
 | URL | Cuándo |
 |-----|--------|
-| `https://www.nimpo3dstudio.com/es/cuenta/` | Re-descarga con magic link (email de compra) |
-| `https://www.nimpo3dstudio.com/es/catalogo/` (o ficha del producto) | Si preferís la tienda |
+| `https://nimpo3dstudio.com/es/cuenta/` (o www) | Re-descarga con magic link (email de compra / Founder) |
+| `https://nimpo3dstudio.com/es/catalogo/` (o ficha del producto) | Si preferís la tienda |
 
 El usuario entra en **cuenta**, se identifica con el email de compra, y baja el **full** actual.
 
@@ -112,22 +113,28 @@ Si no queréis complicar la app: **solo opción A**.
 
 ---
 
-## Activación (recordatorio; ya existe)
+## Activación (Founder y compra = igual)
 
-**Base API canónica (sin www):** `https://nimpo3dstudio.com`  
-`www` redirige con **308** (conserva POST). Preferid apex en la app para evitar un hop.
+**Base API canónica:** `https://nimpo3dstudio.com` (**sin www**).  
+`www` → redirect **308** a apex (conserva POST). Un 301 antiguo + cliente que reescribe a GET → **405** (no es key mala).
 
 ```http
 POST https://nimpo3dstudio.com/api/license/activate
 Content-Type: application/json
 
-{ "key": "NIMPO-…", "machineId": "…", "productSlug": "mi-app" }
+{ "key": "NIMPO-…", "machineId": "…", "productSlug": "nimpo-glass" }
 ```
 
-Respuesta: `ok`, `seats`, `nick`, errores `invalid_key` / `revoked` / `seats_exhausted` / `product_mismatch`.  
-**No** es 405: si ves 405, la app está haciendo GET (p. ej. tras un 301 antiguo a www).
+| HTTP | Body | Qué es |
+|------|------|--------|
+| 200 | `{ ok: true, planId, seats, nick, … }` | Activada (o mismo `machineId` ya registrado) |
+| 404 | `invalid_key` | Key no en R2 |
+| 403 | `revoked` / `seats_exhausted` / `product_mismatch` | Negocio |
+| **405** | `method_not_allowed` | No llegó un POST JSON (URL www + redirect mal seguido, o GET) |
 
-El check de update **no sustituye** la activación; va **después** de tener key válida en el panel.
+Keys: Stripe webhook o admin **Emitir Founder** (`planId: founder`). Misma tabla, misma API.
+
+El check de update **no sustituye** la activación; va **después** de tener key válida.
 
 ---
 
@@ -158,8 +165,9 @@ Al arrancar (solo si hay licencia activa):
     Aceptar → abrir https://www.nimpo3dstudio.com/es/cuenta/
     (el usuario instala el archivo que baje)
 
-Base URL API: https://nimpo3dstudio.com   (preferir sin www)
-POST /api/license/activate  { key, machineId, productSlug }
+Base URL API: https://nimpo3dstudio.com   (SIN www)
+POST /api/license/activate  { key, machineId, productSlug: "nimpo-glass" }
+Founder y pago: misma URL y mismo body
 ```
 
 

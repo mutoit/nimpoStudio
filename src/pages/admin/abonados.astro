@@ -78,7 +78,8 @@ import Layout from "../../components/Layout.astro";
   };
 
   type Cust = {
-    email: string;
+    emailMasked?: string;
+    email?: string;
     nick?: string | null;
     productSlugs?: string[];
     lastPurchaseAt?: string;

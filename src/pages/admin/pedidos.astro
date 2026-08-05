@@ -106,54 +106,34 @@ import Layout from "../../components/Layout.astro";
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
 
-  /** Keys en UI: nunca el valor completo (solo en memoria para acciones). */
-  const maskKey = (key: string) => {
-    const k = String(key || "").trim();
-    if (!k) return "—";
-    return "••••-••••-••••";
-  };
-
   const ICO = {
-    /* flecha reenviar (verde en CSS) */
     resend: `<svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 20.85 12.7a.9.9 0 0 0 0-1.4L3.4 3.4a.75.75 0 0 0-1.1.9l2.6 6.45H14a1 1 0 1 1 0 2H4.9L2.3 19.7a.75.75 0 0 0 1.1.9z"/></svg>`,
-    /* reciclaje = nueva key */
     rotate: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.5 4.5 19 7l-2.5 2.5V8h-3.1a5 5 0 0 0-4.7 3.3l-1.1-.6A6.5 6.5 0 0 1 13.4 6.5H16.5V4.5zm-9 15L5 17l2.5-2.5V16h3.1a5 5 0 0 0 4.7-3.3l1.1.6A6.5 6.5 0 0 1 10.6 17.5H7.5v2zM7.8 9.2 5.2 7.8l2.2-4.1 2.6 1.4-1.1 2A6.5 6.5 0 0 1 18 12h-1.5a5 5 0 0 0-8.7-2.8z"/></svg>`,
-    /* silla = reset seats */
     seat: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 3a3 3 0 0 0-3 3v7H3v2h2v5h2v-5h8v5h2v-5h2v-2h-2V6a3 3 0 0 0-3-3H8zm0 2h6a1 1 0 0 1 1 1v7H7V6a1 1 0 0 1 1-1z"/></svg>`,
     x: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></svg>`,
   };
-
-  /** key completa solo en memoria; botones usan índice */
-  let keyVault: string[] = [];
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
     location.href = "/admin/pedidos/";
   });
 
-  type Order = {
+  /** Fila sanitizada del API (sin email completo ni key). */
+  type OrderRow = {
     id: string;
-    email: string;
+    emailMasked: string;
     productName: string;
     productSlug: string;
     planId?: string;
     planName: string;
     amountEur: number | null;
     status: string;
-    licenseKey?: string;
     paidAt?: string;
     createdAt: string;
-  };
-  type Lic = {
-    key: string;
-    productSlug: string;
-    email: string;
-    planId: string;
-    seats: number;
-    activations: { machineId: string }[];
-    revoked: boolean;
-    createdAt: string;
-    orderId?: string;
+    hasLicense?: boolean;
+    seatsUsed?: number;
+    seatsMax?: number;
+    revoked?: boolean;
   };
 
   const load = async () => {
@@ -169,9 +149,7 @@ import Layout from "../../components/Layout.astro";
           : " · Stripe: falta STRIPE_SECRET_KEY";
       }
 
-      const orders = (data.orders || []) as Order[];
-      const licenses = (data.licenses || []) as Lic[];
-      const licByKey = new Map(licenses.map((l) => [l.key.toUpperCase(), l]));
+      const orders = (data.orders || []) as OrderRow[];
 
       if (!(regEl instanceof HTMLElement)) return;
       if (!orders.length) {
@@ -184,8 +162,6 @@ import Layout from "../../components/Layout.astro";
         const tb = Date.parse(b.paidAt || b.createdAt || "") || 0;
         return tb - ta;
       });
-
-      keyVault = [];
 
       regEl.innerHTML = `<table class="tbl">
         <thead>
@@ -205,12 +181,12 @@ import Layout from "../../components/Layout.astro";
         ${sorted
           .map((o) => {
             const d = (o.paidAt || o.createdAt || "").slice(0, 10);
-            const key = o.licenseKey || "";
-            const lic = key ? licByKey.get(key.toUpperCase()) : undefined;
-            const revoked = Boolean(lic?.revoked);
-            const seats = lic
-              ? `${lic.activations?.length || 0}/${lic.seats || 1}`
-              : "—";
+            const revoked = Boolean(o.revoked);
+            const hasKey = Boolean(o.hasLicense);
+            const seats =
+              hasKey && o.seatsMax != null
+                ? `${o.seatsUsed ?? 0}/${o.seatsMax}`
+                : "—";
             const planLabel = o.planName || o.planId || "—";
             const productLabel = (o.productName || o.productSlug || "—").trim();
             const isFounder =
@@ -218,38 +194,33 @@ import Layout from "../../components/Layout.astro";
               String(o.planName || "").toLowerCase() === "founder";
             const statusBits = [
               o.status,
-              revoked ? "revocada" : key ? "activa" : "sin key",
+              revoked ? "revocada" : hasKey ? "activa" : "sin key",
               isFounder ? "founder" : null,
             ]
               .filter(Boolean)
               .join(" · ");
 
-            let keyIdx = -1;
-            if (key) {
-              keyIdx = keyVault.length;
-              keyVault.push(key);
-            }
-
-            const actions = key
+            const oid = esc(o.id);
+            const actions = hasKey
               ? `<div class="icon-actions">
-                  <button type="button" class="ibtn ibtn--green" data-fulfill="${esc(o.id)}" title="Reenviar mail" aria-label="Reenviar mail">${ICO.resend}</button>
+                  <button type="button" class="ibtn ibtn--green" data-act="fulfill" data-order-id="${oid}" title="Reenviar mail" aria-label="Reenviar mail">${ICO.resend}</button>
                   ${
                     revoked
                       ? ""
-                      : `<button type="button" class="ibtn ibtn--green" data-act="reset_activations" data-ki="${keyIdx}" title="Reset seats (liberar PCs)" aria-label="Reset seats">${ICO.seat}</button>
-                         <button type="button" class="ibtn ibtn--green" data-act="rotate_key" data-ki="${keyIdx}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
-                         <button type="button" class="ibtn ibtn--red" data-act="revoke" data-ki="${keyIdx}" title="Revocar licencia" aria-label="Revocar">${ICO.x}</button>`
+                      : `<button type="button" class="ibtn ibtn--green" data-act="reset_activations" data-order-id="${oid}" title="Reset seats" aria-label="Reset seats">${ICO.seat}</button>
+                         <button type="button" class="ibtn ibtn--green" data-act="rotate_key" data-order-id="${oid}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
+                         <button type="button" class="ibtn ibtn--red" data-act="revoke" data-order-id="${oid}" title="Revocar" aria-label="Revocar">${ICO.x}</button>`
                   }
                 </div>`
               : "—";
 
             return `<tr class="${revoked ? "is-revoked" : ""}">
               <td class="td-date">${esc(d)}</td>
-              <td class="td-email">${esc(o.email)}</td>
+              <td class="td-email">${esc(o.emailMasked || "—")}</td>
               <td class="td-product">${esc(productLabel)}</td>
               <td>${esc(planLabel)}</td>
               <td>${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
-              <td><span class="key-mask" title="Oculta · reenvía el mail si hace falta">${maskKey(key)}</span></td>
+              <td><span class="key-mask" title="Solo en servidor · reenvía el mail">${hasKey ? "••••-••••-••••" : "—"}</span></td>
               <td>${esc(seats)}</td>
               <td><span class="pill">${esc(statusBits)}</span></td>
               <td class="td-actions">${actions}</td>
@@ -259,38 +230,19 @@ import Layout from "../../components/Layout.astro";
         </tbody>
       </table>`;
 
-      regEl.querySelectorAll("[data-fulfill]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const orderId = (btn as HTMLElement).dataset.fulfill || "";
-          try {
-            const r = await fetch("/admin/orders", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "fulfill", orderId }),
-            });
-            const j = await r.json();
-            if (!r.ok || !j.ok) throw new Error(j.message || j.error);
-            setStatus(j.message || "Mail reenviado", true);
-          } catch (e) {
-            setStatus(e instanceof Error ? e.message : "Error", false);
-          }
-        });
-      });
-
-      const postAction = async (action: string, key: string, confirmMsg: string) => {
-        if (!confirm(confirmMsg)) return;
+      const postByOrder = async (action: string, orderId: string, confirmMsg?: string) => {
+        if (confirmMsg && !confirm(confirmMsg)) return;
         try {
           const r = await fetch("/admin/orders", {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action, key }),
+            body: JSON.stringify({ action, orderId }),
           });
           const j = await r.json();
           if (!r.ok || !j.ok) throw new Error(j.message || j.error);
           setStatus(j.message || "OK", true);
-          void load();
+          if (action !== "fulfill") void load();
         } catch (e) {
           setStatus(e instanceof Error ? e.message : "Error", false);
         }
@@ -300,17 +252,17 @@ import Layout from "../../components/Layout.astro";
         btn.addEventListener("click", () => {
           const el = btn as HTMLElement;
           const action = el.dataset.act || "";
-          const ki = Number(el.dataset.ki);
-          const key = Number.isFinite(ki) ? keyVault[ki] || "" : "";
-          if (!key || !action) return;
-          if (action === "revoke") void postAction("revoke", key, "¿Revocar esta licencia?");
+          const orderId = el.dataset.orderId || "";
+          if (!action || !orderId) return;
+          if (action === "fulfill") void postByOrder("fulfill", orderId);
+          else if (action === "revoke") void postByOrder("revoke", orderId, "¿Revocar esta licencia?");
           else if (action === "reset_activations")
-            void postAction("reset_activations", key, "¿Reset seats? El cliente podrá activar de nuevo.");
+            void postByOrder("reset_activations", orderId, "¿Reset seats?");
           else if (action === "rotate_key")
-            void postAction(
+            void postByOrder(
               "rotate_key",
-              key,
-              "¿Nueva key? La actual dejará de valer. Luego usa Reenviar para mandar la nueva.",
+              orderId,
+              "¿Nueva key? La actual dejará de valer. Luego Reenviar mail.",
             );
         });
       });
@@ -420,8 +372,8 @@ import Layout from "../../components/Layout.astro";
       }
       setStatus(
         j.mailed
-          ? `✓ ENVIADO · ${email}`
-          : `✓ KEY OK · ${email} (mail falló — revisa)`,
+          ? `✓ ENVIADO · ${j.emailMasked || "cliente"}`
+          : j.message || "✓ Pedido creado (revisa mail)",
         true,
       );
 

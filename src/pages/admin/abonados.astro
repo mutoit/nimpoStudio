@@ -239,7 +239,7 @@ import Layout from "../../components/Layout.astro";
       list.innerHTML = `<table class="tbl">
         <thead>
           <tr>
-            <th>Email</th>
+            <th>Cliente</th>
             <th>Nick</th>
             <th>Productos</th>
             <th>Última compra</th>
@@ -249,7 +249,7 @@ import Layout from "../../components/Layout.astro";
           ${buyerRows
             .map(
               (c) => `<tr>
-                <td><code>${esc(c.email)}</code></td>
+                <td><code>${esc(c.emailMasked || c.email || "—")}</code></td>
                 <td>${c.nick ? `@${esc(c.nick)}` : "—"}</td>
                 <td>${esc((c.productSlugs || []).join(", ") || "—")}</td>
                 <td>${esc((c.lastPurchaseAt || "").slice(0, 10) || "—")}</td>
@@ -296,9 +296,9 @@ import Layout from "../../components/Layout.astro";
     }
     downloadCsv(
       `nimpo-clientes-compra-${new Date().toISOString().slice(0, 10)}.csv`,
-      ["email", "nick", "productSlugs", "lastPurchaseAt"],
+      ["emailMasked", "nick", "productSlugs", "lastPurchaseAt"],
       buyerRows.map((c) => [
-        c.email,
+        c.emailMasked || c.email || "",
         c.nick || "",
         (c.productSlugs || []).join(";"),
         c.lastPurchaseAt || "",

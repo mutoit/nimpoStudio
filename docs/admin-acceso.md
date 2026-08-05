@@ -27,6 +27,8 @@ Cualquier **producto software** no draft:
 
 El registro es **historial permanente** (Stripe + Founder). No es un flash del “último”; no se borra solo.
 
+**Privacidad admin:** el GET del panel **no** devuelve email completo ni license key. Solo `emailMasked`, `hasLicense`, seats, estado. Botones (reenviar / reset / rotate / revocar) mandan **`orderId`**; el servidor resuelve la key. Transfer email: escribes los emails en el form (input deliberado).
+
 No usa Stripe. **Comprar** público sigue a precio normal. Founder = misma activate que un pago.
 
 ## Admin productos (`/admin/productos/`)

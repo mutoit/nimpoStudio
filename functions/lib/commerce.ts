@@ -196,6 +196,24 @@ export function siteBase(env: CommerceEnv, request?: Request): string {
   return "https://nimpo3dstudio.com";
 }
 
+/** Enmascarar email para respuestas admin/UI (no PII completa al navegador). */
+export function maskEmail(email: string): string {
+  const e = String(email || "")
+    .toLowerCase()
+    .trim();
+  const at = e.indexOf("@");
+  if (at < 1) return "***";
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  const localMask =
+    local.length <= 1 ? "*" : local.length === 2 ? local[0] + "*" : local.slice(0, 2) + "***";
+  const parts = domain.split(".");
+  const d0 = parts[0] || "";
+  const dMask = d0.length <= 2 ? "***" : d0.slice(0, 2) + "***";
+  const rest = parts.length > 1 ? "." + parts.slice(1).join(".") : "";
+  return `${localMask}@${dMask}${rest}`;
+}
+
 /** NIMPO-XXXX-XXXX-XXXX */
 export function generateLicenseKey(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

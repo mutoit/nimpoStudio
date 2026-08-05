@@ -1,11 +1,10 @@
 /**
  * Admin commerce:
- * GET  /admin/orders → orders + licenses + customers
- * POST /admin/orders {
- *   action: "issue" | "revoke" | "fulfill" | "transfer_email" | "rotate_key" | "reset_activations",
- *   ...
- * }
- * issue = licencia manual (Founder u otro plan) sin Stripe, cualquier productSlug software.
+ * GET  /admin/orders → registro sanitizado (sin keys ni emails completos)
+ * POST /admin/orders { action, orderId | … }
+ *
+ * Acciones de licencia/reenvío van por orderId; el servidor resuelve la key.
+ * issue acepta email en el body (input del admin) y no devuelve la key al front.
  */
 
 import {
@@ -15,6 +14,7 @@ import {
   listCustomers,
   listLicenses,
   listOrders,
+  maskEmail,
   newId,
   productFullKey,
   recordCustomerPurchase,
@@ -42,6 +42,33 @@ type Env = AdminEnv &
     RATE_LIMIT_KV?: RateLimitKv;
   };
 
+function sanitizeOrderRow(
+  o: CommerceOrder,
+  lic: CommerceLicense | undefined,
+): Record<string, unknown> {
+  const hasKey = Boolean(o.licenseKey);
+  const revoked = Boolean(lic?.revoked);
+  return {
+    id: o.id,
+    emailMasked: maskEmail(o.email),
+    productName: o.productName,
+    productSlug: o.productSlug,
+    planId: o.planId,
+    planName: o.planName,
+    amountEur: o.amountEur,
+    currency: o.currency,
+    status: o.status,
+    paidAt: o.paidAt,
+    createdAt: o.createdAt,
+    kind: o.kind || "software",
+    hasLicense: hasKey,
+    seatsUsed: lic ? (lic.activations || []).length : 0,
+    seatsMax: lic?.seats ?? (hasKey ? 1 : 0),
+    revoked,
+    // nunca: licenseKey, email, fullKey, stripe*
+  };
+}
+
 export async function onRequest(context: { request: Request; env: Env }) {
   const { request, env } = context;
 
@@ -57,12 +84,26 @@ export async function onRequest(context: { request: Request; env: Env }) {
     const orders = await listOrders(bucket);
     const licenses = await listLicenses(bucket);
     const customers = await listCustomers(bucket);
+    const licByKey = new Map(licenses.map((l) => [l.key.toUpperCase(), l]));
+
+    const rows = orders.map((o) => {
+      const k = String(o.licenseKey || "")
+        .trim()
+        .toUpperCase();
+      return sanitizeOrderRow(o, k ? licByKey.get(k) : undefined);
+    });
+
     return json({
       ok: true,
-      orders,
-      licenses,
-      customers,
-      count: orders.length,
+      orders: rows,
+      count: rows.length,
+      customers: customers.map((c) => ({
+        emailMasked: maskEmail(c.email),
+        nick: c.nick,
+        productSlugs: c.productSlugs,
+        lastPurchaseAt: c.lastPurchaseAt,
+        createdAt: c.createdAt,
+      })),
       stripeConfigured: Boolean(String(env.STRIPE_SECRET_KEY || "").trim()),
     });
   }
@@ -121,9 +162,10 @@ export async function onRequest(context: { request: Request; env: Env }) {
       return json({ ok: false, error: "product_draft" }, 400);
     }
 
-    const planId = String(body.planId || "founder")
-      .trim()
-      .slice(0, 64) || "founder";
+    const planId =
+      String(body.planId || "founder")
+        .trim()
+        .slice(0, 64) || "founder";
     const planName =
       String(body.planName || (planId === "founder" ? "Founder" : planId))
         .trim()
@@ -198,12 +240,12 @@ export async function onRequest(context: { request: Request; env: Env }) {
     const downloadLine = downloadUrl
       ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
       : fullKey
-        ? `Descarga: entra en tu cuenta y usa Re-descargar (el build full ya está en el estudio).\n${accountUrl}`
+        ? `Descarga: entra en tu cuenta y usa Re-descargar.\n${accountUrl}`
         : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.";
 
     const mail = await sendStudioMail(env, {
       to: [email],
-      subject: `Licencia Founder ${order.productName} — ${licenseKey}`,
+      subject: `Licencia Founder ${order.productName}`,
       text: [
         `Licencia Founder — Nimpo 3D Studio`,
         "",
@@ -216,7 +258,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
         downloadLine,
         "",
         `Cuenta (sin contraseña): ${accountUrl}`,
-        "Introduce este email; te enviamos un enlace mágico para ver pedidos, la key y re-descargar.",
+        "Introduce este email; te enviamos un enlace mágico para ver pedidos y re-descargar.",
         "",
         "En la app: pega la licencia → Activar.",
         "",
@@ -225,7 +267,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
       ].join("\n"),
     });
 
-    // Aviso interno al estudio (no al cliente). Si es el mismo buzón, no duplicar.
     const studioTo = String(env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com")
       .trim()
       .toLowerCase();
@@ -233,12 +274,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (studioTo && studioTo !== email) {
       const studioMail = await sendStudioMail(env, {
         to: [studioTo],
-        subject: `[Founder · interno] ${order.productName} — ${email}`,
+        subject: `[Founder · interno] ${order.productName} — ${maskEmail(email)}`,
         text: [
           `Aviso interno (no es el mail del cliente).`,
           "",
           `Pedido ${orderId}`,
-          `Kind: software (admin issue)`,
           `Email: ${email}`,
           `Producto: ${order.productName} (${product.slug})`,
           `Plan: ${planName} (${planId})`,
@@ -250,25 +290,58 @@ export async function onRequest(context: { request: Request; env: Env }) {
       studioMailed = studioMail.ok;
     }
 
+    // Respuesta al front: sin key ni email completo
     return json({
       ok: true,
-      order,
-      license,
+      orderId,
+      emailMasked: maskEmail(email),
+      productSlug: product.slug,
+      productName: order.productName,
       mailed: mail.ok,
       studioMailed,
-      downloadUrl: downloadUrl || null,
       message: mail.ok
-        ? `OK · Founder enviada a ${email} · key ${licenseKey}`
-        : `Key creada ${licenseKey}; mail cliente falló: ${mail.error || "unknown"}`,
+        ? `OK · Founder enviada a ${maskEmail(email)}`
+        : `Pedido creado; mail falló: ${mail.error || "unknown"}`,
     });
   }
 
-  if (action === "revoke") {
-    const key = String(body.key || "").trim();
-    if (!key) return json({ ok: false, error: "missing_key" }, 400);
-    const lic = await revokeLicense(bucket, key);
+  // —— Acciones por orderId (servidor resuelve key) ——
+
+  if (action === "revoke" || action === "rotate_key" || action === "reset_activations") {
+    const orderId = String(body.orderId || "").trim();
+    if (!orderId) return json({ ok: false, error: "missing_order_id" }, 400);
+    const order = await findOrderById(bucket, orderId);
+    if (!order) return json({ ok: false, error: "order_not_found" }, 404);
+    const key = String(order.licenseKey || "").trim();
+    if (!key) return json({ ok: false, error: "no_license_on_order" }, 400);
+
+    if (action === "revoke") {
+      const lic = await revokeLicense(bucket, key);
+      if (!lic) return json({ ok: false, error: "not_found" }, 404);
+      return json({
+        ok: true,
+        orderId,
+        message: "Licencia revocada.",
+      });
+    }
+
+    if (action === "rotate_key") {
+      const result = await rotateLicenseKey(bucket, key);
+      if (!result.ok) return json({ ok: false, error: result.error }, 404);
+      return json({
+        ok: true,
+        orderId,
+        message: "Key rotada. Usa Reenviar para mandar la nueva al cliente.",
+      });
+    }
+
+    const lic = await resetLicenseActivations(bucket, key);
     if (!lic) return json({ ok: false, error: "not_found" }, 404);
-    return json({ ok: true, license: lic, message: `Licencia ${key} revocada.` });
+    return json({
+      ok: true,
+      orderId,
+      message: "Seats reseteados.",
+    });
   }
 
   if (action === "fulfill") {
@@ -280,24 +353,24 @@ export async function onRequest(context: { request: Request; env: Env }) {
     const secret = commerceSecret(env);
     if (!secret) return json({ ok: false, error: "not_configured" }, 503);
     const product = await findProduct(bucket, order.productSlug);
-    const fullKey =
-      order.fullKey || product?.fullKey || null;
+    const fullKey = order.fullKey || product?.fullKey || null;
     if (!fullKey || !fullKey.includes("/full/")) {
       return json({ ok: false, error: "no_full_build" }, 404);
     }
     if (!order.fullKey) {
       await upsertOrder(bucket, { ...order, fullKey });
     }
+    const licenseKey = order.licenseKey || "NONE";
     const token = await signDownloadToken(secret, {
       slug: order.productSlug,
-      key: order.licenseKey || "NONE",
+      key: licenseKey,
       fileKey: fullKey,
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 72,
     });
     const downloadUrl = `${siteBase(env, request)}/api/download?token=${encodeURIComponent(token)}`;
     const mail = await sendStudioMail(env, {
       to: [order.email],
-      subject: `Descarga ${order.productName} — ${order.licenseKey || ""}`,
+      subject: `Descarga ${order.productName}`,
       text: [
         `Producto: ${order.productName}`,
         `Licencia: ${order.licenseKey || "—"}`,
@@ -311,7 +384,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
     return json({
       ok: true,
       mailed: mail.ok,
-      downloadUrl,
       message: mail.ok ? "Email reenviado." : `Mail falló: ${mail.error}`,
     });
   }
@@ -326,33 +398,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
     return json({
       ok: true,
-      ...result,
-      message: `Transferido ${fromEmail} → ${result.to} (${result.orders} pedidos, ${result.licenses} licencias).`,
-    });
-  }
-
-  if (action === "rotate_key") {
-    const key = String(body.key || "").trim();
-    if (!key) return json({ ok: false, error: "missing_key" }, 400);
-    const result = await rotateLicenseKey(bucket, key);
-    if (!result.ok) return json({ ok: false, error: result.error }, 404);
-    return json({
-      ok: true,
-      license: result.license,
-      oldKey: result.oldKey,
-      message: `Key rotada: ${result.oldKey} → ${result.license.key}`,
-    });
-  }
-
-  if (action === "reset_activations") {
-    const key = String(body.key || "").trim();
-    if (!key) return json({ ok: false, error: "missing_key" }, 400);
-    const lic = await resetLicenseActivations(bucket, key);
-    if (!lic) return json({ ok: false, error: "not_found" }, 404);
-    return json({
-      ok: true,
-      license: lic,
-      message: `Activaciones reseteadas para ${key}.`,
+      fromMasked: maskEmail(fromEmail),
+      toMasked: maskEmail(toEmail),
+      orders: result.orders,
+      licenses: result.licenses,
+      message: `Transferido ${maskEmail(fromEmail)} → ${maskEmail(toEmail)} (${result.orders} pedidos).`,
     });
   }
 

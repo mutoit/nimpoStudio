@@ -1,6 +1,6 @@
 ---
 /**
- * Admin pedidos / licencias (commerce ola 2–3).
+ * Admin pedidos / licencias — registro unificado + Emitir Founder.
  */
 import Layout from "../../components/Layout.astro";
 ---
@@ -20,65 +20,91 @@ import Layout from "../../components/Layout.astro";
         <button type="button" class="btn btn--ghost" data-logout>Cerrar sesión</button>
       </div>
     </header>
+
     <p class="lead">
-      Stripe → pedido paid + key. También <strong>Emitir Founder</strong> (0 €, cualquier producto software) sin Checkout.
-      Reenvía, revoca, transfer, rotate. <span data-stripe-flag></span>
+      Historial <strong>permanente</strong>: cada compra Stripe y cada Founder añade una fila (no se borra sola).
+      <span data-stripe-flag></span>
     </p>
-    <div class="toolbar">
-      <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
-    </div>
-    <section class="card-tools">
-      <h2 class="subhead">Emitir Founder</h2>
-      <p class="tool-hint">
-        Crea un pedido y una licencia <strong>permanentes</strong> (listas de abajo: crecen, no se borran al salir).
-        El cliente recibe un mail con la key; tú ves la fila en Pedidos/Licencias/Clientes.
-      </p>
-      <form class="inline-form" data-issue-form>
-        <input type="email" name="email" placeholder="cliente@…" required data-issue-email autocomplete="email" />
-        <select name="productSlug" required data-issue-product>
-          <option value="">Producto…</option>
-        </select>
-        <button type="submit" class="btn btn--sm btn--gold" data-issue-submit>Emitir Founder</button>
+
+    <section class="card issue-card">
+      <div class="issue-card__top">
+        <h2 class="subhead subhead--tight">Emitir Founder</h2>
+        <p class="tool-hint">
+          Pegar email → Emitir → ver <strong>ENVIADO</strong> → siguiente. Producto se mantiene.
+        </p>
+      </div>
+      <form class="issue-form" data-issue-form>
+        <label class="field">
+          <span>Email cliente</span>
+          <input
+            type="email"
+            name="email"
+            placeholder="cliente@…"
+            required
+            data-issue-email
+            autocomplete="email"
+          />
+        </label>
+        <label class="field field--grow">
+          <span>Producto</span>
+          <select name="productSlug" required data-issue-product>
+            <option value="">Producto…</option>
+          </select>
+        </label>
+        <button type="submit" class="btn btn--gold btn--issue" data-issue-submit>Emitir Founder</button>
       </form>
-      <p class="status status--inline" data-status hidden role="status" aria-live="polite"></p>
+      <p class="flash" data-status hidden role="status" aria-live="assertive"></p>
     </section>
-    <section class="card-tools">
-      <h2 class="subhead">Transfer email</h2>
-      <form class="inline-form" data-transfer-form>
-        <input type="email" name="from" placeholder="from@…" required data-tr-from />
-        <input type="email" name="to" placeholder="to@…" required data-tr-to />
+
+    <section class="card registry-card">
+      <div class="registry-head">
+        <div>
+          <h2 class="subhead subhead--tight">Registro</h2>
+          <p class="tool-hint">Cliente · pedido · key · estado · acciones en una sola tabla.</p>
+        </div>
+        <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
+      </div>
+      <div class="table-wrap" data-registry>
+        <p class="empty">Cargando…</p>
+      </div>
+    </section>
+
+    <details class="card tools-extra">
+      <summary>Transfer email / herramientas</summary>
+      <form class="issue-form" data-transfer-form>
+        <label class="field">
+          <span>De</span>
+          <input type="email" name="from" placeholder="from@…" required data-tr-from />
+        </label>
+        <label class="field">
+          <span>A</span>
+          <input type="email" name="to" placeholder="to@…" required data-tr-to />
+        </label>
         <button type="submit" class="btn btn--sm btn--gold">Transferir</button>
       </form>
-    </section>
-    <section>
-      <h2 class="subhead">Clientes</h2>
-      <div class="table-wrap" data-customers><p class="empty">—</p></div>
-    </section>
-    <section>
-      <h2 class="subhead">Pedidos</h2>
-      <div class="table-wrap" data-orders><p class="empty">Cargando…</p></div>
-    </section>
-    <section>
-      <h2 class="subhead">Licencias</h2>
-      <div class="table-wrap" data-licenses><p class="empty">Cargando…</p></div>
-    </section>
+    </details>
   </div>
 </Layout>
 
 <script>
   const statusEl = document.querySelector("[data-status]");
+
   const setStatus = (msg: string, ok = true) => {
     if (!(statusEl instanceof HTMLElement)) return;
     statusEl.hidden = false;
     statusEl.textContent = msg;
     statusEl.classList.toggle("is-err", !ok);
     statusEl.classList.toggle("is-ok", ok);
-    try {
-      statusEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    } catch {
-      /* */
-    }
+    statusEl.classList.add("is-pulse");
+    window.setTimeout(() => statusEl.classList.remove("is-pulse"), 600);
   };
+
+  const esc = (s: string) =>
+    String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
@@ -90,6 +116,7 @@ import Layout from "../../components/Layout.astro";
     email: string;
     productName: string;
     productSlug: string;
+    planId?: string;
     planName: string;
     amountEur: number | null;
     status: string;
@@ -106,18 +133,11 @@ import Layout from "../../components/Layout.astro";
     activations: { machineId: string }[];
     revoked: boolean;
     createdAt: string;
-  };
-  type Cust = {
-    email: string;
-    nick: string | null;
-    productSlugs: string[];
-    lastPurchaseAt?: string;
+    orderId?: string;
   };
 
   const load = async () => {
-    const ordersEl = document.querySelector("[data-orders]");
-    const licEl = document.querySelector("[data-licenses]");
-    const custEl = document.querySelector("[data-customers]");
+    const regEl = document.querySelector("[data-registry]");
     try {
       const res = await fetch("/admin/orders", { credentials: "same-origin" });
       const data = await res.json();
@@ -125,145 +145,152 @@ import Layout from "../../components/Layout.astro";
       const flag = document.querySelector("[data-stripe-flag]");
       if (flag) {
         flag.textContent = data.stripeConfigured
-          ? "Stripe: configurado."
-          : "Stripe: falta STRIPE_SECRET_KEY.";
+          ? " · Stripe OK"
+          : " · Stripe: falta STRIPE_SECRET_KEY";
       }
+
       const orders = (data.orders || []) as Order[];
       const licenses = (data.licenses || []) as Lic[];
-      const customers = (data.customers || []) as Cust[];
+      const licByKey = new Map(licenses.map((l) => [l.key.toUpperCase(), l]));
 
-      if (custEl instanceof HTMLElement) {
-        if (!customers.length) {
-          custEl.innerHTML = `<p class="empty">Sin clientes (aparecen al primer pago).</p>`;
-        } else {
-          custEl.innerHTML = `<table class="tbl">
-            <thead><tr><th>Email</th><th>Nick</th><th>Productos</th><th>Última compra</th></tr></thead>
-            <tbody>
-            ${customers
-              .map(
-                (c) => `<tr>
-                  <td><code>${c.email}</code></td>
-                  <td>${c.nick ? `@${c.nick}` : "—"}</td>
-                  <td>${(c.productSlugs || []).join(", ") || "—"}</td>
-                  <td>${(c.lastPurchaseAt || "").slice(0, 10) || "—"}</td>
-                </tr>`,
-              )
-              .join("")}
-            </tbody></table>`;
-        }
+      if (!(regEl instanceof HTMLElement)) return;
+      if (!orders.length) {
+        regEl.innerHTML = `<p class="empty">Sin pedidos aún. Emite un Founder o espera una compra Stripe.</p>`;
+        return;
       }
 
-      if (ordersEl instanceof HTMLElement) {
-        if (!orders.length) {
-          ordersEl.innerHTML = `<p class="empty">Sin pedidos aún.</p>`;
-        } else {
-          ordersEl.innerHTML = `<table class="tbl">
-            <thead><tr><th>Fecha</th><th>Email</th><th>Producto</th><th>Plan</th><th>€</th><th>Key</th><th></th></tr></thead>
-            <tbody>
-            ${orders
-              .map((o) => {
-                const d = (o.paidAt || o.createdAt || "").slice(0, 10);
-                return `<tr>
-                  <td>${d}</td>
-                  <td>${o.email}</td>
-                  <td>${o.productName}<br/><code>${o.productSlug}</code></td>
-                  <td>${o.planName}<br/><span class="pill">${o.status}</span></td>
-                  <td>${o.amountEur != null ? o.amountEur : "—"}</td>
-                  <td><code>${o.licenseKey || "—"}</code></td>
-                  <td><button type="button" class="btn btn--sm" data-fulfill="${o.id}">Reenviar</button></td>
-                </tr>`;
-              })
-              .join("")}
-            </tbody></table>`;
-          ordersEl.querySelectorAll("[data-fulfill]").forEach((btn) => {
-            btn.addEventListener("click", async () => {
-              const orderId = (btn as HTMLElement).dataset.fulfill || "";
-              try {
-                const r = await fetch("/admin/orders", {
-                  method: "POST",
-                  credentials: "same-origin",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ action: "fulfill", orderId }),
-                });
-                const j = await r.json();
-                if (!r.ok || !j.ok) throw new Error(j.message || j.error);
-                setStatus(j.message || "OK");
-              } catch (e) {
-                setStatus(e instanceof Error ? e.message : "Error", false);
-              }
-            });
-          });
-        }
-      }
+      const sorted = [...orders].sort((a, b) => {
+        const ta = Date.parse(a.paidAt || a.createdAt || "") || 0;
+        const tb = Date.parse(b.paidAt || b.createdAt || "") || 0;
+        return tb - ta;
+      });
 
-      if (licEl instanceof HTMLElement) {
-        if (!licenses.length) {
-          licEl.innerHTML = `<p class="empty">Sin licencias.</p>`;
-        } else {
-          licEl.innerHTML = `<table class="tbl">
-            <thead><tr><th>Key</th><th>Email</th><th>Producto</th><th>Seats</th><th>Estado</th><th></th></tr></thead>
-            <tbody>
-            ${licenses
-              .map((l) => {
-                return `<tr class="${l.revoked ? "is-revoked" : ""}">
-                  <td><code>${l.key}</code></td>
-                  <td>${l.email}</td>
-                  <td><code>${l.productSlug}</code></td>
-                  <td>${l.activations?.length || 0}/${l.seats}</td>
-                  <td>${l.revoked ? "revocada" : "activa"}</td>
-                  <td class="actions">
-                    ${
-                      l.revoked
-                        ? ""
-                        : `<button type="button" class="btn btn--sm" data-reset="${l.key}">Reset seats</button>
-                           <button type="button" class="btn btn--sm" data-rotate="${l.key}">Rotate key</button>
-                           <button type="button" class="btn btn--sm btn--danger" data-revoke="${l.key}">Revocar</button>`
-                    }
-                  </td>
-                </tr>`;
-              })
-              .join("")}
-            </tbody></table>`;
-          const postAction = async (action: string, key: string, confirmMsg: string) => {
-            if (!confirm(confirmMsg)) return;
-            try {
-              const r = await fetch("/admin/orders", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action, key }),
-              });
-              const j = await r.json();
-              if (!r.ok || !j.ok) throw new Error(j.message || j.error);
-              setStatus(j.message || "OK");
-              await load();
-            } catch (e) {
-              setStatus(e instanceof Error ? e.message : "Error", false);
-            }
-          };
-          licEl.querySelectorAll("[data-revoke]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              const key = (btn as HTMLElement).dataset.revoke || "";
-              void postAction("revoke", key, `¿Revocar ${key}?`);
+      regEl.innerHTML = `<table class="tbl">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Producto</th>
+            <th>Plan</th>
+            <th>€</th>
+            <th>Licencia</th>
+            <th>Seats</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+        ${sorted
+          .map((o) => {
+            const d = (o.paidAt || o.createdAt || "").slice(0, 10);
+            const key = o.licenseKey || "";
+            const lic = key ? licByKey.get(key.toUpperCase()) : undefined;
+            const revoked = Boolean(lic?.revoked);
+            const seats = lic
+              ? `${lic.activations?.length || 0}/${lic.seats || 1}`
+              : "—";
+            const planLabel = o.planName || o.planId || "—";
+            const isFounder = String(o.planId || "").toLowerCase() === "founder" ||
+              String(o.planName || "").toLowerCase() === "founder";
+            const statusBits = [
+              o.status,
+              revoked ? "revocada" : key ? "key activa" : "sin key",
+              isFounder ? "founder" : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return `<tr class="${revoked ? "is-revoked" : ""}">
+              <td class="td-date">${esc(d)}</td>
+              <td class="td-email">${esc(o.email)}</td>
+              <td>
+                <span class="td-strong">${esc(o.productName)}</span>
+                <span class="td-muted">${esc(o.productSlug)}</span>
+              </td>
+              <td>${esc(planLabel)}</td>
+              <td>${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
+              <td><code class="key-code">${esc(key || "—")}</code></td>
+              <td>${esc(seats)}</td>
+              <td><span class="pill">${esc(statusBits)}</span></td>
+              <td class="actions">
+                ${
+                  key
+                    ? `<button type="button" class="btn btn--sm" data-fulfill="${esc(o.id)}">Reenviar</button>
+                       ${
+                         revoked
+                           ? ""
+                           : `<button type="button" class="btn btn--sm" data-reset="${esc(key)}">Reset seats</button>
+                              <button type="button" class="btn btn--sm" data-rotate="${esc(key)}">Rotate</button>
+                              <button type="button" class="btn btn--sm btn--danger" data-revoke="${esc(key)}">Revocar</button>`
+                       }`
+                    : "—"
+                }
+              </td>
+            </tr>`;
+          })
+          .join("")}
+        </tbody>
+      </table>`;
+
+      regEl.querySelectorAll("[data-fulfill]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const orderId = (btn as HTMLElement).dataset.fulfill || "";
+          try {
+            const r = await fetch("/admin/orders", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "fulfill", orderId }),
             });
+            const j = await r.json();
+            if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+            setStatus(j.message || "Mail reenviado", true);
+          } catch (e) {
+            setStatus(e instanceof Error ? e.message : "Error", false);
+          }
+        });
+      });
+
+      const postAction = async (action: string, key: string, confirmMsg: string) => {
+        if (!confirm(confirmMsg)) return;
+        try {
+          const r = await fetch("/admin/orders", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, key }),
           });
-          licEl.querySelectorAll("[data-reset]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              const key = (btn as HTMLElement).dataset.reset || "";
-              void postAction("reset_activations", key, `¿Reset activaciones ${key}?`);
-            });
-          });
-          licEl.querySelectorAll("[data-rotate]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              const key = (btn as HTMLElement).dataset.rotate || "";
-              void postAction("rotate_key", key, `¿Rotar key ${key}? La antigua deja de valer.`);
-            });
-          });
+          const j = await r.json();
+          if (!r.ok || !j.ok) throw new Error(j.message || j.error);
+          setStatus(j.message || "OK", true);
+          void load();
+        } catch (e) {
+          setStatus(e instanceof Error ? e.message : "Error", false);
         }
-      }
+      };
+
+      regEl.querySelectorAll("[data-revoke]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const key = (btn as HTMLElement).dataset.revoke || "";
+          void postAction("revoke", key, `¿Revocar ${key}?`);
+        });
+      });
+      regEl.querySelectorAll("[data-reset]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const key = (btn as HTMLElement).dataset.reset || "";
+          void postAction("reset_activations", key, `¿Reset activaciones ${key}?`);
+        });
+      });
+      regEl.querySelectorAll("[data-rotate]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const key = (btn as HTMLElement).dataset.rotate || "";
+          void postAction("rotate_key", key, `¿Rotar key ${key}? La antigua deja de valer.`);
+        });
+      });
     } catch (e) {
-      if (ordersEl instanceof HTMLElement) {
-        ordersEl.innerHTML = `<p class="empty is-err">${e instanceof Error ? e.message : "Error"}</p>`;
+      if (regEl instanceof HTMLElement) {
+        regEl.innerHTML = `<p class="empty is-err">${esc(
+          e instanceof Error ? e.message : "Error",
+        )}</p>`;
       }
     }
   };
@@ -286,8 +313,8 @@ import Layout from "../../components/Layout.astro";
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.message || j.error);
-      setStatus(j.message || "OK");
-      await load();
+      setStatus(j.message || "OK", true);
+      void load();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error", false);
     }
@@ -308,8 +335,10 @@ import Layout from "../../components/Layout.astro";
       const usable = items.filter((p) => p.slug && p.status !== "draft");
       const opts = usable
         .map((p) => {
-          const label = `${p.name || p.slug} (${p.slug})${p.status && p.status !== "published" ? ` · ${p.status}` : ""}`;
-          return `<option value="${String(p.slug).replace(/"/g, "")}">${label.replace(/</g, "")}</option>`;
+          const label = `${p.name || p.slug}${
+            p.status && p.status !== "published" ? ` · ${p.status}` : ""
+          }`;
+          return `<option value="${esc(String(p.slug))}">${esc(label)}</option>`;
         })
         .join("");
       sel.innerHTML = `<option value="">Producto…</option>${opts}`;
@@ -329,12 +358,13 @@ import Layout from "../../components/Layout.astro";
       setStatus("Email y producto obligatorios", false);
       return;
     }
-    if (!confirm(`¿Emitir Founder de ${productSlug} → ${email}?`)) return;
+
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = "Enviando…";
+      submitBtn.textContent = "…";
     }
-    setStatus("Emitiendo y enviando mail…", true);
+    setStatus("Enviando…", true);
+
     try {
       const r = await fetch("/admin/orders", {
         method: "POST",
@@ -350,18 +380,27 @@ import Layout from "../../components/Layout.astro";
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.message || j.error || "issue_failed");
-      const key = j.license?.key || j.order?.licenseKey || "";
+
+      // Feedback inmediato: listo para el siguiente email
+      if (emailInput) {
+        emailInput.value = "";
+        emailInput.focus();
+      }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Emitir Founder";
+      }
       setStatus(
         j.mailed
-          ? `OK · mail enviado a ${email}${key ? ` · ${key}` : ""}`
-          : j.message || `Key creada${key ? `: ${key}` : ""} (revisa mail)`,
-        Boolean(j.mailed || j.ok),
+          ? `✓ ENVIADO · ${email}`
+          : `✓ KEY OK · ${email} (mail falló — revisa)`,
+        true,
       );
-      if (emailInput) emailInput.value = "";
-      await load();
+
+      // Refresco de tabla en segundo plano (no bloquea el ritmo)
+      void load();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error", false);
-    } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = "Emitir Founder";
@@ -376,165 +415,274 @@ import Layout from "../../components/Layout.astro";
 
 <style>
   .admin {
-    padding-block: 2rem 4rem;
-    max-width: 72rem;
-  }
-  .card-tools {
-    margin: 1rem 0;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-  }
-  .inline-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .tool-hint {
-    margin: 0 0 0.65rem;
-    font-size: 0.82rem;
-    opacity: 0.85;
-    max-width: 42rem;
-    line-height: 1.45;
-  }
-  .tool-hint a {
-    color: var(--color-gold, #c9a227);
-  }
-  .inline-form input,
-  .inline-form select {
-    font: inherit;
-    background: var(--color-bg-elevated, #121218);
-    color: var(--color-fg);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 0.4rem 0.55rem;
-    min-width: 12rem;
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+    padding-block: 2.25rem 5rem;
+    max-width: 90rem;
   }
   .head {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 1.25rem;
+    margin-bottom: 0.5rem;
   }
   .head__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.55rem;
+    align-items: center;
   }
   .eyebrow {
     margin: 0;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--color-accent-dim);
+    color: var(--color-accent-dim, #9a8b5c);
   }
   h1 {
-    margin: 0.25rem 0 0;
+    margin: 0.35rem 0 0;
     font-family: var(--font-display);
-    font-size: 1.85rem;
+    font-size: 2rem;
     font-weight: 500;
+    letter-spacing: -0.02em;
   }
   .lead {
-    color: var(--color-muted);
-    font-size: 0.9rem;
+    color: var(--color-muted, #9a9aa6);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0.75rem 0 1.5rem;
+    max-width: 48rem;
+  }
+  .card {
+    margin: 0 0 1.5rem;
+    padding: 1.25rem 1.4rem 1.4rem;
+    border: 1px solid var(--color-border, #2a2a32);
+    border-radius: 14px;
+    background: var(--color-surface, #121218);
+  }
+  .issue-card {
+    border-color: rgb(201 169 98 / 0.35);
+    background: linear-gradient(165deg, rgb(201 169 98 / 0.07), transparent 55%),
+      var(--color-surface, #121218);
+  }
+  .issue-card__top {
+    margin-bottom: 1rem;
   }
   .subhead {
     font-family: var(--font-display);
-    font-size: 1.2rem;
-    margin: 1.5rem 0 0.75rem;
+    font-size: 1.25rem;
+    margin: 0 0 0.35rem;
+    font-weight: 500;
   }
-  .toolbar {
-    margin: 0.75rem 0;
+  .subhead--tight {
+    margin-bottom: 0.25rem;
   }
-  .status {
-    color: var(--color-accent);
-  }
-  .status--inline {
-    margin: 0.75rem 0 0;
-    padding: 0.55rem 0.75rem;
-    border-radius: 8px;
+  .tool-hint {
+    margin: 0;
     font-size: 0.88rem;
+    color: var(--color-muted, #9a9aa6);
+    line-height: 1.5;
+    max-width: 40rem;
+  }
+  .issue-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1rem;
+    align-items: flex-end;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 14rem;
+  }
+  .field--grow {
+    flex: 1 1 16rem;
+  }
+  .field span {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted, #9a9aa6);
+  }
+  .field input,
+  .field select {
+    font: inherit;
+    font-size: 0.95rem;
+    background: var(--color-bg-elevated, #0c0c10);
+    color: var(--color-fg, #e8e8ec);
+    border: 1px solid var(--color-border, #2a2a32);
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    min-height: 2.75rem;
+  }
+  .btn--issue {
+    min-height: 2.75rem;
+    padding: 0.65rem 1.25rem;
     font-weight: 600;
+  }
+  .flash {
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     line-height: 1.35;
   }
-  .status--inline.is-ok {
-    color: #b8e0b8;
-    background: rgb(40 120 60 / 0.18);
-    border: 1px solid rgb(80 160 90 / 0.35);
+  .flash.is-ok {
+    color: #d4f5d4;
+    background: rgb(40 130 60 / 0.28);
+    border: 1px solid rgb(100 190 110 / 0.45);
   }
-  .status.is-err {
-    color: #f0a0a0;
+  .flash.is-err {
+    color: #f5c4c4;
+    background: rgb(130 40 40 / 0.28);
+    border: 1px solid rgb(210 90 90 / 0.45);
   }
-  .status--inline.is-err {
-    background: rgb(120 40 40 / 0.2);
-    border: 1px solid rgb(200 80 80 / 0.35);
+  .flash.is-pulse {
+    animation: flash-in 0.45s ease;
   }
-  .empty {
-    color: var(--color-muted);
-    font-size: 0.88rem;
+  @keyframes flash-in {
+    from {
+      transform: scale(0.98);
+      opacity: 0.5;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
-  .empty.is-err {
-    color: #f0a0a0;
+  .registry-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
   }
   .table-wrap {
     overflow-x: auto;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    background: var(--color-surface);
+    border: 1px solid var(--color-border, #2a2a32);
+    border-radius: 12px;
+    background: rgb(0 0 0 / 0.2);
   }
   .tbl {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
   }
   .tbl th,
   .tbl td {
-    padding: 0.55rem 0.65rem;
-    border-bottom: 1px solid var(--color-border);
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--color-border, #2a2a32);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
   }
   .tbl th {
-    color: var(--color-muted);
+    color: var(--color-muted, #9a9aa6);
     font-weight: 600;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+    background: rgb(0 0 0 / 0.15);
+  }
+  .tbl tbody tr:hover {
+    background: rgb(201 169 98 / 0.05);
   }
   .tbl tr.is-revoked {
-    opacity: 0.55;
+    opacity: 0.5;
   }
-  code {
-    font-size: 0.75rem;
+  .td-date {
+    white-space: nowrap;
+    color: var(--color-muted, #9a9aa6);
+    font-size: 0.85rem;
+  }
+  .td-email {
+    font-weight: 500;
+    word-break: break-all;
+  }
+  .td-strong {
+    display: block;
+    font-weight: 600;
+  }
+  .td-muted {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    color: var(--color-muted, #9a9aa6);
+    font-family: ui-monospace, monospace;
+  }
+  .key-code {
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    word-break: break-all;
   }
   .pill {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    color: var(--color-accent);
+    display: inline-block;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    color: var(--color-accent, #c9a962);
+    max-width: 11rem;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .empty {
+    color: var(--color-muted, #9a9aa6);
+    font-size: 0.92rem;
+    padding: 1.25rem 1rem;
+    margin: 0;
+  }
+  .empty.is-err {
+    color: #f0a0a0;
+  }
+  .tools-extra {
+    margin-top: 0.5rem;
+  }
+  .tools-extra summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-muted, #9a9aa6);
+    padding: 0.25rem 0;
+  }
+  .tools-extra[open] summary {
+    margin-bottom: 1rem;
+    color: inherit;
   }
   .btn {
     display: inline-flex;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border, #2a2a32);
+    background: var(--color-surface, #121218);
     color: inherit;
-    border-radius: 8px;
-    padding: 0.45rem 0.75rem;
+    border-radius: 10px;
+    padding: 0.5rem 0.85rem;
     font: inherit;
     cursor: pointer;
     text-decoration: none;
   }
   .btn--sm {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.55rem;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.65rem;
   }
   .btn--ghost {
     background: transparent;
+  }
+  .btn--gold {
+    background: #c9a962;
+    color: #0a0a0c;
+    border-color: transparent;
+  }
+  .btn--gold:disabled {
+    opacity: 0.55;
+    cursor: wait;
   }
   .btn--danger {
     color: #f0a0a0;

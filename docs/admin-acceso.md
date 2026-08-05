@@ -19,16 +19,15 @@ URLs (no están en el menú público):
 
 Cualquier **producto software** no draft:
 
-1. Email del cliente + producto en el select → **Emitir Founder**.
-2. Feedback UI: «Enviando…» → banner **OK · mail enviado · key…** y se limpia el email del form.
-3. Crea order `paid` 0 € + license key (`planId: founder`) + filas en las tres tablas.
-4. **Mails:**
-   - **Cliente:** «Licencia Founder…» (key + cuenta + activar). Es el único que debe usar el usuario.
-   - **Estudio:** `[Founder · interno]` a `QUOTE_TO_EMAIL` (resumen ops). **No** se envía si es el mismo email que el cliente (evita duplicado en pruebas).
-5. Cliente: app → key → Activar (`POST https://nimpo3dstudio.com/api/license/activate`, **sin www**); web → Mi cuenta → magic link.
+1. Email + producto → **Emitir Founder** (sin confirmación extra: ritmo bulk).
+2. Banner grande **✓ ENVIADO · email** + limpia el email y focus para el siguiente. La tabla se refresca en segundo plano.
+3. Crea order `paid` 0 € + key (`planId: founder`) → fila en el **Registro** unificado (cliente · pedido · key · seats · estado · acciones).
+4. **Mails:** cliente = key/activar; estudio = `[Founder · interno]` solo si el buzón es distinto.
+5. App: `POST https://nimpo3dstudio.com/api/license/activate` (**sin www**).
 
-No usa Stripe. El botón **Comprar** público sigue cobrando el Price normal.  
-Founder y pago: **misma** comprobación de licencia en la app.
+El registro es **historial permanente** (Stripe + Founder). No es un flash del “último”; no se borra solo.
+
+No usa Stripe. **Comprar** público sigue a precio normal. Founder = misma activate que un pago.
 
 ## Admin productos (`/admin/productos/`)
 

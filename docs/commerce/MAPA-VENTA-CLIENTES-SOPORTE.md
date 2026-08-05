@@ -37,12 +37,18 @@ Admin: `/admin/productos/` — ver también `docs/admin-acceso.md`.
 **Identidad:** el **email de compra**. Sin password. Web = **magic link** → cookie 30 d. La **license key** es del binario (activate + seats), no del login web.
 
 ```
-COMPRA
+COMPRA (pago)
   Producto → Checkout Stripe → webhook
     → order paid + license key + customer (R2)
     → mail user (key, descarga, /cuenta/) + mail tú [Venta]
 
-CUENTA  /es/cuenta/
+FOUNDER (regalo, cualquier producto software)
+  /admin/pedidos/ → Emitir Founder (email + productSlug)
+    → order paid 0 € + key plan founder + customer
+    → mail user + mail tú [Founder]
+  Sin Stripe / sin botón Comprar a 0 €
+
+CUENTA  nav «Mi cuenta» → /es/cuenta/
   email → magic link → ver pedidos, key, re-descarga, nick
   recovery (email perdido) → ticket para ti (sin decir si el mail existe)
 
@@ -55,7 +61,7 @@ BINARIO
   activate(key, machineId) → seats; devuelve nick si lo tiene
 
 TÚ
-  /admin/pedidos/  → clientes, reenviar, revocar, transfer email, rotate key, reset seats
+  /admin/pedidos/  → emitir Founder, reenviar, revocar, transfer, rotate, reset seats
   /admin/abonados/ → abonados newsletter (lista/export/baja) + clientes compra (lista/export)
   /admin/tickets/  → bandeja filtrable, estados
 ```

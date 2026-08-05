@@ -31,7 +31,7 @@ API + middleware desplegados con el sitio en el proyecto Pages `nimpo-studio`.
 | `GET/DELETE /api/account/session` | `api/account/session.ts` | Sesión cuenta + orders |
 | `POST /api/account/profile` | `api/account/profile.ts` | Nick cliente |
 | `POST /api/account/recovery` | `api/account/recovery.ts` | Recuperación (genérico) |
-| `GET/POST /admin/orders` | `admin/orders.ts` | Pedidos, transfer, rotate, revoke |
+| `GET/POST /admin/orders` | `admin/orders.ts` | Pedidos, **issue Founder**, transfer, rotate, revoke |
 | `GET/POST /admin/tickets` | `admin/tickets.ts` | Bandeja tickets |
 
 ## Secrets / vars (Pages)

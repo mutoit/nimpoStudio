@@ -1,23 +1,34 @@
 /**
  * Admin commerce:
  * GET  /admin/orders → orders + licenses + customers
- * POST /admin/orders { action: "revoke" | "fulfill" | "transfer_email" | "rotate_key" | "reset_activations", ... }
+ * POST /admin/orders {
+ *   action: "issue" | "revoke" | "fulfill" | "transfer_email" | "rotate_key" | "reset_activations",
+ *   ...
+ * }
+ * issue = licencia manual (Founder u otro plan) sin Stripe, cualquier productSlug software.
  */
 
 import {
   commerceSecret,
   findOrderById,
+  generateLicenseKey,
   listCustomers,
   listLicenses,
   listOrders,
+  newId,
+  productFullKey,
+  recordCustomerPurchase,
   resetLicenseActivations,
   revokeLicense,
   rotateLicenseKey,
   signDownloadToken,
   siteBase,
   transferCustomerEmail,
+  upsertLicense,
   upsertOrder,
   type CommerceEnv,
+  type CommerceLicense,
+  type CommerceOrder,
 } from "../lib/commerce";
 import { findProduct } from "../lib/products-catalog";
 import { adminJson as json, requireAdmin } from "../lib/require-admin";
@@ -74,6 +85,11 @@ export async function onRequest(context: { request: Request; env: Env }) {
     orderId?: string;
     fromEmail?: string;
     toEmail?: string;
+    email?: string;
+    productSlug?: string;
+    planId?: string;
+    planName?: string;
+    seats?: number;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -82,6 +98,155 @@ export async function onRequest(context: { request: Request; env: Env }) {
   }
 
   const action = String(body.action || "");
+
+  if (action === "issue") {
+    const email = String(body.email || "")
+      .toLowerCase()
+      .trim();
+    const productSlug = String(body.productSlug || "")
+      .trim()
+      .toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ ok: false, error: "invalid_email" }, 400);
+    }
+    if (!productSlug) {
+      return json({ ok: false, error: "missing_product" }, 400);
+    }
+
+    const product = await findProduct(bucket, productSlug);
+    if (!product) {
+      return json({ ok: false, error: "product_not_found" }, 404);
+    }
+    if (String(product.status || "") === "draft") {
+      return json({ ok: false, error: "product_draft" }, 400);
+    }
+
+    const planId = String(body.planId || "founder")
+      .trim()
+      .slice(0, 64) || "founder";
+    const planName =
+      String(body.planName || (planId === "founder" ? "Founder" : planId))
+        .trim()
+        .slice(0, 120) || "Founder";
+    const seatsRaw = Number(body.seats);
+    const seats =
+      Number.isFinite(seatsRaw) && seatsRaw >= 1 && seatsRaw <= 10
+        ? Math.floor(seatsRaw)
+        : 1;
+
+    const fullKey =
+      productFullKey(
+        { slug: product.slug, fullKey: product.fullKey },
+        product.fullKey,
+      ) || null;
+
+    const licenseKey = generateLicenseKey();
+    const orderId = newId("ord");
+    const now = new Date().toISOString();
+
+    const order: CommerceOrder = {
+      id: orderId,
+      email,
+      productSlug: product.slug,
+      productName: product.name || product.slug,
+      planId,
+      planName,
+      amountEur: 0,
+      currency: "eur",
+      status: "paid",
+      licenseKey,
+      fullKey,
+      createdAt: now,
+      paidAt: now,
+      kind: "software",
+    };
+
+    const license: CommerceLicense = {
+      key: licenseKey,
+      orderId,
+      productSlug: product.slug,
+      email,
+      planId,
+      seats,
+      activations: [],
+      revoked: false,
+      createdAt: now,
+    };
+
+    await upsertOrder(bucket, order);
+    await upsertLicense(bucket, license);
+    await recordCustomerPurchase(bucket, email, product.slug, now);
+
+    const secret = commerceSecret(env);
+    const base = siteBase(env, request);
+    let downloadUrl = "";
+    if (secret && fullKey) {
+      try {
+        const token = await signDownloadToken(secret, {
+          slug: product.slug,
+          key: licenseKey,
+          fileKey: fullKey,
+          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 72,
+        });
+        downloadUrl = `${base}/api/download?token=${encodeURIComponent(token)}`;
+      } catch (e) {
+        console.warn("[admin-orders issue] sign download fail", e);
+      }
+    }
+
+    const accountUrl = `${base}/es/cuenta/`;
+    const mail = await sendStudioMail(env, {
+      to: [email],
+      subject: `Licencia Founder ${order.productName} — ${licenseKey}`,
+      text: [
+        `Licencia Founder — Nimpo 3D Studio`,
+        "",
+        `Producto: ${order.productName}`,
+        `Plan: ${planName}`,
+        `Importe: 0 EUR (regalo / founder)`,
+        "",
+        `Tu licencia: ${licenseKey}`,
+        "",
+        downloadUrl
+          ? `Descarga (72 h, o re-descarga desde tu cuenta):\n${downloadUrl}`
+          : "La descarga estará disponible en tu cuenta cuando el estudio suba el build full.",
+        "",
+        `Cuenta (sin contraseña): ${accountUrl}`,
+        "Introduce este email; te enviamos un enlace mágico para ver pedidos, la key y re-descargar.",
+        "",
+        "En la app: pega la licencia → Activar.",
+        "",
+        "— Nimpo 3D Studio",
+        "contacto@nimpo3dstudio.com",
+      ].join("\n"),
+    });
+
+    await sendStudioMail(env, {
+      to: [String(env.QUOTE_TO_EMAIL || "contacto@nimpo3dstudio.com").trim()],
+      subject: `[Founder] ${order.productName} — ${email}`,
+      text: [
+        `Pedido ${orderId}`,
+        `Kind: software (admin issue)`,
+        `Email: ${email}`,
+        `Producto: ${order.productName} (${product.slug})`,
+        `Plan: ${planName} (${planId})`,
+        `Key: ${licenseKey}`,
+        `Full: ${fullKey || "—"}`,
+        `Mail cliente: ${mail.ok ? "ok" : mail.error}`,
+      ].join("\n"),
+    });
+
+    return json({
+      ok: true,
+      order,
+      license,
+      mailed: mail.ok,
+      downloadUrl: downloadUrl || null,
+      message: mail.ok
+        ? `Founder emitida: ${licenseKey} → ${email}`
+        : `Key creada ${licenseKey}; mail falló: ${mail.error || "unknown"}`,
+    });
+  }
 
   if (action === "revoke") {
     const key = String(body.key || "").trim();

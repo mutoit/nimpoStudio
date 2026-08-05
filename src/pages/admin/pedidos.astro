@@ -21,13 +21,27 @@ import Layout from "../../components/Layout.astro";
       </div>
     </header>
     <p class="lead">
-      Stripe webhook → pedido paid + key + customer. Reenvía, revoca, transfer email, rotate key.
-      <span data-stripe-flag></span>
+      Stripe → pedido paid + key. También <strong>Emitir Founder</strong> (0 €, cualquier producto software) sin Checkout.
+      Reenvía, revoca, transfer, rotate. <span data-stripe-flag></span>
     </p>
     <p class="status" data-status hidden></p>
     <div class="toolbar">
       <button type="button" class="btn btn--sm" data-refresh>↻ Actualizar</button>
     </div>
+    <section class="card-tools">
+      <h2 class="subhead">Emitir Founder</h2>
+      <p class="tool-hint">
+        Crea order paid 0 € + license key + mail. El cliente activa en la app y ve key/descarga en
+        <a href="/es/cuenta/">/es/cuenta/</a> (magic link, sin password).
+      </p>
+      <form class="inline-form" data-issue-form>
+        <input type="email" name="email" placeholder="cliente@…" required data-issue-email autocomplete="email" />
+        <select name="productSlug" required data-issue-product>
+          <option value="">Producto…</option>
+        </select>
+        <button type="submit" class="btn btn--sm btn--gold">Emitir Founder</button>
+      </form>
+    </section>
     <section class="card-tools">
       <h2 class="subhead">Transfer email</h2>
       <form class="inline-form" data-transfer-form>
@@ -273,7 +287,68 @@ import Layout from "../../components/Layout.astro";
     }
   });
 
+  const fillProducts = async () => {
+    const sel = document.querySelector("[data-issue-product]") as HTMLSelectElement | null;
+    if (!sel) return;
+    try {
+      const res = await fetch("/admin/products", { credentials: "same-origin" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || res.status);
+      const items = (Array.isArray(data.items) ? data.items : []) as {
+        slug?: string;
+        name?: string;
+        status?: string;
+      }[];
+      const usable = items.filter((p) => p.slug && p.status !== "draft");
+      const opts = usable
+        .map((p) => {
+          const label = `${p.name || p.slug} (${p.slug})${p.status && p.status !== "published" ? ` · ${p.status}` : ""}`;
+          return `<option value="${String(p.slug).replace(/"/g, "")}">${label.replace(/</g, "")}</option>`;
+        })
+        .join("");
+      sel.innerHTML = `<option value="">Producto…</option>${opts}`;
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "No se cargaron productos", false);
+    }
+  };
+
+  document.querySelector("[data-issue-form]")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = String(
+      (document.querySelector("[data-issue-email]") as HTMLInputElement | null)?.value || "",
+    ).trim();
+    const productSlug = String(
+      (document.querySelector("[data-issue-product]") as HTMLSelectElement | null)?.value || "",
+    ).trim();
+    if (!email || !productSlug) {
+      setStatus("Email y producto obligatorios", false);
+      return;
+    }
+    if (!confirm(`¿Emitir Founder de ${productSlug} → ${email}?`)) return;
+    try {
+      const r = await fetch("/admin/orders", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "issue",
+          email,
+          productSlug,
+          planId: "founder",
+          planName: "Founder",
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.message || j.error || "issue_failed");
+      setStatus(j.message || "Founder emitida");
+      await load();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Error", false);
+    }
+  });
+
   document.querySelector("[data-refresh]")?.addEventListener("click", () => void load());
+  void fillProducts();
   void load();
 </script>
 
@@ -294,7 +369,18 @@ import Layout from "../../components/Layout.astro";
     gap: 0.5rem;
     align-items: center;
   }
-  .inline-form input {
+  .tool-hint {
+    margin: 0 0 0.65rem;
+    font-size: 0.82rem;
+    opacity: 0.85;
+    max-width: 42rem;
+    line-height: 1.45;
+  }
+  .tool-hint a {
+    color: var(--color-gold, #c9a227);
+  }
+  .inline-form input,
+  .inline-form select {
     font: inherit;
     background: var(--color-bg-elevated, #121218);
     color: var(--color-fg);

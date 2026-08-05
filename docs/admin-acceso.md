@@ -4,9 +4,25 @@ URLs (no están en el menú público):
 
 - https://www.nimpo3dstudio.com/admin/biblioteca/ — biblioteca / música
 - https://www.nimpo3dstudio.com/admin/productos/ — productos software
-- https://www.nimpo3dstudio.com/admin/pedidos/ — pedidos, clientes, transfer, keys
+- https://www.nimpo3dstudio.com/admin/pedidos/ — pedidos, clientes, **Emitir Founder**, transfer, keys
 - https://www.nimpo3dstudio.com/admin/abonados/ — abonados newsletter + clientes compra (lista/export)
 - https://www.nimpo3dstudio.com/admin/tickets/ — feedback / support / recovery
+
+## Cuenta cliente (público)
+
+- Nav: **Mi cuenta** → `/es/cuenta/` (también en/fr).
+- Sin password: email de compra/regalo → magic link → pedidos, **key** y **re-descarga**.
+- Tras Stripe o tras **Emitir Founder** en admin es el mismo panel.
+
+## Emitir Founder (`/admin/pedidos/`)
+
+Cualquier **producto software** no draft:
+
+1. Email del cliente + producto en el select → **Emitir Founder**.
+2. Crea order `paid` 0 € + license key (`planId: founder`) + mail (key, descarga si hay full, link cuenta).
+3. Cliente: app → pegar key → Activar; web → Mi cuenta → magic link.
+
+No usa Stripe. El botón **Comprar** público sigue cobrando el Price normal.
 
 ## Admin productos (`/admin/productos/`)
 

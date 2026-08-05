@@ -106,11 +106,12 @@ import Layout from "../../components/Layout.astro";
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
 
+  /* SVG con stroke/fill fijos (no currentColor) — se ven siempre */
   const ICO = {
-    resend: `<svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 20.85 12.7a.9.9 0 0 0 0-1.4L3.4 3.4a.75.75 0 0 0-1.1.9l2.6 6.45H14a1 1 0 1 1 0 2H4.9L2.3 19.7a.75.75 0 0 0 1.1.9z"/></svg>`,
-    rotate: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.5 4.5 19 7l-2.5 2.5V8h-3.1a5 5 0 0 0-4.7 3.3l-1.1-.6A6.5 6.5 0 0 1 13.4 6.5H16.5V4.5zm-9 15L5 17l2.5-2.5V16h3.1a5 5 0 0 0 4.7-3.3l1.1.6A6.5 6.5 0 0 1 10.6 17.5H7.5v2zM7.8 9.2 5.2 7.8l2.2-4.1 2.6 1.4-1.1 2A6.5 6.5 0 0 1 18 12h-1.5a5 5 0 0 0-8.7-2.8z"/></svg>`,
-    seat: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 3a3 3 0 0 0-3 3v7H3v2h2v5h2v-5h8v5h2v-5h2v-2h-2V6a3 3 0 0 0-3-3H8zm0 2h6a1 1 0 0 1 1 1v7H7V6a1 1 0 0 1 1-1z"/></svg>`,
-    x: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></svg>`,
+    resend: `<svg class="ico" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6" stroke="#4ade80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    rotate: `<svg class="ico" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round"/><path d="M17 3v5h-5M7 21v-5h5" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    seat: `<svg class="ico" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 10V6a3 3 0 0 1 6 0v4M5 14h12v2H5v-2zm1 2v4m10-4v4M4 14V11h14v3" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    x: `<svg class="ico" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="#f87171" stroke-width="2.5" stroke-linecap="round"/></svg>`,
   };
 
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
@@ -163,7 +164,18 @@ import Layout from "../../components/Layout.astro";
         return tb - ta;
       });
 
-      regEl.innerHTML = `<table class="tbl">
+      regEl.innerHTML = `<table class="tbl tbl--registry">
+        <colgroup>
+          <col class="col-date" />
+          <col class="col-client" />
+          <col class="col-product" />
+          <col class="col-plan" />
+          <col class="col-eur" />
+          <col class="col-key" />
+          <col class="col-seats" />
+          <col class="col-state" />
+          <col class="col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th>Fecha</th>
@@ -174,7 +186,7 @@ import Layout from "../../components/Layout.astro";
             <th>Key</th>
             <th>Seats</th>
             <th>Estado</th>
-            <th class="th-actions"></th>
+            <th class="th-actions">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -203,26 +215,26 @@ import Layout from "../../components/Layout.astro";
             const oid = esc(o.id);
             const actions = hasKey
               ? `<div class="icon-actions">
-                  <button type="button" class="ibtn ibtn--green" data-act="fulfill" data-order-id="${oid}" title="Reenviar mail" aria-label="Reenviar mail">${ICO.resend}</button>
+                  <button type="button" class="ibtn" data-act="fulfill" data-order-id="${oid}" title="Reenviar mail" aria-label="Reenviar mail">${ICO.resend}</button>
                   ${
                     revoked
                       ? ""
-                      : `<button type="button" class="ibtn ibtn--green" data-act="reset_activations" data-order-id="${oid}" title="Reset seats" aria-label="Reset seats">${ICO.seat}</button>
-                         <button type="button" class="ibtn ibtn--green" data-act="rotate_key" data-order-id="${oid}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
+                      : `<button type="button" class="ibtn" data-act="reset_activations" data-order-id="${oid}" title="Reset seats" aria-label="Reset seats">${ICO.seat}</button>
+                         <button type="button" class="ibtn" data-act="rotate_key" data-order-id="${oid}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
                          <button type="button" class="ibtn ibtn--red" data-act="revoke" data-order-id="${oid}" title="Revocar" aria-label="Revocar">${ICO.x}</button>`
                   }
                 </div>`
-              : "—";
+              : `<span class="muted-dash">—</span>`;
 
             return `<tr class="${revoked ? "is-revoked" : ""}">
               <td class="td-date">${esc(d)}</td>
               <td class="td-email">${esc(o.emailMasked || "—")}</td>
               <td class="td-product">${esc(productLabel)}</td>
-              <td>${esc(planLabel)}</td>
-              <td>${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
-              <td><span class="key-mask" title="Solo en servidor · reenvía el mail">${hasKey ? "••••-••••-••••" : "—"}</span></td>
-              <td>${esc(seats)}</td>
-              <td><span class="pill">${esc(statusBits)}</span></td>
+              <td class="td-plan">${esc(planLabel)}</td>
+              <td class="td-eur">${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
+              <td class="td-key"><span class="key-mask" title="Solo en servidor">${hasKey ? "••••••••" : "—"}</span></td>
+              <td class="td-seats">${esc(seats)}</td>
+              <td class="td-state"><span class="pill">${esc(statusBits)}</span></td>
               <td class="td-actions">${actions}</td>
             </tr>`;
           })
@@ -396,7 +408,7 @@ import Layout from "../../components/Layout.astro";
 <style>
   .admin {
     padding-block: 2.25rem 5rem;
-    max-width: 90rem;
+    max-width: min(96rem, 100%);
   }
   .head {
     display: flex;
@@ -546,14 +558,26 @@ import Layout from "../../components/Layout.astro";
     border-radius: 12px;
     background: rgb(0 0 0 / 0.2);
   }
-  .tbl {
+  .tbl--registry {
     width: 100%;
-    border-collapse: collapse;
+    min-width: 58rem;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.9rem;
+    table-layout: fixed;
   }
+  .col-date { width: 6.5rem; }
+  .col-client { width: 16%; }
+  .col-product { width: 16%; }
+  .col-plan { width: 7rem; }
+  .col-eur { width: 3.5rem; }
+  .col-key { width: 5.5rem; }
+  .col-seats { width: 4rem; }
+  .col-state { width: 11rem; }
+  .col-actions { width: 9.5rem; }
   .tbl th,
   .tbl td {
-    padding: 0.9rem 1rem;
+    padding: 0.85rem 0.9rem;
     border-bottom: 1px solid var(--color-border, #2a2a32);
     text-align: left;
     vertical-align: middle;
@@ -561,14 +585,14 @@ import Layout from "../../components/Layout.astro";
   .tbl th {
     color: var(--color-muted, #9a9aa6);
     font-weight: 600;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     white-space: nowrap;
-    background: rgb(0 0 0 / 0.15);
+    background: rgb(12 12 16 / 0.95);
   }
-  .tbl tbody tr:hover {
-    background: rgb(201 169 98 / 0.05);
+  .tbl tbody tr:hover td {
+    background: rgb(201 169 98 / 0.04);
   }
   .tbl tr.is-revoked {
     opacity: 0.5;
@@ -576,79 +600,98 @@ import Layout from "../../components/Layout.astro";
   .td-date {
     white-space: nowrap;
     color: var(--color-muted, #9a9aa6);
-    font-size: 0.85rem;
+    font-size: 0.84rem;
   }
-  .td-email {
+  .td-email,
+  .td-product {
     font-weight: 500;
-    word-break: break-word;
-    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .td-product {
     font-weight: 600;
-    max-width: 14rem;
+  }
+  .td-plan,
+  .td-eur,
+  .td-seats {
+    white-space: nowrap;
+    font-size: 0.88rem;
   }
   .key-mask {
     font-family: ui-monospace, monospace;
-    font-size: 0.8rem;
-    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
     color: var(--color-muted, #9a9aa6);
     user-select: none;
   }
   .pill {
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     line-height: 1.35;
-    text-transform: none;
-    letter-spacing: 0.02em;
     color: var(--color-accent, #c9a962);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Columna de acciones: fija a la DERECHA, no pegada al texto */
+  .th-actions,
+  .td-actions {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    text-align: right;
+    width: 9.5rem;
+    min-width: 9.5rem;
+    padding-left: 1rem !important;
+    padding-right: 0.75rem !important;
+    background: #0e0e14;
+    box-shadow: -10px 0 14px rgb(0 0 0 / 0.35);
+    white-space: nowrap;
   }
   .th-actions {
-    width: 1%;
+    z-index: 3;
+    background: #101018;
   }
-  .td-actions {
-    width: 1%;
-    white-space: nowrap;
-    padding-right: 0.65rem !important;
+  .tbl tbody tr:hover .td-actions {
+    background: #14141c;
   }
   .icon-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: flex-end;
+    gap: 0.4rem;
   }
   .ibtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.85rem;
-    height: 1.85rem;
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
     padding: 0;
     border-radius: 8px;
-    border: 1px solid var(--color-border, #2a2a32);
-    background: rgb(0 0 0 / 0.25);
+    border: 1px solid #3a3a44;
+    background: #1a1a22;
     cursor: pointer;
-    color: #4ade80;
-    transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+    flex-shrink: 0;
   }
   .ibtn:hover {
-    background: rgb(74 222 128 / 0.12);
-    border-color: rgb(74 222 128 / 0.35);
-    transform: translateY(-1px);
-  }
-  .ibtn--red {
-    color: #f87171;
+    background: rgb(74 222 128 / 0.14);
+    border-color: rgb(74 222 128 / 0.45);
   }
   .ibtn--red:hover {
-    background: rgb(248 113 113 / 0.12);
-    border-color: rgb(248 113 113 / 0.4);
+    background: rgb(248 113 113 / 0.14);
+    border-color: rgb(248 113 113 / 0.45);
   }
   .ibtn .ico {
-    width: 0.95rem;
-    height: 0.95rem;
     display: block;
+    flex-shrink: 0;
+    pointer-events: none;
   }
-  .ibtn .ico--lg {
-    width: 1.1rem;
-    height: 1.1rem;
+  .muted-dash {
+    color: var(--color-muted, #9a9aa6);
   }
   .empty {
     color: var(--color-muted, #9a9aa6);

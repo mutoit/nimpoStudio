@@ -106,6 +106,26 @@ import Layout from "../../components/Layout.astro";
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
 
+  /** Keys en UI: nunca el valor completo (solo en memoria para acciones). */
+  const maskKey = (key: string) => {
+    const k = String(key || "").trim();
+    if (!k) return "—";
+    return "••••-••••-••••";
+  };
+
+  const ICO = {
+    /* flecha reenviar (verde en CSS) */
+    resend: `<svg class="ico ico--lg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 20.85 12.7a.9.9 0 0 0 0-1.4L3.4 3.4a.75.75 0 0 0-1.1.9l2.6 6.45H14a1 1 0 1 1 0 2H4.9L2.3 19.7a.75.75 0 0 0 1.1.9z"/></svg>`,
+    /* reciclaje = nueva key */
+    rotate: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.5 4.5 19 7l-2.5 2.5V8h-3.1a5 5 0 0 0-4.7 3.3l-1.1-.6A6.5 6.5 0 0 1 13.4 6.5H16.5V4.5zm-9 15L5 17l2.5-2.5V16h3.1a5 5 0 0 0 4.7-3.3l1.1.6A6.5 6.5 0 0 1 10.6 17.5H7.5v2zM7.8 9.2 5.2 7.8l2.2-4.1 2.6 1.4-1.1 2A6.5 6.5 0 0 1 18 12h-1.5a5 5 0 0 0-8.7-2.8z"/></svg>`,
+    /* silla = reset seats */
+    seat: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 3a3 3 0 0 0-3 3v7H3v2h2v5h2v-5h8v5h2v-5h2v-2h-2V6a3 3 0 0 0-3-3H8zm0 2h6a1 1 0 0 1 1 1v7H7V6a1 1 0 0 1 1-1z"/></svg>`,
+    x: `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></svg>`,
+  };
+
+  /** key completa solo en memoria; botones usan índice */
+  let keyVault: string[] = [];
+
   document.querySelector("[data-logout]")?.addEventListener("click", async () => {
     await fetch("/admin/session", { method: "DELETE", credentials: "same-origin" });
     location.href = "/admin/pedidos/";
@@ -165,6 +185,8 @@ import Layout from "../../components/Layout.astro";
         return tb - ta;
       });
 
+      keyVault = [];
+
       regEl.innerHTML = `<table class="tbl">
         <thead>
           <tr>
@@ -173,10 +195,10 @@ import Layout from "../../components/Layout.astro";
             <th>Producto</th>
             <th>Plan</th>
             <th>€</th>
-            <th>Licencia</th>
+            <th>Key</th>
             <th>Seats</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th class="th-actions"></th>
           </tr>
         </thead>
         <tbody>
@@ -190,41 +212,47 @@ import Layout from "../../components/Layout.astro";
               ? `${lic.activations?.length || 0}/${lic.seats || 1}`
               : "—";
             const planLabel = o.planName || o.planId || "—";
-            const isFounder = String(o.planId || "").toLowerCase() === "founder" ||
+            const productLabel = (o.productName || o.productSlug || "—").trim();
+            const isFounder =
+              String(o.planId || "").toLowerCase() === "founder" ||
               String(o.planName || "").toLowerCase() === "founder";
             const statusBits = [
               o.status,
-              revoked ? "revocada" : key ? "key activa" : "sin key",
+              revoked ? "revocada" : key ? "activa" : "sin key",
               isFounder ? "founder" : null,
             ]
               .filter(Boolean)
               .join(" · ");
+
+            let keyIdx = -1;
+            if (key) {
+              keyIdx = keyVault.length;
+              keyVault.push(key);
+            }
+
+            const actions = key
+              ? `<div class="icon-actions">
+                  <button type="button" class="ibtn ibtn--green" data-fulfill="${esc(o.id)}" title="Reenviar mail" aria-label="Reenviar mail">${ICO.resend}</button>
+                  ${
+                    revoked
+                      ? ""
+                      : `<button type="button" class="ibtn ibtn--green" data-act="reset_activations" data-ki="${keyIdx}" title="Reset seats (liberar PCs)" aria-label="Reset seats">${ICO.seat}</button>
+                         <button type="button" class="ibtn ibtn--green" data-act="rotate_key" data-ki="${keyIdx}" title="Nueva key (invalida la anterior)" aria-label="Rotar key">${ICO.rotate}</button>
+                         <button type="button" class="ibtn ibtn--red" data-act="revoke" data-ki="${keyIdx}" title="Revocar licencia" aria-label="Revocar">${ICO.x}</button>`
+                  }
+                </div>`
+              : "—";
+
             return `<tr class="${revoked ? "is-revoked" : ""}">
               <td class="td-date">${esc(d)}</td>
               <td class="td-email">${esc(o.email)}</td>
-              <td>
-                <span class="td-strong">${esc(o.productName)}</span>
-                <span class="td-muted">${esc(o.productSlug)}</span>
-              </td>
+              <td class="td-product">${esc(productLabel)}</td>
               <td>${esc(planLabel)}</td>
               <td>${o.amountEur != null ? esc(String(o.amountEur)) : "—"}</td>
-              <td><code class="key-code">${esc(key || "—")}</code></td>
+              <td><span class="key-mask" title="Oculta · reenvía el mail si hace falta">${maskKey(key)}</span></td>
               <td>${esc(seats)}</td>
               <td><span class="pill">${esc(statusBits)}</span></td>
-              <td class="actions">
-                ${
-                  key
-                    ? `<button type="button" class="btn btn--sm" data-fulfill="${esc(o.id)}">Reenviar</button>
-                       ${
-                         revoked
-                           ? ""
-                           : `<button type="button" class="btn btn--sm" data-reset="${esc(key)}">Reset seats</button>
-                              <button type="button" class="btn btn--sm" data-rotate="${esc(key)}">Rotate</button>
-                              <button type="button" class="btn btn--sm btn--danger" data-revoke="${esc(key)}">Revocar</button>`
-                       }`
-                    : "—"
-                }
-              </td>
+              <td class="td-actions">${actions}</td>
             </tr>`;
           })
           .join("")}
@@ -268,22 +296,22 @@ import Layout from "../../components/Layout.astro";
         }
       };
 
-      regEl.querySelectorAll("[data-revoke]").forEach((btn) => {
+      regEl.querySelectorAll("[data-act]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const key = (btn as HTMLElement).dataset.revoke || "";
-          void postAction("revoke", key, `¿Revocar ${key}?`);
-        });
-      });
-      regEl.querySelectorAll("[data-reset]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const key = (btn as HTMLElement).dataset.reset || "";
-          void postAction("reset_activations", key, `¿Reset activaciones ${key}?`);
-        });
-      });
-      regEl.querySelectorAll("[data-rotate]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const key = (btn as HTMLElement).dataset.rotate || "";
-          void postAction("rotate_key", key, `¿Rotar key ${key}? La antigua deja de valer.`);
+          const el = btn as HTMLElement;
+          const action = el.dataset.act || "";
+          const ki = Number(el.dataset.ki);
+          const key = Number.isFinite(ki) ? keyVault[ki] || "" : "";
+          if (!key || !action) return;
+          if (action === "revoke") void postAction("revoke", key, "¿Revocar esta licencia?");
+          else if (action === "reset_activations")
+            void postAction("reset_activations", key, "¿Reset seats? El cliente podrá activar de nuevo.");
+          else if (action === "rotate_key")
+            void postAction(
+              "rotate_key",
+              key,
+              "¿Nueva key? La actual dejará de valer. Luego usa Reenviar para mandar la nueva.",
+            );
         });
       });
     } catch (e) {
@@ -600,37 +628,75 @@ import Layout from "../../components/Layout.astro";
   }
   .td-email {
     font-weight: 500;
-    word-break: break-all;
+    word-break: break-word;
+    max-width: 16rem;
   }
-  .td-strong {
-    display: block;
+  .td-product {
     font-weight: 600;
+    max-width: 14rem;
   }
-  .td-muted {
-    display: block;
-    margin-top: 0.2rem;
-    font-size: 0.78rem;
-    color: var(--color-muted, #9a9aa6);
+  .key-mask {
     font-family: ui-monospace, monospace;
-  }
-  .key-code {
     font-size: 0.8rem;
-    letter-spacing: 0.04em;
-    word-break: break-all;
+    letter-spacing: 0.08em;
+    color: var(--color-muted, #9a9aa6);
+    user-select: none;
   }
   .pill {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     line-height: 1.35;
     text-transform: none;
     letter-spacing: 0.02em;
     color: var(--color-accent, #c9a962);
-    max-width: 11rem;
   }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
+  .th-actions {
+    width: 1%;
+  }
+  .td-actions {
+    width: 1%;
+    white-space: nowrap;
+    padding-right: 0.65rem !important;
+  }
+  .icon-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .ibtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, #2a2a32);
+    background: rgb(0 0 0 / 0.25);
+    cursor: pointer;
+    color: #4ade80;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
+  }
+  .ibtn:hover {
+    background: rgb(74 222 128 / 0.12);
+    border-color: rgb(74 222 128 / 0.35);
+    transform: translateY(-1px);
+  }
+  .ibtn--red {
+    color: #f87171;
+  }
+  .ibtn--red:hover {
+    background: rgb(248 113 113 / 0.12);
+    border-color: rgb(248 113 113 / 0.4);
+  }
+  .ibtn .ico {
+    width: 0.95rem;
+    height: 0.95rem;
+    display: block;
+  }
+  .ibtn .ico--lg {
+    width: 1.1rem;
+    height: 1.1rem;
   }
   .empty {
     color: var(--color-muted, #9a9aa6);

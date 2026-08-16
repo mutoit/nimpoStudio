@@ -375,7 +375,14 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
     if (msg === "file_too_large" || msg === "total_too_large") {
-      return json({ ok: false, error: msg, message: "Archivo o total demasiado grande" }, 400);
+      return json(
+        {
+          ok: false,
+          error: msg,
+          message: "Archivo o total demasiado grande (máx 90 MB por petición). Comprime el vídeo (H.264) a menos de 90 MB.",
+        },
+        400,
+      );
     }
     return json({ ok: false, error: "upload_failed", message: msg }, 500);
   }

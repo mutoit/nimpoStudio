@@ -2,8 +2,10 @@
  * Validación de subidas admin → R2 (allowlist ext/MIME, cuotas, names seguros).
  */
 
-export const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB / archivo
-export const MAX_TOTAL_BYTES = 250 * 1024 * 1024; // 250 MB / publish
+// Límite real: Cloudflare Workers/Pages rechaza bodies > ~100 MB (413 HTML).
+// 90 MB deja margen para el overhead multipart y evita 413 silenciosos.
+export const MAX_FILE_BYTES = 90 * 1024 * 1024; // 90 MB / archivo
+export const MAX_TOTAL_BYTES = 90 * 1024 * 1024; // 90 MB / petición
 export const MAX_STEMS = 24;
 export const MAX_TEXT = 4000;
 

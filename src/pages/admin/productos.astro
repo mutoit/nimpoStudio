@@ -693,7 +693,7 @@ import Layout from "../../components/Layout.astro";
         .map((f) => {
           const url = URL.createObjectURL(f);
           if (f.type.startsWith("video/")) {
-            return `<video src="${url}" controls playsinline></video><p class="fname">${f.name}</p>`;
+            return `<div class="pvideo"><video src="${url}" controls playsinline preload="metadata"></video><div class="pvideo__bar"><span class="fname">${f.name}</span><button type="button" class="pvideo__fs" title="Pantalla completa">⛶ Pantalla completa</button></div></div>`;
           }
           return `<img src="${url}" alt="" /><p class="fname">${f.name}</p>`;
         })
@@ -702,6 +702,20 @@ import Layout from "../../components/Layout.astro";
   };
   bindPreview("[data-images]", "[data-images-preview]", true);
   bindPreview("[data-video]", "[data-video-preview]", false);
+
+  // Pantalla completa para los previews de vídeo (botones .pvideo__fs)
+  document.addEventListener("click", (ev) => {
+    const fsBtn = (ev.target as HTMLElement | null)?.closest<HTMLButtonElement>(
+      ".pvideo__fs",
+    );
+    if (!fsBtn) return;
+    const vid = fsBtn.closest(".pvideo")?.querySelector<HTMLVideoElement>("video");
+    if (vid?.requestFullscreen) {
+      void vid.requestFullscreen().catch(() => {
+        /* algunos navegadores lo bloquean sin gesto; ignoramos */
+      });
+    }
+  });
 
   const clearFileInputs = () => {
     form?.querySelectorAll('input[type="file"]').forEach((el) => {
@@ -761,7 +775,7 @@ import Layout from "../../components/Layout.astro";
       const v = item.video ? String(item.video) : "";
       if (v) {
         vids.hidden = false;
-        vids.innerHTML = `<p class="fname">Vídeo actual — se mantiene si no subes otro</p><video src="${v.replace(/"/g, "")}" controls playsinline></video>`;
+        vids.innerHTML = `<p class="fname">Vídeo actual — se mantiene si no subes otro</p><div class="pvideo"><video src="${v.replace(/\"/g, "")}" controls playsinline preload="metadata"></video><div class="pvideo__bar"><span class="fname">${baseName(v)}</span><button type="button" class="pvideo__fs" title="Pantalla completa">⛶ Pantalla completa</button></div></div>`;
       } else {
         vids.hidden = true;
         vids.innerHTML = "";
@@ -1274,7 +1288,11 @@ import Layout from "../../components/Layout.astro";
         try {
           data = JSON.parse(xhr.responseText || "{}") as Record<string, unknown>;
         } catch {
-          reject(new Error(`Respuesta no JSON (${xhr.status})`));
+          const hint =
+            xhr.status === 413
+              ? "El archivo supera el límite de la plataforma (~100 MB por petición). Comprime el vídeo (H.264) a menos de 90 MB."
+              : "La respuesta no fue JSON. Revisa la sesión de admin y reintenta; si persiste, comprime el vídeo.";
+          reject(new Error(`${hint} (HTTP ${xhr.status || 0})`));
           return;
         }
         resolve({
@@ -1326,6 +1344,17 @@ import Layout from "../../components/Layout.astro";
     }
 
     try {
+      // Pre-chequeo: Cloudflare limita el body a ~100 MB por petición (413 HTML, no JSON).
+      // Vídeo + bins no se comprimen → si suman >90 MB, avisar antes de subir.
+      const rawVideo = form.querySelector<HTMLInputElement>("[data-video]")?.files?.[0] || null;
+      const rawBytes =
+        (demoLocal?.size || 0) + (fullLocal?.size || 0) + (rawVideo?.size || 0);
+      const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
+      if (rawBytes > MAX_UPLOAD_BYTES) {
+        throw new Error(
+          `El vídeo/archivos suman ${formatBinSize(rawBytes)} y superan el límite de subida (~90 MB por petición). Comprime el vídeo (H.264) a menos de 90 MB.`,
+        );
+      }
       const fd = new FormData(form);
       // rename fields for API
       const body = new FormData();
@@ -1741,9 +1770,59 @@ import Layout from "../../components/Layout.astro";
     border-radius: 6px;
     border: 1px solid var(--color-border);
   }
-  .preview--video video {
-    max-width: 100%;
-    max-height: 10rem;
+  .preview--video {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  /* Preview de vídeo pequeño con botón de pantalla completa (4K incluido) */
+  .pvideo {
+    width: min(100%, 26rem);
+    background: #000;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+  }
+  .pvideo video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 14rem;
+    object-fit: contain;
+    border: none;
+    border-radius: 0;
+    background: #000;
+  }
+  .pvideo__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    background: #0d0d11;
+  }
+  .pvideo__bar .fname {
+    margin: 0;
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pvideo__fs {
+    flex: none;
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 5px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+  .pvideo__fs:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
   .fname {
     margin: 0;

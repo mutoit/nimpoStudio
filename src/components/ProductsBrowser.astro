@@ -613,6 +613,17 @@ const payload = {
       }
     };
 
+    const statusBadgeHtml = (item: Item): string => {
+      const st = item.status || "published";
+      if (st === "beta")
+        return `<span class="pb__item-badge pb__item-badge--beta">${escapeHtml(L.beta || "Beta")}</span>`;
+      if (st === "demo")
+        return `<span class="pb__item-badge pb__item-badge--demo">${escapeHtml(L.demoStatus || "Demo")}</span>`;
+      if (st === "coming-soon")
+        return `<span class="pb__item-badge pb__item-badge--soon">${escapeHtml(L.soon || "Soon")}</span>`;
+      return "";
+    };
+
     const renderList = () => {
       if (!listEl) return;
       if (!items.length) {
@@ -628,7 +639,7 @@ const payload = {
               <span class="pb__thumb">${thumbHtml(item)}</span>
               <span class="pb__meta">
                 <span class="pb__item-name">${escapeHtml(item.name)}</span>
-                <span class="pb__item-cat">${escapeHtml(item.category || "")}</span>
+                <span class="pb__item-cat">${escapeHtml(item.category || "")}${statusBadgeHtml(item)}</span>
               </span>
             </button>
           </li>`;
@@ -1122,12 +1133,39 @@ const payload = {
     text-overflow: ellipsis;
   }
   .pb__item-cat {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
     margin-top: 0.15rem;
     font-size: 0.65rem;
     color: var(--color-muted);
     letter-spacing: 0.04em;
     text-transform: uppercase;
+  }
+  .pb__item-badge {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.25;
+    padding: 0.05rem 0.3rem;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .pb__item-badge--beta {
+    color: #9ecbff;
+    background: rgb(12 28 50 / 0.55);
+    border-color: rgb(100 160 255 / 0.35);
+  }
+  .pb__item-badge--demo {
+    color: #b8f0c8;
+    background: rgb(12 40 24 / 0.55);
+    border-color: rgb(90 200 130 / 0.35);
+  }
+  .pb__item-badge--soon {
+    color: #ffb38a;
+    background: rgb(50 22 12 / 0.5);
+    border-color: rgb(255 140 80 / 0.35);
   }
 
   .pb__detail {

@@ -1,6 +1,6 @@
 # Estado del proyecto — Nimpo 3D Studio
 
-Última actualización: 2026-08-04 (Stripe live + tax_code + checkout OK)  
+Última actualización: 2026-08-16 (ficha catálogo horizontal + vídeo fullscreen + límite subida 90 MB)  
 Documento de handoff: **qué está hecho**, **qué falta** y **qué depende de ti**.
 
 ---
@@ -257,6 +257,9 @@ Código: `src/lib/library-browser/bind.ts` (mixer), `LibraryBrowser.astro` / `Mu
 
 ## Historial reciente (producto)
 
+- Ficha catálogo: **layout horizontal** — media (imagen/vídeo) arriba a proporción real (sin recortes) y texto debajo; vídeo con botón **⛶ pantalla completa**
+- Admin productos: previews de vídeo **pequeños** (`.pvideo`, máx 26rem) con botón pantalla completa; **límite de subida 90 MB** por petición (límite real de Cloudflare ~100 MB; antes 250 MB teóricos que nunca llegaban) + errores de guardado con código HTTP
+- Catálogo: **badge de estado BETA / DEMO / SOON** en el rail lateral (colores = chip de la ficha)
 - Admin `/admin/abonados/` + newsletter (abono en **home** bajo hero; rail = solo feed; confirm + avisar al publicar)
 - Catálogo ficha: **Compartir** + etiqueta **Probar beta** / **Probar demo** según status
 - Admin productos: estados **beta/demo**, precios decimales, media append al editar (no wipe)

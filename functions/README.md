@@ -70,7 +70,7 @@ Memoria del isolate + KV si hay binding. IP solo desde `CF-Connecting-IP`.
 
 - Extensiones allowlist (vídeo/audio/imagen/master)
 - MIME canónico por extensión
-- 100 MB/archivo, 250 MB/publish, 24 stems
+- 90 MB/archivo y por petición (límite real Cloudflare ~100 MB), 24 stems
 - **Stems/Master HQ:** `library/{slug}/full/…`, sin bake; bloqueado en `/api/media`
 - **Preview web:** un solo mix público (generado en admin; no se tocan los HQ)
 - Catálogo público: flags `hasStems`/`hasMaster` + `preview`; sin keys de entrega

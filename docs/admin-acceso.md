@@ -178,7 +178,7 @@ Form **unificado** por obra (ya no hay «Canal vídeo» / «Canal stems»):
 2. Título + media (vídeo y/o stems ± master) + moods
 3. **Publicar en la web** → `POST /admin/publish`  
    - Ext allowlist: vídeo `mp4/webm/mov`, audio `mp3/wav/…`, imagen `jpg/png/webp`  
-   - Máx **100 MB** / archivo, **250 MB** total, **24 stems**  
+   - Máx **90 MB** / archivo y por petición (límite real de Cloudflare ~100 MB; superarlo devuelve 413 sin JSON), **24 stems**  
    - Media → R2 + upsert catálogo (`catalog/library.json` / ítems)
 
 **No hace falta** copiar JSON ni redeploy.  

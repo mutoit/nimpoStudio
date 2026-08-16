@@ -33,6 +33,7 @@ export function isAnalyticsOptedOut(): boolean {
 
 export function setAnalyticsOptOut(on: boolean): void {
   if (typeof window === "undefined") return;
+  setOptOutCookie(on);
   try {
     if (on) localStorage.setItem(STORAGE_KEY, "1");
     else localStorage.removeItem(STORAGE_KEY);

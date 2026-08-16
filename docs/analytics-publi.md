@@ -75,12 +75,13 @@ Tras añadir variables: **nuevo deploy** (`git push` o redeploy manual).
 
 | Método | Qué hace |
 |--------|----------|
-| Abrir **una vez** `https://www.nimpo3dstudio.com/?nimpo_no_stats=1` | Guarda opt-out en **ese** navegador (`localStorage`). No envía a `/api/track`, GA, Clarity, Meta. |
+| Abrir **una vez** `https://www.nimpo3dstudio.com/?nimpo_no_stats=1` | Guarda opt-out en **ese** navegador (`localStorage` + **cookie**). No envía a `/api/track`, GA, Clarity, Meta. La **cookie** además hace que el servidor no cuente tus clics demo ni tus **descargas full**. |
 | Reactivar | `https://www.nimpo3dstudio.com/?nimpo_stats=1` |
 | Rutas `/admin/` | Siempre excluidas del collector propio (código) |
 | Otro navegador / incógnito | Hay que repetir el enlace una vez (otro almacén) |
+| **A nivel servidor (opcional)** | Variable `NIMPO_INTERNAL_IPS` (IPs separadas por coma) → ni `/api/track` ni `/api/download` cuentan eventos/descargas desde esas IPs. Cubre incógnito, otros navegadores y cualquier dispositivo de esa red. |
 
-**Código:** `src/lib/analytics/opt-out.ts` + `client.ts` (`track` / marketing no corren si opt-out).
+**Código:** `src/lib/analytics/opt-out.ts` + `client.ts` (`track` / marketing no corren si opt-out) + `functions/lib/stats-filter.ts` (filtro servidor en `/api/track` y `/api/download`).
 
 **Cloudflare Web Analytics** y el opt-out del estudio:
 

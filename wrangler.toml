@@ -17,4 +17,7 @@ preview_bucket_name = "nimpo-library"
 [vars]
 LIBRARY_PUBLIC_BASE = "https://pub-c5f9444f68c84064be0b94ebfd66c91c.r2.dev"
 # SEND_CLIENT_QUOTE_EMAIL = "0"  # no auto-mail al solicitante (default en código)
+# Tráfico interno (estudio): IPs separadas por coma que no cuentan en stats.
+# En producción se define en Pages → Settings → Environment variables.
+NIMPO_INTERNAL_IPS = ""
 

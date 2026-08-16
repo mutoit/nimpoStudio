@@ -43,6 +43,12 @@ export async function onRequest(context: {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
+  // Tráfico del estudio (cookie opt-out / ?nimpo_no_stats=1 / NIMPO_INTERNAL_IPS):
+  // no logueamos ni incrementamos contadores, pero respondemos ok para no romper el cliente.
+  if (isInternalTraffic(request, env)) {
+    return Response.json({ ok: true, ignored: true });
+  }
+
   try {
     const event = await request.json();
     const name = event.name || "unknown";

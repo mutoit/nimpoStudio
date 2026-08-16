@@ -195,7 +195,8 @@ export async function onRequest(context: { request: Request; env: Env }) {
     r2obj.httpMetadata?.contentType || "application/octet-stream";
 
   // Contar solo entrega real (GET), no HEAD de probes.
-  if (request.method === "GET") {
+  // Tráfico interno (estudio): se sirve la descarga pero NO se cuenta.
+  if (request.method === "GET" && !isInternalTraffic(request, env)) {
     const statSlug =
       payload.slug ||
       (key.startsWith("library/products/")
